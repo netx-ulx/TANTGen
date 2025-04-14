@@ -1,6 +1,5 @@
-from pso import PSO
-from AfterImageExtractor.FEKitsune import Kitsune
-from AfterImageExtractor.KitsuneTools import *
+from FEKitsune import Kitsune
+from KitsuneTools import *
 import numpy as np
 import pickle as pkl
 from scapy.all import *
@@ -76,29 +75,6 @@ class Manipulator:
         if init_pcap_file != "./data/empty.pcap":
             RunFE(self.global_FE)
 
-# ***
-    # def change_manipulator_params(self,
-    #                               grp_size=5,
-    #                               max_time_extend=5.,
-    #                               max_cft_pkt=5,
-    #                               min_time_extend=0.,
-    #                               max_crafted_pkt_prob=1.):
-    #     self.grp_size = grp_size
-    #     self.max_time_extend = max_time_extend
-    #     self.max_cft_pkt = max_cft_pkt
-    #     self.min_time_extend = min_time_extend
-    #     self.max_crafted_pkt_prob = max_crafted_pkt_prob
-
-    # def change_pso_params(self, max_iter=10, particle_num=20, grp_size=5):
-    #     self.pso_iter = max_iter
-    #     self.pso_num = particle_num
-    #     self.pso_size = grp_size
-
-    # def change_particle_params(self, w=0.4, c1=0.5, c2=1.):
-    #     self.w = w
-    #     self.c1 = c1
-    #     self.c2 = c2
-
     # def save_configurations(self, config_file):
 
     #     print("@Mani: Save configurations...")
@@ -118,14 +94,6 @@ class Manipulator:
     #         f.write("  min_cft_pkt_prob:" + str(0) + "\r\n")
     #         f.write("  max_cft_pkt_prob:" + str(self.max_crafted_pkt_prob) +
     #                 "\r\n\r\n")
-    #         f.write("(PSO Params)\r\n")
-    #         f.write("  pso_iter:        " + str(self.pso_iter) + "\r\n")
-    #         f.write("  pso_num:         " + str(self.pso_num) + "\r\n")
-    #         f.write("  pso_size:        " + str(self.pso_size) + "\r\n\r\n")
-    #         f.write("(Particle Params)\r\n")
-    #         f.write("  w:               " + str(self.w) + "\r\n")
-    #         f.write("  c1:              " + str(self.c1) + "\r\n")
-    #         f.write("  c2:              " + str(self.c2) + "\r\n")
     #         f.write("-" * 96 + "\r\n")
 # ***
 
@@ -175,9 +143,10 @@ class Manipulator:
 
             # print("@Manipulator: Create PSO")
             # ---- initialize PSO--------------------------------------------+
-            pso = PSO(max_iter=self.pso_iter,
-                      particle_num=self.pso_num,
-                      grp_size=self.pso_size)
+            print("@Manipulator: Initialize PSO")
+            # pso = PSO(max_iter=self.pso_iter,
+            #           particle_num=self.pso_num,
+            #           grp_size=self.pso_size)
 
             # ---- load a new pkt group--------------------------------------+
             groupList = self.pktList[st:ed]
@@ -189,18 +158,19 @@ class Manipulator:
                 pkt.time = float(pkt.time) + acc_ics_time
 
             # ---- execute PSO-----------------------------------------------+
-            pso_show_info = True
-            if self.grp_size < 50:
-                pso_show_info = False
-            ics_time, cur_end_time, \
-            STA_best_X, STA_best_feature, STA_best_pktList, STA_gbl_dis, STA_avg_dis,STA_best_all_feature,fe_time\
-                        = pso.execute(  last_end_time, groupList,
-                                        self.max_time_extend,self.max_cft_pkt, self.min_time_extend, self.max_crafted_pkt_prob,
-                                        self.mimic_set,
-                                        self.global_FE.FE.nstat,
-                                        self.knormer,
-                                        self.w,self.c1,self.c2,
-                                        pso_show_info,heuristic)
+            print("@Manipulator: Execute PSO...")
+            # pso_show_info = True
+            # if self.grp_size < 50:
+            #     pso_show_info = False
+            # ics_time, cur_end_time, \
+            # STA_best_X, STA_best_feature, STA_best_pktList, STA_gbl_dis, STA_avg_dis,STA_best_all_feature,fe_time\
+            #             = pso.execute(  last_end_time, groupList,
+            #                             self.max_time_extend,self.max_cft_pkt, self.min_time_extend, self.max_crafted_pkt_prob,
+            #                             self.mimic_set,
+            #                             self.global_FE.FE.nstat,
+            #                             self.knormer,
+            #                             self.w,self.c1,self.c2,
+            #                             pso_show_info,heuristic)
 
             FE_time += fe_time
             # ---- prepare for next pkt group--------------------------------+

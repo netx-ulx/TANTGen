@@ -1,6 +1,12 @@
 Cython
 matplotlib
-numpy
+numpy==1.26.4
+pandas
 scapy
 scipy
 setuptools
+torch
+transformers
+trl
+pyshark #?
+datasets #?
