@@ -1,3 +1,8 @@
 .DS_Store
 venv
 Kitsune/example
+new/__pycache__
+new/gpt2-finetuned-traffic
+new/cached_lm_GPT2Tokenizer_128_treino.txt
+new/cached_lm_GPT2Tokenizer_128_treino.txt.lock
+__pycache__
