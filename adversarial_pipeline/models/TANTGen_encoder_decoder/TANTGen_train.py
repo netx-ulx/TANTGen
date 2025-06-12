@@ -20,7 +20,7 @@ def get_config():
         'data_path': 'pcaps/original/Mirai3.csv',
         'model_folder': 'models/TANTGen_encoder_decoder',
         'model_name': 'tantgen_model.pth',
-        'experiment_name': 'TANTGen_encoder_decoder_experiment'
+        'experiment_name': 'models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment'
     }
 
 

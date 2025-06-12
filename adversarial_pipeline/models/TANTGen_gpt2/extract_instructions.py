@@ -1,7 +1,6 @@
 from scapy.all import raw, IP, TCP, UDP, ICMP, ARP
 import base64
 from utils import fast_read_pcap
-import time
 
 def generate_instruction_dataset(original_pcap, modified_pcap):
     output_txt = modified_pcap.replace(".pcap", "_instructions.txt")

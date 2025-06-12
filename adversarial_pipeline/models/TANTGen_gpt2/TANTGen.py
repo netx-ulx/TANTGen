@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import argparse
-from extract_flows import pcap_to_text
-from apply_modifications import apply_modifications
 from transformers import (
     GPT2Tokenizer,
     GPT2LMHeadModel,

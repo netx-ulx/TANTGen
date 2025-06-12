@@ -1,8 +1,17 @@
 .DS_Store
-venv
-Kitsune/example
-new/__pycache__
-new/gpt2-finetuned-traffic
-new/cached_lm_GPT2Tokenizer_128_treino.txt
-new/cached_lm_GPT2Tokenizer_128_treino.txt.lock
 __pycache__
+
+# Adversarial_pipeline
+adversarial_pipeline/models/TANTGen_encoder_decoder/*.pth
+adversarial_pipeline/models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment
+adversarial_pipeline/models/TANTGen_gpt2/gpt2-finetuned-traffic
+
+adversarial_pipeline/results/logs/lightning_logs
+
+adversarial_pipeline/pcaps/adversarial/*
+adversarial_pipeline/pcaps/original/*
+
+# Kitsune
+Kitsune/example
+
+venv
