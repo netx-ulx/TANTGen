@@ -1,0 +1,4 @@
+Train:
+python KitNET/model.py -M train -tf example/train_ben.npy
+
+save a model in example/mode.pkl
