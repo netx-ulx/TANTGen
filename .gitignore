@@ -6,12 +6,15 @@ adversarial_pipeline/models/TANTGen_encoder_decoder/*.pth
 adversarial_pipeline/models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment
 adversarial_pipeline/models/TANTGen_gpt2/gpt2-finetuned-traffic
 
-adversarial_pipeline/results/logs/lightning_logs
+adversarial_pipeline/results
+adversarial_pipeline/lightning_logs
 
-adversarial_pipeline/pcaps/adversarial/*
-adversarial_pipeline/pcaps/original/*
+adversarial_pipeline/pcaps/adversarial
+adversarial_pipeline/pcaps/original
 
-# Kitsune
-Kitsune/example
+adversarial_pipeline/Kitsune/example
+
+# Others
+others
 
 venv

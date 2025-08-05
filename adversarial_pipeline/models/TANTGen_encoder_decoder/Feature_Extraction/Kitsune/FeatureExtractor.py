@@ -16,20 +16,18 @@ import platform
 import subprocess
 
 
-
-
 #Extracts Kitsune features from given pcap file one packet at a time using "get_next_vector()"
 # If wireshark is installed (tshark) it is used to parse (it's faster), otherwise, scapy is used (much slower).
 # If wireshark is used then a tsv file (parsed version of the pcap) will be made -which you can use as your input next time
 class FE:
     def __init__(self,scapyin,limit=np.inf,roll_back=False):  ## file_path
         self.path = None ## file_path
-        self.limit = limit
+        # self.limit = limit
         self.parse_type = "scapy" # None #unknown
         self.curPacketIndx = 0
         self.tsvin = None #used for parsing TSV file
         self.scapyin = scapyin # None #used for parsing pcap with scapy
-        # self.limit = len(self.scapyin)
+        self.limit = len(self.scapyin)
         ### Prep pcap ##
         # self.__prep__()
 
