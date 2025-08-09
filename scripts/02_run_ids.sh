@@ -9,4 +9,4 @@ zeek -r $PCAP > $IDS_DIR/logs.txt
 echo "[+] Output in: $IDS_DIR/logs.txt"
 
 
-# test with bash scripts/03_run_ids.sh pcaps/adversarial/Mirai_adv.pcap
+# test with bash scripts/03_run_ids.sh data/adversarial/Mirai_adv.pcap

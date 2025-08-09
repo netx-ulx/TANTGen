@@ -1,8 +1,8 @@
 import os
 from models.TANTGen_gpt2.TANTGen import TANTGen
 
-input_pcap = "pcaps/original/Mirai.pcap"
-output_pcap = "pcaps/adversarial/Mirai_adv.pcap"
+input_pcap = "data/original/Mirai.pcap"
+output_pcap = "data/adversarial/Mirai_adv.pcap"
 
 model = TANTGen()
 model.read_model("models/TANTGen_gpt2/gpt2-finetuned-traffic")

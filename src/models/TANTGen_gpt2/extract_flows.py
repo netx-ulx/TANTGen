@@ -59,4 +59,4 @@ def pcap_to_text(pcap_file):
     print(f"[✓] Ficheiro TXT guardado como: {output_file}")
 
 # Exemplo de execução
-pcap_to_text("pcaps/original/Mirai.pcap")
+pcap_to_text("../data/original/Mirai.pcap")

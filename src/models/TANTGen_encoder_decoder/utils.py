@@ -274,4 +274,4 @@ class AdversarialTrafficDataset2(Dataset):
             torch.tensor(tgt_seq, dtype=torch.float32)   # (max_output_len, input_dim)
         )
     
-# dataset = PacketDataset2('pcaps/original/Mirai_Basics3.csv')
+# dataset = PacketDataset2('../data/original/Mirai_Basics3.csv')

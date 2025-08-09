@@ -1,20 +1,21 @@
 .DS_Store
 __pycache__
 
-# Adversarial_pipeline
-adversarial_pipeline/models/TANTGen_encoder_decoder/*.pth
-adversarial_pipeline/models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment
-adversarial_pipeline/models/TANTGen_gpt2/gpt2-finetuned-traffic
+# src
+src/models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment
+src/models/TANTGen_gpt2/gpt2-finetuned-traffic
 
-adversarial_pipeline/results
-adversarial_pipeline/lightning_logs
+src/results
+src/lightning_logs
 
-adversarial_pipeline/pcaps/adversarial
-adversarial_pipeline/pcaps/original
+data/adversarial
+data/original
 
-adversarial_pipeline/Kitsune/example
+src/Kitsune/example
 
 # Others
 others
 
 venv
+
+*.pth

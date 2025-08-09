@@ -1,0 +1,7 @@
+Retirado do TrafficManipulator
+
+1. Compiling cython file in AfterImage as follows:
+python setup.py build_ext --inplace
+
+2. Extracting features from raw packets (a csv and npy file will be generated):
+python extractor.py -i ../../../data/original/Mirai.pcap -o ../../../data/original/Mirai_Kitsune.csv

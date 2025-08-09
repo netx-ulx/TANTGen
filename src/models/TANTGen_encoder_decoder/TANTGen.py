@@ -27,7 +27,7 @@ def get_config():
         'num_epochs': 10,
         'lr': 1e-4,
         'seq_len': 4, # TODO: verify seq_len
-        'data_path': 'pcaps/original/Mirai3.csv',
+        'data_path': '../data/original/Mirai3.csv',
         'model_folder': 'models/TANTGen_encoder_decoder',
         'model_name': 'tantgen_model.pth',
         'experiment_name': 'models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment',

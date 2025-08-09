@@ -31,8 +31,8 @@ def get_config():
         'lr': 1e-4,
         'seq_len': 2, # TODO: verify seq_len
         'max_output_len': 3,  # tamanho máximo da sequência de saída
-        'data_path': 'pcaps/original/Mirai3.csv',
-        'target_data_path': 'pcaps/adversarial/Mirai3.csv',
+        'data_path': '../data/original/Mirai3.csv',
+        'target_data_path': '../data/adversarial/Mirai3.csv',
         'model_folder': 'models/TANTGen_encoder_decoder',
         'model_name': 'tantgen_model.pth',
         'finetuned_model_name': 'tantgen_finetuned_model.pth',

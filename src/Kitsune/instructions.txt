@@ -1,0 +1,12 @@
+# Train:
+python KitNET/model.py -M train -tf example/train_ben.npy
+
+save a model in example/mode.pkl
+
+# execute original traffic - replace with your own traffic
+python KitNET/model.py -M exec -tf original.npy -rf original_rmse.pkl
+(python KitNET/model.py -M exec -tf ../../data/original/Mirai_Kitsune.npy -rf ../../ids_output/original_mirai_rmse.pkl)
+
+# execute adversarial traffic - replace with your own traffic
+python KitNET/model.py -M exec -tf adversarial.npy -rf adversarial_rmse.pkl
+(python KitNET/model.py -M exec -tf ../../data/adversarial/Mirai_Mutated_Kitsune.npy -rf ../../ids_output/adversarial_mirai_rmse.pkl)

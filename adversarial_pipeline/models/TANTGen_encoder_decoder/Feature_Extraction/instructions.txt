@@ -1,1 +1,0 @@
-python dataloader.py -i ../../../pcaps/original/Mirai.pcap -o ../../../pcaps/original/Mirai_Basics.csv

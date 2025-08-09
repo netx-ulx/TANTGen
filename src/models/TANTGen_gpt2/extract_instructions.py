@@ -176,4 +176,4 @@ def build_injection_instruction(after_idx, pkt):
     except:
         return None
     
-generate_instruction_dataset("pcaps/original/Mirai.pcap", "pcaps/adversarial/Mirai.pcap")
+generate_instruction_dataset("../data/original/Mirai.pcap", "../data/adversarial/Mirai.pcap")
