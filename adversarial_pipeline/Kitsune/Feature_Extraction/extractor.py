@@ -21,7 +21,8 @@ if __name__ == "__main__":
     FE = Fe.Kitsune(scapyin, np.inf)
     feature, _ = RunFE(FE, output_file=feat_file, show_info=True)
 
-    # print(np.asarray(feature).shape)
-    # np.save(feat_file,feature)
+    feat_file_npy = feat_file.replace('.csv', '.npy')
 
-            
+    print(np.asarray(feature).shape)
+    np.save(feat_file_npy, feature)
+

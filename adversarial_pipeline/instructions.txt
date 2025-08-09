@@ -1,0 +1,5 @@
+1. TANTGen Train (models) (feature extraction + adversarial traffic generation)
+
+2. Kitsune Train
+
+3. Kitsune Execute

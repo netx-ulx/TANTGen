@@ -104,41 +104,6 @@ def build_dummy_packet(mac_src, mac_dst):
     payload = Raw(load=os.urandom(random.randint(10, 100)))
     return ether / ip / udp / payload
 
-# def rebuild_pcap():
-#     """
-#     Rebuilds a PCAP file with mutated packets based on the original and adversarial CSV files.
-#     """
-#     # Read original and adversarial dataframes, and the original PCAP file
-#     packets = fast_read_pcap("../../pcaps/original/Mirai.pcap")
-#     df_original = pd.read_csv("../../pcaps/original/Mirai_Basics.csv")
-#     df_adversarial = pd.read_csv("../../pcaps/adversarial/Mirai_Basics.csv")
-
-#     # Create a list to hold mutated packets
-#     mutated_packets = []
-
-#     i = 0
-#     for j in range(len(df_adversarial)):
-#         pkt = packets[i]
-#         orig_feat = df_original.iloc[i].to_dict()
-#         tgt_feat = df_adversarial.iloc[j].to_dict()
-#         mutations = infer_mutation(pkt, orig_feat, tgt_feat)
-#         if not mutations:
-#             mutated_packets.append(pkt)
-#             i += 1
-#         else:
-#             print(f"Packet {i}: {mutations}")
-#             for key, value in mutations.items():
-#                 if key == "inject":
-#                     new_pkt = build_packet_from_features(value)
-#                     last_time = mutated_packets[-1].time if mutated_packets else 0
-#                     new_pkt.time = value['inter_arrival'] + last_time
-#                     mutated_packets.append(new_pkt)
-#                 elif key == "delay":
-#                     pkt.time += value
-#                     mutated_packets.append(pkt)
-#                     i += 1
-
-#     wrpcap("../../pcaps/adversarial/Mirai_mutated.pcap", mutated_packets)
 
 def rebuild_pcap():
     df_original = pd.read_csv("../../../pcaps/original/Mirai_Basics.csv")
@@ -201,33 +166,3 @@ def rebuild_pcap():
     writer.close()
 
 rebuild_pcap()
-
-# def delay(pkt, seconds):
-#     pkt.time += seconds
-#     return pkt
-
-# def apply_transformation():
-#     """
-#     Apply a transformation to the packet.
-#     """
-    
-#     inter_arrival = target_features['inter_arrival']
-#     for pkt in packets:
-
-# def split(pkt):
-#     if Raw in pkt and len(pkt[Raw].load) > 1:
-#         data = pkt[Raw].load
-#         mid = len(data) // 2
-#         pkt1 = pkt.copy()
-#         pkt2 = pkt.copy()
-#         pkt1[Raw].load = data[:mid]
-#         pkt2[Raw].load = data[mid:]
-#         return [pkt1, pkt2]
-#     else:
-#         return [pkt]
-
-# def duplicate(pkt):
-#     return [pkt.copy(), pkt.copy()]
-
-# def inject(dummy_size=50):
-#     dummy_pkt = IP(dst="1.2.3.4", src="5.6.7.8") / TCP(dport=80, sport=random.randint(1000, 65000)) / Raw(load=os.urandom(dummy_size))

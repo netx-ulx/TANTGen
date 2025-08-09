@@ -4,4 +4,4 @@ Retirado do TrafficManipulator
 python setup.py build_ext --inplace
 
 2. Extracting features from raw packets
-python extractor.py -i ../../../../pcaps/original/Mirai.pcap -o ../../../../pcaps/original/Mirai_Kitsune.csv
+python extractor.py -i ../../pcaps/original/Mirai.pcap -o ../../pcaps/original/Mirai_Kitsune.csv
