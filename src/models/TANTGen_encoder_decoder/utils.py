@@ -72,6 +72,66 @@ class PacketDataset(Dataset):
     def n_features(self):
         return len(self.data[0])
     
+class PacketDatasetA(Dataset):
+    def __init__(self, csv_path, seq_len=32):
+        df = pd.read_csv(csv_path)
+
+        # List of continuous features (numerical values)
+        self.cont_features = [
+            "inter_arrival",
+            "packet_size",
+            "payload_len",
+            "payload_entropy"
+        ]
+
+        # List of categorical features (IDs, classes, etc)
+        self.cat_features = [
+            "protocol",
+            "src_ip",
+            "dst_ip",
+            "src_mac",
+            "dst_mac",
+            "ip_type",
+            "src_port",
+            "dst_port",
+            "tcp_flags"
+        ]
+
+        # Map categorical fields to unique IDs and replace in the dataframe
+        self.cat_maps = {}
+        for cat_feat in self.cat_features:
+            unique_vals = df[cat_feat].unique()
+            self.cat_maps[cat_feat] = {val: idx for idx, val in enumerate(unique_vals)}
+            df[cat_feat] = df[cat_feat].map(self.cat_maps[cat_feat])
+
+        # Extract numpy arrays for processing
+        self.cont_data = df[self.cont_features].values.astype(np.float32)
+        self.cat_data = df[self.cat_features].values.astype(np.int64)
+
+        # Normalize continuous data
+        self.mean = self.cont_data.mean(axis=0)
+        self.std = self.cont_data.std(axis=0) + 1e-6
+        self.cont_data = (self.cont_data - self.mean) / self.std
+
+        self.seq_len = seq_len
+
+    def __len__(self):
+        return len(self.cont_data) - self.seq_len
+
+    def __getitem__(self, idx):
+        cont_seq = self.cont_data[idx:idx+self.seq_len]
+        cont_target = self.cont_data[idx+1:idx+self.seq_len+1]
+
+        cat_seq = self.cat_data[idx:idx+self.seq_len]
+        cat_target = self.cat_data[idx+1:idx+self.seq_len+1]
+
+        return (
+            torch.tensor(cont_seq, dtype=torch.float32),  # sequência input contínua
+            torch.tensor(cat_seq, dtype=torch.long),      # sequência input categórica
+            torch.tensor(cont_target, dtype=torch.float32),  # sequência target contínua
+            torch.tensor(cat_target, dtype=torch.long)       # sequência target categórica
+        )
+    
 class PacketDataset2(Dataset):
     def __init__(self, csv_path, seq_len=32):
         df = pd.read_csv(csv_path)

@@ -28,11 +28,23 @@ def split_packet(pkt, target_size):
     return [pkt1, pkt2]
 
 
-def pad_packet(pkt, target_size):
+def pad_packet(pkt, padding_len):
     """
-    Function to pad a packet to a target size by adding zero bytes
+    Function to pad a packet by adding zero bytes
     """
     header = pkt.copy()
+
+    if Raw in pkt:
+        payload = bytes(pkt[Raw].load)
+        del header[Raw]
+    else:
+        payload = b""
+
+    padding_len = max(0, padding_len)
+    padding = b"\x00" * padding_len
+
+    new_pkt = header / Raw(load=payload + padding)
+    return new_pkt
 
     if Raw in pkt:
         payload = bytes(pkt[Raw].load)
@@ -53,9 +65,9 @@ def infer_mutation(pkt_features, target_features):
     if (target_features['inter_arrival'] - pkt_features['inter_arrival']) > 0:
         mutations["delay"] = target_features['inter_arrival'] - pkt_features['inter_arrival']
 
-    # Split: size bigger than target
-    if pkt_features['payload_len'] > target_features['payload_len']:
-        mutations["split"] = pkt_features['payload_len'] - target_features['payload_len']
+    # # Split: size bigger than target
+    # if pkt_features['payload_len'] > target_features['payload_len']:
+    #     mutations["split"] = pkt_features['payload_len'] - target_features['payload_len']
 
     # Pad: size smaller than target
     if pkt_features['payload_len'] < target_features['payload_len']:
@@ -72,7 +84,6 @@ def rebuild_pcap():
 
     i = 0
     j = 0
-    last_time = 0
     print(f"Rebuilding PCAP with {len(df_original)} original packets...")
     print(f"Rebuilding PCAP with {len(df_adversarial)} adversarial packets...")
 
@@ -87,21 +98,18 @@ def rebuild_pcap():
         mutations = infer_mutation(orig_feat, tgt_feat)
 
         print(f"[{j}] Infered Mutations: {mutations}")
-        if not mutations or "delay" in mutations.keys():
-            pkt.time = last_time + tgt_feat['inter_arrival']
-            writer.write(pkt)
-            last_time = pkt.time
-        elif "split" in mutations.keys():
-            split_pkts = split_packet(pkt, tgt_feat['payload_len'])
-            for sp_pkt in split_pkts:
-                sp_pkt.time = last_time + tgt_feat['inter_arrival']
-                writer.write(sp_pkt)
-                last_time = sp_pkt.time
-        elif "pad" in mutations.keys():
-            padded_pkt = pad_packet(pkt, tgt_feat['payload_len'])
-            padded_pkt.time = last_time + tgt_feat['inter_arrival']
+        if "pad" in mutations.keys():
+            padded_pkt = pad_packet(pkt, mutations["pad"])
+            padded_pkt.time += mutations.get("delay", 0)
             writer.write(padded_pkt)
-            last_time = padded_pkt.time
+        # elif "split" in mutations.keys():
+        #     split_pkts = split_packet(pkt, tgt_feat['payload_len'])
+        #     for sp_pkt in split_pkts:
+        #         sp_pkt.time = sp_pkt.time + mutations.get("delay", 0) # TODO: this way, both packets have the same time
+        #         writer.write(sp_pkt)
+        elif not mutations or "delay" in mutations.keys():
+            pkt.time += mutations.get("delay", 0)
+            writer.write(pkt)
         else:
             print(f"[{j}] Unknown mutation type: {mutations.keys()}")
 

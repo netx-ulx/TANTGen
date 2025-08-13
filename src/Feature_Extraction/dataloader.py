@@ -53,8 +53,8 @@ def get_basic_features(pcap_path):
         else:
             srcproto = '-1'
             dstproto = '-1'
-        srcMAC = pkt.src
-        dstMAC = pkt.dst
+        # srcMAC = pkt.src
+        # dstMAC = pkt.dst
         if srcproto == '-1':  # it's a L2/L1 level protocol
             if pkt.haslayer(ARP):  # is ARP
                 srcproto = 'arp'
@@ -74,14 +74,14 @@ def get_basic_features(pcap_path):
 
         row= {
             'inter_arrival': iat,
-            'packet_size': framelen,
+            # 'packet_size': framelen,
             'protocol': protocol,
             'src_ip': srcIP,
             'dst_ip': dstIP,
             'src_port': srcproto,
             'dst_port': dstproto,
-            'src_mac': srcMAC,
-            'dst_mac': dstMAC,
+            # 'src_mac': srcMAC,
+            # 'dst_mac': dstMAC,
             'tcp_flags': pkt[TCP].flags if pkt.haslayer(TCP) else 0,
             'payload_len': len(pkt[IP].payload) if pkt.haslayer(IP) else 0,
             'payload_entropy': entropy(bytes(pkt[IP].payload)) if pkt.haslayer(IP) else 0,
