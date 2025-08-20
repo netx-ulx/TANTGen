@@ -1,15 +1,13 @@
 from scapy.all import TCP, UDP, IP, ICMP, IPv6, ARP
 import pandas as pd
-import numpy as np
 import math
 import argparse
-import os
-import sys
+from scapy.utils import RawPcapReader
+from scapy.layers.l2 import Ether
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, ROOT_DIR)
-
-from utils import fast_read_pcap
+def fast_read_pcap(filename):
+    for pkt_data, _ in RawPcapReader(filename):
+        yield Ether(pkt_data)
 
 def entropy(data):
     if not data:
@@ -73,19 +71,18 @@ def get_basic_features(pcap_path):
         last_ts = timestamp
 
         row= {
-            'inter_arrival': iat,
-            # 'packet_size': framelen,
-            'protocol': protocol,
-            'src_ip': srcIP,
-            'dst_ip': dstIP,
-            'src_port': srcproto,
-            'dst_port': dstproto,
-            # 'src_mac': srcMAC,
-            # 'dst_mac': dstMAC,
-            'tcp_flags': pkt[TCP].flags if pkt.haslayer(TCP) else 0,
-            'payload_len': len(pkt[IP].payload) if pkt.haslayer(IP) else 0,
-            'payload_entropy': entropy(bytes(pkt[IP].payload)) if pkt.haslayer(IP) else 0,
-            'ip_type': IPtype
+            'Timestamp': timestamp,
+            'IAT': iat,
+            'Packet Size': framelen,
+            'Proto': protocol,
+            'Source IP': srcIP,
+            'Destination IP': dstIP,
+            'TCP Source Port': srcproto,
+            'TCP Destination Port': dstproto,
+            'TCP Flags': pkt[TCP].flags if pkt.haslayer(TCP) else 0,
+            'Payload Length': len(pkt[IP].payload) if pkt.haslayer(IP) else 0,
+            'Payload Entropy': entropy(bytes(pkt[IP].payload)) if pkt.haslayer(IP) else 0,
+            'IP Type': IPtype
         }
         rows.append(row)
     return pd.DataFrame(rows)

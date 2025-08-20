@@ -1,337 +1,158 @@
-from scapy.utils import RawPcapReader
-from scapy.layers.l2 import Ether
-from feature_config import features_used, feature_config
+# Original author: Siddhant Ray
 
-import pandas as pd
-import torch
-from torch.utils.data import Dataset
+from ipaddress import ip_address
+
 import numpy as np
-
-def fast_read_pcap(filename):
-    for pkt_data, _ in RawPcapReader(filename):
-        yield Ether(pkt_data)
-
-class FeatureNormalizer:
-    def __init__(self, feature_config):
-        self.config = feature_config
-        self.means = []
-        self.stds = []
-        self.mins = []
-        self.maxs = []
-
-    def fit(self, dataframe):
-        for feature in self.config:
-            if self.config[feature]["normalize"] == "zscore" or self.config[feature]["normalize"] == "minmax":
-                values = dataframe[feature].values
-                self.means.append(np.mean(values))
-                self.stds.append(np.std(values) + 1e-8)
-                self.mins.append(np.min(values))
-                self.maxs.append(np.max(values))
-            else:
-                self.means.append(0.0)
-                self.stds.append(1.0)
-                self.mins.append(self.config[feature]["min"])
-                self.maxs.append(self.config[feature]["max"])
-
-    def normalize(self, dataframe):
-        for feature in self.config:
-            if feature in dataframe:
-                if self.config[feature]["normalize"] == "zscore":
-                    dataframe[feature] = (dataframe[feature] - self.means[self.config[feature]["index"]]) / self.stds[self.config[feature]["index"]]
-                elif self.config[feature]["normalize"] == "minmax":
-                    dataframe[feature] = (dataframe[feature] - self.mins[self.config[feature]["index"]]) / (self.maxs[self.config[feature]["index"]] - self.mins[self.config[feature]["index"]])
-                elif self.config[feature]["normalize"] == "onehot":
-                    dataframe = pd.get_dummies(dataframe, columns=[feature], prefix=feature)
-        return dataframe
+import torch
 
 
-def create_field_mask(feature_config):
-    mask = [1.0 if feature_config[f]["trainable"] else 0.0 for f in feature_config]
-    return torch.tensor(mask, dtype=torch.float32)
-
-class PacketDataset(Dataset):
-    def __init__(self, csv_path, seq_len=32):
-        df = pd.read_csv(csv_path)
-        #self.data = df[["timestamp", "inter_arrival", "packet_size", "src_ip_id", "dst_ip_id", "protocol_id",
-        #                 "src_port", "dst_port", "tcp_flags", "flow_id", "payload_len", "payload_entropy", "delay"]].values
-        #self.data = df[["inter_arrival", "packet_size", "dst_ip_id", "inter_arrival"]].values
-        self.data = df[["timestamp", "inter_arrival", "packet_size", "dst_ip_id"]].values
-        self.seq_len = seq_len
-        self.mean = self.data.mean(axis=0)
-        self.std = self.data.std(axis=0) + 1e-6
-    def __len__(self):
-        return len(self.data) - self.seq_len
+# Dataset helper for PyTorch
+class PacketDataset(torch.utils.data.Dataset):
+    def __init__(self, encodings, labels):
+        self.encodings = encodings
+        self.labels = labels
 
     def __getitem__(self, idx):
-        x = self.data[idx : idx + self.seq_len]
-        x = (x - self.mean) / self.std
-        y = self.data[idx + 1 : idx + self.seq_len + 1]
-        y = (y - self.mean) / self.std
-        return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
-    
-    def n_features(self):
-        return len(self.data[0])
-    
-class PacketDatasetA(Dataset):
-    def __init__(self, csv_path, seq_len=32):
-        df = pd.read_csv(csv_path)
+        feature = self.encodings[idx]
+        label = self.labels[idx]
+        return feature, label
 
-        # List of continuous features (numerical values)
-        self.cont_features = [
-            "inter_arrival",
-            "packet_size",
-            "payload_len",
-            "payload_entropy"
+    def __len__(self):
+        return len(self.labels)
+
+
+# Dataset helper for PyTorch with features only
+class PacketDatasetFinetune(torch.utils.data.Dataset):
+    def __init__(self, encodings):
+        self.encodings = encodings
+
+    def __getitem__(self, idx):
+        feature = self.encodings[idx]
+        return feature
+
+    def __len__(self):
+        return len(self.encodings)
+
+
+def convert_to_relative_timestamp(df):
+    t_arr = df["Timestamp"].iloc[0]
+    t_arr_abs = df["Timestamp"] - t_arr
+    df["Timestamp"] = t_arr_abs
+    return df
+
+
+# Convert IP address to integer
+def ipaddress_to_number(df):
+    df["Source IP"] = df["Source IP"].apply(
+        lambda s: int(ip_address(s.lstrip(" "))) if s != "-1" else -1
+    )
+    df["Destination IP"] = df["Destination IP"].apply(
+        lambda s: int(ip_address(s.lstrip(" "))) if s != "-1" else -1
+    )
+    return df
+
+
+def vectorize_features_to_numpy(
+    feature_frame, reduced=False, normalize=True
+):
+    label_frame = feature_frame["IAT"]  # In seconds
+    feature_frame["IAT"] = feature_frame["IAT"]  # In seconds
+    ### Keep the IAT, mask nth IAT in batch during training
+
+    ## Convert the destination IP to single IDs
+    feature_frame["Destination IP"] = feature_frame["Destination IP"].apply(
+        lambda x: get_last_digit(x)
+    )
+    # Normalise the destination IP with mean and std
+    mean_ip = np.mean(feature_frame["Destination IP"])
+    std_ip = np.std(feature_frame["Destination IP"])
+    feature_frame["Destination IP"] = (
+        feature_frame["Destination IP"] - mean_ip
+    ) / std_ip
+
+    # Normalise IP ID with mean and std
+    # mean_ip_id = np.mean(feature_frame["IP ID"])
+    # std_ip_id = np.std(feature_frame["IP ID"])
+    # feature_frame["IP ID"] = (feature_frame["IP ID"] - mean_ip_id) / std_ip_id
+
+    # feature_frame.drop(['IAT'], axis = 1, inplace=True)
+    feature_frame["Combined"] = feature_frame.apply(lambda row: row.to_numpy(), axis=1)
+
+    ## Only keep packet size and IAT
+    if normalize:
+        feature_frame_reduced = feature_frame[
+            [
+                "Timestamp",
+                "Destination IP",
+                "Normalised Packet Size",
+                "Normalised IAT",
+                "Combined",
+            ]
         ]
-
-        # List of categorical features (IDs, classes, etc)
-        self.cat_features = [
-            "protocol",
-            "src_ip",
-            "dst_ip",
-            "src_mac",
-            "dst_mac",
-            "ip_type",
-            "src_port",
-            "dst_port",
-            "tcp_flags"
+    else:
+        feature_frame_reduced = feature_frame[
+            ["Timestamp", "Destination IP", "Packet Size", "IAT", "Combined"]
         ]
+    # feature_frame_reduced = feature_frame_reduced.copy()
+    # feature_frame_reduced["Combined"] = feature_frame_reduced.apply(
+    #     lambda row: row.to_numpy(), axis=1
+    # )
 
-        # Map categorical fields to unique IDs and replace in the dataframe
-        self.cat_maps = {}
-        for cat_feat in self.cat_features:
-            unique_vals = df[cat_feat].unique()
-            self.cat_maps[cat_feat] = {val: idx for idx, val in enumerate(unique_vals)}
-            df[cat_feat] = df[cat_feat].map(self.cat_maps[cat_feat])
+    if reduced:
+        return feature_frame_reduced, label_frame
+    return feature_frame, label_frame
 
-        # Extract numpy arrays for processing
-        self.cont_data = df[self.cont_features].values.astype(np.float32)
-        self.cat_data = df[self.cat_features].values.astype(np.int64)
+### Faster sliding windows (MUCH faster)
+def make_windows_features(input_array, window_length, num_features, batchsize):
+    """Yield windows one by one."""
+    # Adjust window and batch size for multiple features.
+    _windowsize = num_features * window_length
+    _batchsize = num_features * batchsize
 
-        # Normalize continuous data
-        self.mean = self.cont_data.mean(axis=0)
-        self.std = self.cont_data.std(axis=0) + 1e-6
-        self.cont_data = (self.cont_data - self.mean) / self.std
-
-        self.seq_len = seq_len
-
-    def __len__(self):
-        return len(self.cont_data) - self.seq_len
-
-    def __getitem__(self, idx):
-        cont_seq = self.cont_data[idx:idx+self.seq_len]
-        cont_target = self.cont_data[idx+1:idx+self.seq_len+1]
-
-        cat_seq = self.cat_data[idx:idx+self.seq_len]
-        cat_target = self.cat_data[idx+1:idx+self.seq_len+1]
-
-        return (
-            torch.tensor(cont_seq, dtype=torch.float32),  # sequência input contínua
-            torch.tensor(cat_seq, dtype=torch.long),      # sequência input categórica
-            torch.tensor(cont_target, dtype=torch.float32),  # sequência target contínua
-            torch.tensor(cat_target, dtype=torch.long)       # sequência target categórica
+    last_start = len(input_array) - _windowsize
+    last_end = len(input_array) - _windowsize + 1
+    for start_index in range(0, last_start, _batchsize):
+        end_index = min(last_end, start_index + _batchsize)
+        index_matrix = (
+            np.arange(start_index, end_index, num_features)[:, None]
+            + np.arange(_windowsize)[None, :]
         )
-    
-class PacketDataset2(Dataset):
-    def __init__(self, csv_path, seq_len=32):
-        df = pd.read_csv(csv_path)
-        df = df[features_used]
-        # self.data = df[features_used].values
-        self.seq_len = seq_len
-        self.feature_config = feature_config
-        self.normalizer = FeatureNormalizer(self.feature_config)
-        self.normalizer.fit(df)
-        self.data = self.normalizer.normalize(df).values
 
-    def __len__(self):
-        return len(self.data) - self.seq_len
-
-    def __getitem__(self, idx):
-        x = self.data[idx : idx + self.seq_len]
-        y = self.data[idx + 1 : idx + self.seq_len + 1]
-        return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
-    
-    def n_features(self):
-        return len(self.data[0])
+        # Yields batches of sequences as arrays
+        # yield input_array[index_matrix]
+        # Yields sequence after sequence
+        yield from input_array[index_matrix]
 
 
-class AdversarialTrafficDataset(Dataset):
-
-    def __init__(self, input_csv, output_csv, mask, seq_len=32, max_output_len=33):
-        self.seq_len = seq_len
-        self.max_output_len = max_output_len
-
-        # self.cols = ["inter_arrival", "packet_size", "dst_ip_id", "inter_arrival"]
-        self.cols = ["inter_arrival", "inter_arrival", "packet_size", "dst_ip_id"]
-        self.input_df = pd.read_csv(input_csv)
-        self.output_df = pd.read_csv(output_csv)
-
-        self.input_data = self.input_df[self.cols].values
-        self.output_data = self.output_df[self.cols].values
-
-        # Normalização baseada no input
-        self.mean = self.input_data.mean(axis=0)
-        self.std = self.input_data.std(axis=0) + 1e-6
-
-        # Marcadores especiais
-        self.start_token = np.ones((1, len(self.cols))) * -2.0
-        self.end_token = np.ones((1, len(self.cols))) * -3.0
-        self.pad_token = np.zeros((1, len(self.cols)))
-
-        # invert mask 0  -> 1 and 1 -> 0
-        mask = np.where(mask == 0, 1, 0).astype(np.float32)
-
-        self.output_sequences = self._split_output_by_input(mask)
-
-    def _split_output_by_input(self, mask):
-        output_seqs = []
-        out_idx = 0
-        in_idx = 0
-        while out_idx < len(self.output_data):
-            out_masked = self.output_data[out_idx] * mask
-            in_masked = self.input_data[in_idx] * mask
-            if np.array_equal(out_masked, in_masked):
-                # If the next packet in output matches the next packet in input, take seq_len packets
-                # This assumes that the input and output sequences are aligned
-                chunk = self.output_data[out_idx]
-            else:
-                # If the next packet in output does not match the next packet in input, take + 1 packets
-                chunk = self.output_data[out_idx: out_idx + 2]
-                out_idx += 1
-            output_seqs.append(chunk)
-            out_idx += 1
-            in_idx += 1
-        print(f"Total output sequences: {len(output_seqs)}")
-        print(f"Total input sequences: {len(self.input_data)}")
-        return output_seqs[:len(self.input_data)]
-
-    def __len__(self):
-        return len(self.input_data) - self.seq_len
-
-    def __getitem__(self, idx):
-        # Input: packet original sequence
-        src_seq = self.input_data[idx : idx + self.seq_len]
-        src_seq = (src_seq - self.mean) / self.std
-        pad_len = self.max_output_len - src_seq.shape[0]
-        src_seq = np.concatenate([self.start_token, src_seq, self.end_token, np.repeat(self.pad_token, pad_len, axis=0)], axis=0)
-
-        # Output: adversarial sequence (pre-defined)
-        tgt_seq = []
-        for i in range(self.seq_len):
-            if len(self.output_sequences[idx + i].shape) == 1:
-                tgt_seq.append(list(self.output_sequences[idx + i]))
-            else:
-                # If the output sequence has more than one packet, add all separately
-                for a in self.output_sequences[idx + i]:
-                    tgt_seq.append(list(a))
-
-        tgt_seq = (tgt_seq - self.mean) / self.std
-
-        # Add special tokens
-        tgt_seq = np.concatenate([self.start_token, tgt_seq], axis=0)
-
-        # Padding to max_output_len
-        if tgt_seq.shape[0] - 1 < self.max_output_len:
-            pad_len = self.max_output_len - tgt_seq.shape[0] + 1
-            tgt_seq = np.concatenate([tgt_seq, self.end_token, np.repeat(self.pad_token, pad_len, axis=0)], axis=0)
-        else:
-            tgt_seq = tgt_seq[:self.max_output_len + 1]  # +1 for start token
-            tgt_seq = np.concatenate([tgt_seq, self.end_token], axis=0)
-
-
-        return (
-            torch.tensor(src_seq, dtype=torch.float32),  # (seq_len, input_dim)
-            torch.tensor(tgt_seq, dtype=torch.float32)   # (max_output_len, input_dim)
+def make_windows_iat(input_array, window_length, batchsize):
+    """Yield windows one by one."""
+    last_start = len(input_array) - window_length
+    last_end = len(input_array) - window_length + 1
+    for start_index in range(0, last_start, batchsize):
+        end_index = min(last_end, start_index + batchsize)
+        index_matrix = (
+            np.arange(start_index, end_index)[:, None]
+            + np.arange(window_length)[None, :]
         )
-    
 
-class AdversarialTrafficDataset2(Dataset):
-
-    def __init__(self, input_csv, output_csv, mask, seq_len=32, max_output_len=33):
-        self.seq_len = seq_len
-        self.max_output_len = max_output_len
-
-        self.input_df = pd.read_csv(input_csv)
-        self.output_df = pd.read_csv(output_csv)
-
-        self.input_data = self.input_df[features_used].values
-        self.output_data = self.output_df[features_used].values
-
-        self.feature_config = feature_config
-        self.normalizer = FeatureNormalizer(self.feature_config)
-        self.normalizer.fit(self.input_data)
-
-        self.input_data = np.array([self.normalizer.normalize_packet(packet) for packet in self.input_data])
-        self.output_data = np.array([self.normalizer.normalize_packet(packet) for packet in self.output_data])
-
-        # Marcadores especiais
-        self.start_token = np.ones((1, len(features_used))) * -2.0
-        self.end_token = np.ones((1, len(features_used))) * -3.0
-        self.pad_token = np.zeros((1, len(features_used)))
-        
-        mask = np.where(mask == 0, 1, 0).astype(np.float32) # TODO verificar as que sao derivaveis, isto nao vai dar certo.
-
-        self.output_sequences = self._split_output_by_input(mask)
-
-    def _split_output_by_input(self, mask):
-        output_seqs = []
-        out_idx = 0
-        in_idx = 0
-        while out_idx < len(self.output_data):
-            out_masked = self.output_data[out_idx] * mask
-            in_masked = self.input_data[in_idx] * mask
-            if np.array_equal(out_masked, in_masked):
-                # If the next packet in output matches the next packet in input, take seq_len packets
-                # This assumes that the input and output sequences are aligned
-                chunk = self.output_data[out_idx]
-            else:
-                # If the next packet in output does not match the next packet in input, take + 1 packets
-                chunk = self.output_data[out_idx: out_idx + 2]
-                out_idx += 1
-            output_seqs.append(chunk)
-            out_idx += 1
-            in_idx += 1
-        print(f"Total output sequences: {len(output_seqs)}")
-        print(f"Total input sequences: {len(self.input_data)}")
-        return output_seqs[:len(self.input_data)]
-
-    def __len__(self):
-        return len(self.input_data) - self.seq_len
-
-    def __getitem__(self, idx):
-        # Input: packet original sequence
-        src_seq = self.input_data[idx : idx + self.seq_len]
-        src_seq = (src_seq - self.mean) / self.std
-        pad_len = self.max_output_len - src_seq.shape[0]
-        src_seq = np.concatenate([self.start_token, src_seq, self.end_token, np.repeat(self.pad_token, pad_len, axis=0)], axis=0)
-
-        # Output: adversarial sequence (pre-defined)
-        tgt_seq = []
-        for i in range(self.seq_len):
-            if len(self.output_sequences[idx + i].shape) == 1:
-                tgt_seq.append(list(self.output_sequences[idx + i]))
-            else:
-                # If the output sequence has more than one packet, add all separately
-                for a in self.output_sequences[idx + i]:
-                    tgt_seq.append(list(a))
-
-        tgt_seq = (tgt_seq - self.mean) / self.std
-
-        # Add special tokens
-        tgt_seq = np.concatenate([self.start_token, tgt_seq], axis=0)
-
-        # Padding to max_output_len
-        if tgt_seq.shape[0] - 1 < self.max_output_len:
-            pad_len = self.max_output_len - tgt_seq.shape[0] + 1
-            tgt_seq = np.concatenate([tgt_seq, self.end_token, np.repeat(self.pad_token, pad_len, axis=0)], axis=0)
-        else:
-            tgt_seq = tgt_seq[:self.max_output_len + 1]  # +1 for start token
-            tgt_seq = np.concatenate([tgt_seq, self.end_token], axis=0)
+        # Yields batches of sequences as arrays
+        # yield input_array[index_matrix]
+        # Yields sequence after sequence
+        yield from input_array[index_matrix]
 
 
-        return (
-            torch.tensor(src_seq, dtype=torch.float32),  # (seq_len, input_dim)
-            torch.tensor(tgt_seq, dtype=torch.float32)   # (max_output_len, input_dim)
-        )
-    
-# dataset = PacketDataset2('../data/original/Mirai_Basics3.csv')
+## Uitlity function to mmap individual packets to aggregated sequences
+def reverse_index(index):
+    if index == 0:
+        return (0, 511)
+    if index < 16:
+        index -= 1
+        return (512 + index * 32, 512 + (index + 1) * 32)
+    start = 992
+    index -= 16
+    return (start + index - 1, start + index)
+
+
+# Extract last digit of the IP integer
+def get_last_digit(ip):
+    return ip % 10
