@@ -32,12 +32,32 @@ class PacketDatasetFinetune(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.encodings)
+    
 
+def standardize_column(df, column_name):
+    mean = df[column_name].mean()
+    std = df[column_name].std()
+    df[column_name] = df[column_name].apply(
+        lambda x: (x - mean) / std if std else 0
+    )
+    return df
 
+def standardize_ips(df):
+    df["Source IP"] = df["Source IP"].apply(
+        lambda x: get_last_digit(x)
+    )
+    df = standardize_column(df, "Source IP")
+
+    df["Destination IP"] = df["Destination IP"].apply(
+        lambda x: get_last_digit(x)
+    )
+    df = standardize_column(df, "Destination IP")
+    return df
+
+# -----------------------------------------------------------------------
+# Original author: Siddhant Ray
 def convert_to_relative_timestamp(df):
-    t_arr = df["Timestamp"].iloc[0]
-    t_arr_abs = df["Timestamp"] - t_arr
-    df["Timestamp"] = t_arr_abs
+    df["Timestamp"] -= df["Timestamp"].iloc[0]
     return df
 
 
@@ -51,56 +71,6 @@ def ipaddress_to_number(df):
     )
     return df
 
-
-def vectorize_features_to_numpy(
-    feature_frame, reduced=False, normalize=True
-):
-    label_frame = feature_frame["IAT"]  # In seconds
-    feature_frame["IAT"] = feature_frame["IAT"]  # In seconds
-    ### Keep the IAT, mask nth IAT in batch during training
-
-    ## Convert the destination IP to single IDs
-    feature_frame["Destination IP"] = feature_frame["Destination IP"].apply(
-        lambda x: get_last_digit(x)
-    )
-    # Normalise the destination IP with mean and std
-    mean_ip = np.mean(feature_frame["Destination IP"])
-    std_ip = np.std(feature_frame["Destination IP"])
-    feature_frame["Destination IP"] = (
-        feature_frame["Destination IP"] - mean_ip
-    ) / std_ip
-
-    # Normalise IP ID with mean and std
-    # mean_ip_id = np.mean(feature_frame["IP ID"])
-    # std_ip_id = np.std(feature_frame["IP ID"])
-    # feature_frame["IP ID"] = (feature_frame["IP ID"] - mean_ip_id) / std_ip_id
-
-    # feature_frame.drop(['IAT'], axis = 1, inplace=True)
-    feature_frame["Combined"] = feature_frame.apply(lambda row: row.to_numpy(), axis=1)
-
-    ## Only keep packet size and IAT
-    if normalize:
-        feature_frame_reduced = feature_frame[
-            [
-                "Timestamp",
-                "Destination IP",
-                "Normalised Packet Size",
-                "Normalised IAT",
-                "Combined",
-            ]
-        ]
-    else:
-        feature_frame_reduced = feature_frame[
-            ["Timestamp", "Destination IP", "Packet Size", "IAT", "Combined"]
-        ]
-    # feature_frame_reduced = feature_frame_reduced.copy()
-    # feature_frame_reduced["Combined"] = feature_frame_reduced.apply(
-    #     lambda row: row.to_numpy(), axis=1
-    # )
-
-    if reduced:
-        return feature_frame_reduced, label_frame
-    return feature_frame, label_frame
 
 ### Faster sliding windows (MUCH faster)
 def make_windows_features(input_array, window_length, num_features, batchsize):
@@ -141,7 +111,7 @@ def make_windows_iat(input_array, window_length, batchsize):
         yield from input_array[index_matrix]
 
 
-## Uitlity function to mmap individual packets to aggregated sequences
+## Utility function to mmap individual packets to aggregated sequences
 def reverse_index(index):
     if index == 0:
         return (0, 511)
@@ -156,3 +126,6 @@ def reverse_index(index):
 # Extract last digit of the IP integer
 def get_last_digit(ip):
     return ip % 10
+
+# -----------------------------------------------------------------------
+
