@@ -14,19 +14,19 @@ from utils import (
 SLIDING_WINDOW_SIZE = 1024
 WINDOW_BATCH_SIZE = 5000
 NUM_FEATURES = 11
+WINDOW_STRIDE = 16
 
 def generate_sliding_windows(
     SLIDING_WINDOW_SIZE,
     WINDOW_BATCH_SIZE,
-    NUM_FEATURES,
+    WINDOW_STRIDE,
+    NUM_FEATURES
 ):
 
     num_features = NUM_FEATURES
     window_size = SLIDING_WINDOW_SIZE
     window_batch_size = WINDOW_BATCH_SIZE
-
-    full_feature_arr = []
-    full_target_arr = []
+    stride = WINDOW_STRIDE
 
     path = "../../../data/preprocessed/adversarial_train/"
 
@@ -43,34 +43,31 @@ def generate_sliding_windows(
     df = standardize_column(df, "Payload Length")
     df = standardize_column(df, "Payload Entropy")
 
+    label_df = df["IAT"]
+    print(label_df.head(), label_df.shape)
+    ### Keep the IAT, mask nth IAT in batch during training
+
     mean_iat = df["IAT"].mean()
     std_iat = df["IAT"].std()
     df["IAT"] = df["IAT"].apply(
         lambda x: (x - mean_iat) / std_iat
     )
 
-    label_df = df["IAT"]
-    print(label_df.head(), label_df.shape)
-    ### Keep the IAT, mask nth IAT in batch during training
-
     # Create sliding window features
     input_array = np.hstack(df.apply(lambda row: row.to_numpy(), axis=1).values.flatten())
     target_array = label_df.values
     feature_arr = list(
         make_windows_features(
-            input_array, window_size, num_features, window_batch_size
+            input_array, window_size, num_features, window_batch_size, stride
         )
     )
     target_arr = list(
-        make_windows_iat(target_array, window_size, window_batch_size)
+        make_windows_iat(target_array, window_size, window_batch_size, stride)
     )
 
-    full_feature_arr = full_feature_arr + feature_arr
-    full_target_arr = full_target_arr + target_arr
+    print(len(feature_arr), len(target_arr))
 
-    print(len(full_feature_arr), len(full_target_arr))
-
-    return full_feature_arr, full_target_arr, mean_iat, std_iat, df
+    return feature_arr, target_arr, mean_iat, std_iat, df
 
 
 if __name__ == "__main__":
@@ -84,7 +81,8 @@ if __name__ == "__main__":
     ) = generate_sliding_windows(
         SLIDING_WINDOW_SIZE,
         WINDOW_BATCH_SIZE,
-        NUM_FEATURES,
+        WINDOW_STRIDE,
+        NUM_FEATURES
     )
 
 

@@ -2,7 +2,7 @@
 
 import argparse
 import os
-import random
+import math
 import time as t
 from datetime import datetime
 
@@ -21,14 +21,32 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from utils import (
     PacketDataset,
-    reverse_index,
 )
 
-random.seed(0)
-np.random.seed(0)
 torch.manual_seed(0)
 
 torch.set_default_dtype(torch.float64)
+
+class PositionalEncoding(nn.Module):
+    '''
+    Implement the PE function.
+    Positional encoding is used to give the model some information about the relative or absolute position of the tokens in the sequences.
+    From "Attention Is All You Need" paper
+    '''
+    def __init__(self, d_model, max_len=5000): # TODO verify max_len
+        super(PositionalEncoding, self).__init__()
+        pe = torch.zeros(max_len, d_model)
+        pos = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+
+        pe[:, 0::2] = torch.sin(pos * div)
+        pe[:, 1::2] = torch.cos(pos * div)
+
+        pe = pe.unsqueeze(1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        return x + self.pe[:x.size(0)]
 
 
 # TRANSFOMER CLASS TO PREDICT IATs
@@ -41,88 +59,59 @@ class Transformer(pl.LightningModule):
         loss_function2,
         iat_mean,
         iat_std,
-        packets_per_embedding,
         layers,
         num_heads,
         dropout,
         weight_decay,
         learning_rate,
-        epochs,
-        batch_size,
         linear_size,
         sliding_window_size,
         dual_loss,
-        use_hierarchical_aggregation=True,
     ):
         super(Transformer, self).__init__()
 
         self.step = 0
 
+        self.input_size = input_size
         self.weight_decay = weight_decay
         self.learning_rate = learning_rate
         self.linear_size = linear_size
         self.sliding_window_size = sliding_window_size
         self.dual_loss = dual_loss
 
-        # parameters = {
-        #     "WEIGHTDECAY": self.weight_decay,
-        #     "LEARNINGRATE": self.learning_rate,
-        #     "EPOCHS": epochs,
-        #     "BATCHSIZE": batch_size,
-        #     "LINEARSIZE": self.linear_size,
-        #     "NHEAD": num_heads,
-        #     "LAYERS": layers,
-        # }
-        # self.df = pd.DataFrame()
-        # self.df["parameters"] = [json.dumps(parameters)]
-
-        ## Mask out the nth iat in every input sequence (do it at run time) TODO ?? AQUI?
+        ## Mask out the nth iat in every input sequence (do it at run time)
         
         ## Use multi-level hierarchical aggregation
         self.packet_size = int(input_size / self.sliding_window_size)
-        if use_hierarchical_aggregation:
-            # Change into hierarchical embedding
-            self.feature_transform1 = nn.Sequential(
-                Rearrange(
-                    "b (seq feat) -> b seq feat",
-                    seq=self.sliding_window_size,
-                    feat=self.packet_size,
-                ),  # Make 1000
-                nn.Linear(self.packet_size, self.linear_size),
-                nn.LayerNorm(self.linear_size),  # pre-normalization
-            )
-            self.remaining_packets1 = self.sliding_window_size - 32
+        # Change into hierarchical embedding
+        self.feature_transform1 = nn.Sequential(
+            Rearrange(
+                "b (seq feat) -> b seq feat",
+                seq=self.sliding_window_size,
+                feat=self.packet_size,
+            ),  # Make 1000
+            nn.Linear(self.packet_size, self.linear_size),
+            nn.LayerNorm(self.linear_size),  # pre-normalization
+        )
+        
+        # (remaining_packets = self.sliding_window_size - 512)
+        self.feature_transform2 = nn.Sequential(
+            Rearrange("b (seq n) feat  -> b seq (feat n)", n=32),
+            nn.Linear(self.linear_size * 32, self.linear_size),
+            nn.LayerNorm(self.linear_size),  # pre-normalization
+        )
 
-            self.feature_transform2 = nn.Sequential(
-                Rearrange("b (seq n) feat  -> b seq (feat n)", n=32),
-                nn.Linear(self.linear_size * 32, self.linear_size),
-                nn.LayerNorm(self.linear_size),  # pre-normalization
-            )
-            self.remaining_packets2 = (self.remaining_packets1 // 32) - 15
+        # (remaining_packets = (self.remaining_packets // 32) - 8)
+        self.feature_transform3 = nn.Sequential(
+            Rearrange("b (seq n) feat -> b seq (feat n)", n=8),
+            nn.Linear(self.linear_size * 8, self.linear_size),
+            nn.LayerNorm(self.linear_size),  # pre-normalization
+        )
 
-            self.feature_transform3 = nn.Sequential(
-                Rearrange("b (seq n) feat -> b seq (feat n)", n=16),
-                nn.Linear(self.linear_size * 16, self.linear_size),
-                nn.LayerNorm(self.linear_size),  # pre-normalization
-            )
+        # target Embedding
+        self.tgt_embedding = nn.Linear(target_size, self.linear_size)
 
-        ## Use common size aggregation
-        else:
-            self.feature_transform1 = nn.Sequential(
-                Rearrange(
-                    "b (seq feat) -> b seq feat",
-                    seq=self.sliding_window_size // packets_per_embedding,
-                    feat=self.packet_size * packets_per_embedding,
-                ),  # Make 1008 size sequences to 48,
-                nn.Linear(
-                    self.packet_size * packets_per_embedding, self.linear_size
-                ),  # each embedding now has 21 packets
-                nn.LayerNorm(self.linear_size),  # pre-normalization
-            )
-
-            self.feature_transform2 = nn.Identity()
-            self.feature_transform3 = nn.Identity()
-
+        self.positional_encoding = PositionalEncoding(self.linear_size)
 
         # create the model with its layers
         # These are our transformer layers (stay the same)
@@ -141,8 +130,6 @@ class Transformer(pl.LightningModule):
             dropout=dropout,
         )
         self.decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=layers)
-
-        # TODO positional encoding ?
 
         # This is our prediction layer, change for finetuning as needed TODO ??? rever
         # self.norm1 = nn.LayerNorm(self.linear_size)
@@ -215,15 +202,15 @@ class Transformer(pl.LightningModule):
         scaled_input1 = self.feature_transform1(scaled_input)
 
         # Keep first 32, re-embed the rest
-        scaled_input_final1 = scaled_input1[:, :32, :]
-        scaled_input_embed1 = scaled_input1[:, 32:, :]
+        scaled_input_final1 = scaled_input1[:, :512, :]
+        scaled_input_embed1 = scaled_input1[:, 512:, :]
 
         # Embed seequences of 32 packets to the embedding dimension
         scaled_input_2 = self.feature_transform2(scaled_input_embed1)
 
         # Keep the first 15, re-embed the rest
-        scaled_input_final2 = scaled_input_2[:, :15, :]
-        scaled_input_embed2 = scaled_input_2[:, 15:, :]
+        scaled_input_final2 = scaled_input_2[:, :8, :]
+        scaled_input_embed2 = scaled_input_2[:, 8:, :]
 
         # Embed seequences of 16 packets to the embedding dimension
         scaled_input_3 = self.feature_transform3(scaled_input_embed2)
@@ -235,120 +222,99 @@ class Transformer(pl.LightningModule):
         )
         #---
 
-        # TODO: POS ENCODING ?
+        final_input = self.positional_encoding(final_input)
         memory = self.encoder(final_input)
 
-        # TODO: EMBEDDING DO TGT? 
-        # TODO: POS ENCODING DO TGT?
-        dec = self.decoder(memory) # TODO: self.decoder(tgt, memory, tgt_mask=tgt_mask)
+        tgt = self.tgt_embedding(tgt)
+        tgt = self.positional_encoding(tgt)
+        dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
 
         return self.output_head(dec)
     
 
-    def train_val_step(self, batch, message_log):
+    def train_val_step(self, batch):
         X, y = batch
 
         # Mask out one iat in the entire input sequence (this is now random position, not fixed as last)
         # All possible iat positions in the iats in output
 
         all_iat_indices = np.arange(
-            self.sliding_window_size - 33, self.sliding_window_size
+            self.sliding_window_size - 512, self.sliding_window_size
         )
 
-        non_aggregated_indices = all_iat_indices[1:]
-        aggregated_indices = all_iat_indices[0]
+        num_to_mask = math.floor(512 * 0.2)
 
-        # In the encoded output, there are 16 aggregated embeddings and 32 non-aggregated embeddings
-        actual_aggregated_output_indices = np.arange(16)
+        # Randomly select num_to_mask iat positions (in input, multiply by x and subtract 1 due to x features)
+        iat_indexes_output = np.random.choice(all_iat_indices, size=num_to_mask, replace=False)
 
-        # Randomly select one iat position (in input, multiply by 3 and subtract 1 due to 3 features)
-        iat_index_output = np.random.choice(all_iat_indices)
+        iat_indexes_input = iat_indexes_output * self.packet_size - 1
 
-        # We choose between aggregated and non-aggregated iat, based on the random choice
-        # this is the case where we choose the aggregated iat
-        if iat_index_output != aggregated_indices:
-            iat_index_input = iat_index_output * self.packet_size - 1
+        #----------------------------------------------------------------
 
-            batch_mask = torch.tensor(
-                [0.0], dtype=torch.double, requires_grad=True, device=self.device
-            )
+        # batch_mask = torch.tensor(
+        #     [0.0], dtype=torch.double, requires_grad=True, device=self.device
+        # )
 
-            X[:, [iat_index_input]] = batch_mask
+        # for iat_index_input in iat_indexes_input:
+        #     X[:, [iat_index_input]] = batch_mask
 
-            prediction = self.forward(X)
+        # # (gpt X[:, iat_indices_input] = 0.0)
 
-            ## Un-normalize the iat prediction
-            prediction = prediction * self.iat_std + self.iat_mean
+        # prediction = self.forward(X, y, )
 
-            ## Loss over both the loss functions
-            loss_recnstr = self.loss_func1(
-                prediction, y[:, [self.sliding_window_size - 1]]
-            )
-            if self.dual_loss:
-                loss_entropy = self.loss_func2(
-                    prediction, y[:, [self.sliding_window_size - 1]]
-                )
-                loss = loss_recnstr + loss_entropy
-            else:
-                loss = loss_recnstr
-            self.log(message_log, loss, sync_dist=True)
+        # ## Un-normalize the iat prediction
+        # prediction = prediction * self.iat_std + self.iat_mean
 
-        else:
-            # Choose one aggregated embedding, mask all packet iats corresponding to that aggregation
-            output_index = np.random.choice(actual_aggregated_output_indices)
-            # Reverse map to correct packets
-            first, last = reverse_index(output_index)
+        # ## Loss over both the loss functions
+        # # Reconstruction loss
+        # loss = self.loss_func1(
+        #     prediction, y[:, [self.sliding_window_size - 1]]
+        # )
+        # if self.dual_loss:
+        #     loss_entropy = self.loss_func2(
+        #         prediction, y[:, [self.sliding_window_size - 1]]
+        #     )
+        #     loss = loss + loss_entropy
 
-            # Get indices of of iats
-            iat_indices = np.arange(first, last)
-            # Get indices in input
-            input_indices = iat_indices * self.packet_size - 1
+        #----------------------------------------------------------------
 
-            ## Mask all these positions with 0
-            batch_mask_index = input_indices
-            batch_mask = torch.zeros(
-                iat_indices.shape[0],
-                dtype=torch.double,
-                requires_grad=True,
-                device=self.device,
-            )
+        # Masked input
+        X[:, iat_indexes_input] = 0.0
 
-            X[:, batch_mask_index] = batch_mask
+        # Target shifted for decoder
+        y_input = y.clone()
+        y_input_shifted = torch.roll(y_input, shifts=1, dims=1)  # shift right
+        y_input_shifted[:, 0] = 0  # ou token inicial especial
 
-            prediction = self.forward(X)
+        loss_mask = torch.zeros_like(y, dtype=torch.bool)
+        loss_mask[:, iat_indexes_output] = 1
 
-            ## Un-normalize the iat prediction
-            prediction = prediction * self.iat_std + self.iat_mean
+        # Attention mask for decoder
+        tgt_mask = torch.triu(torch.ones(y_input_shifted.size(0), y_input_shifted.size(0)) * float('-inf'), diagonal=1).to(self.device)
 
-            ## Loss is against mean of output at these indices
-            mean_target = torch.mean(y[:, first:last], dim=1, keepdims=True)
-            ## Loss over both the loss functions
-            loss_recnstr = self.loss_func1(
-                prediction, y[:, [self.sliding_window_size - 1]]
-            )
-            if self.dual_loss:
-                loss_entropy = self.loss_func2(
-                    prediction, y[:, [self.sliding_window_size - 1]]
-                )
-                loss = loss_recnstr + loss_entropy
-            else:
-                loss = loss_recnstr
-            self.log(message_log, loss, sync_dist=True)
+        # Forward
+        output = self.forward(X, y_input_shifted, tgt_mask=tgt_mask)
+
+        # Loss apenas nos IATs mascarados
+        loss = self.loss_func(output[loss_mask], y[loss_mask])
+
 
         return loss
 
     def training_step(self, train_batch, train_idx):
         self.lr_update()    
 
-        loss = self.train_val_step(train_batch, "Train loss")
+        loss = self.train_val_step(train_batch)
 
+        self.log("Train loss", loss, sync_dist=True)
         self.training_step_outputs.append(loss)
         return loss
 
     def validation_step(self, val_batch, val_idx):
 
-        loss = self.train_val_step(val_batch, "Val loss")
+        loss = self.train_val_step(val_batch)
 
+        self.log("Val loss", loss, sync_dist=True)
         self.validation_step_outputs.append(loss)
         return loss
 
@@ -446,7 +412,8 @@ class Transformer(pl.LightningModule):
 
     def predict_step(self, test_batch, test_idx, dataloader_idx=0):
         X, y = test_batch
-        prediction = self.forward(X)
+        prediction = self.forward(X, y)
+        prediction = prediction * self.iat_std + self.iat_mean
         return prediction
 
     def on_train_epoch_end(self):
@@ -743,10 +710,10 @@ def get_args():
     )
 
     parser.add_argument(
-        "--packets_per_embedding",
+        "--window_stride",
         type=int,
-        default=21,
-        help="Number of packets per embedding if fixed size aggregation",
+        default=16,
+        help="Stride for constructing the sliding window",
     )
 
     parser.add_argument(
@@ -784,13 +751,6 @@ def get_args():
         help="Train with reconstruction loss and enropy minimization",
     )
 
-    parser.add_argument(
-        "--use_hierarchical_aggregation",
-        type=bool,
-        default=True,
-        help="Use hierarchical aggregation",
-    )
-
     args = parser.parse_args()
 
     return args
@@ -814,7 +774,6 @@ def main():
 
     # Params for the sliding window on the packet data
     SLIDING_WINDOW_SIZE = args.sliding_window_size
-    PACKETS_PER_EMBEDDING = args.packets_per_embedding
 
     TRAIN = args.train
     SAVE_MODEL = args.save_model
@@ -836,7 +795,7 @@ def main():
     # elif NUM_BOTTLENECKS == 4:
     num_features = 11  # Using receiver IP identifier (and full packet 16+3)
     input_size = SLIDING_WINDOW_SIZE * num_features
-    output_size = 1
+    output_size = SLIDING_WINDOW_SIZE
 
     # !!!!!1
 
@@ -844,6 +803,7 @@ def main():
     full_feature_arr, full_target_arr, mean_iat, std_iat, _ = generate_sliding_windows(
         args.sliding_window_size,
         args.window_batch_size,
+        args.window_stride,
         num_features
     )
 
@@ -855,18 +815,14 @@ def main():
         loss_function2=LOSSFUNCTION_2,
         iat_mean=mean_iat,
         iat_std=std_iat,
-        packets_per_embedding=PACKETS_PER_EMBEDDING,
         layers=LAYERS,
         num_heads=NHEAD,
         dropout=DROPOUT,
         weight_decay=WEIGHTDECAY,
         learning_rate=LEARNINGRATE,
-        epochs=EPOCHS,
-        batch_size=BATCHSIZE,
         linear_size=LINEARSIZE,
         sliding_window_size=SLIDING_WINDOW_SIZE,
         dual_loss=DUAL_LOSS,
-        use_hierarchical_aggregation=args.use_hierarchical_aggregation,
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
@@ -894,7 +850,7 @@ def main():
     # print(train_dataset.__getitem__(0))
 
     train_loader = DataLoader(
-        train_dataset, batch_size=BATCHSIZE, shuffle=True, num_workers=4
+        train_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
     )
     val_loader = DataLoader(
         val_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
@@ -1016,18 +972,14 @@ def main():
                 loss_function2=LOSSFUNCTION_2,
                 iat_mean=mean_iat,
                 iat_std=std_iat,
-                packets_per_embedding=PACKETS_PER_EMBEDDING,
                 layers=LAYERS,
                 num_heads=NHEAD,
                 dropout=DROPOUT,
                 weight_decay=WEIGHTDECAY,
                 learning_rate=LEARNINGRATE,
-                epochs=EPOCHS,
-                batch_size=BATCHSIZE,
                 linear_size=LINEARSIZE,
                 sliding_window_size=SLIDING_WINDOW_SIZE,
                 dual_loss=DUAL_LOSS,
-                use_hierarchical_aggregation=True,
                 checkpoint_path=cpath,
                 strict=True,
             )

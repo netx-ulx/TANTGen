@@ -16,7 +16,7 @@ def command_extract(args):
     df_all = pd.concat(all_dfs, ignore_index=True)
 
     # Split equilibrado (50% para adversarial, 50% para alvo)
-    df_train_adv, df_train_target = train_test_split(
+    df_train_surrogate, df_train_target = train_test_split(
         df_all,
         test_size=0.5,
         stratify=df_all[' Label'],
@@ -25,25 +25,25 @@ def command_extract(args):
 
     #------------------------
     # Save this version of the dataset
-    df_train_adv.to_csv(out_dir / "adversarial_train_labeled.csv", index=False)
+    df_train_surrogate.to_csv(out_dir / "surrogate_train_labeled.csv", index=False)
     df_train_target.to_csv(out_dir / "target_train_labeled.csv", index=False)
 
-    print(f"[INFO] Saved {len(df_train_adv)} rows to adversarial_train_labeled.csv")
+    print(f"[INFO] Saved {len(df_train_surrogate)} rows to surrogate_train_labeled.csv")
     print(f"[INFO] Saved {len(df_train_target)} rows to target_train_labeled.csv")
     #-----------------------
 
     # Convert labels: BENIGN -> 0, others -> 1
-    df_train_adv['label'] = df_train_adv[' Label'].apply(lambda x: 0 if str(x).upper()=='BENIGN' else 1)
-    df_train_adv = df_train_adv.drop(columns=[' Label'])
+    df_train_surrogate['label'] = df_train_surrogate[' Label'].apply(lambda x: 0 if str(x).upper()=='BENIGN' else 1)
+    df_train_surrogate = df_train_surrogate.drop(columns=[' Label'])
 
     df_train_target['label'] = df_train_target[' Label'].apply(lambda x: 0 if str(x).upper()=='BENIGN' else 1)
     df_train_target = df_train_target.drop(columns=[' Label'])
 
     # Save in separate files
-    df_train_adv.to_csv(out_dir / "adversarial_train.csv", index=False)
+    df_train_surrogate.to_csv(out_dir / "surrogate_train.csv", index=False)
     df_train_target.to_csv(out_dir / "target_train.csv", index=False)
 
-    print(f"[INFO] Saved {len(df_train_adv)} rows to adversarial_train.csv")
+    print(f"[INFO] Saved {len(df_train_surrogate)} rows to surrogate_train.csv")
     print(f"[INFO] Saved {len(df_train_target)} rows to target_train.csv")
 
 def __main__():

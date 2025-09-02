@@ -16,4 +16,4 @@ pytorch_lightning
 Cython
 cython-npm
 # nfstream
-sklearn
+scikit-learn

@@ -28,7 +28,7 @@ def get_config():
         'lr': 1e-4,
         'seq_len': 4, # TODO: verify seq_len
         'data_path': '../data/original/Mirai3.csv',
-        'model_folder': 'models/TANTGen_encoder_decoder',
+        'model_folder': 'models/TANTGen_encoder_decoder/models',
         'model_name': 'tantgen_model.pth',
         'experiment_name': 'models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment',
         'log_dir': 'results/logs'
