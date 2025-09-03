@@ -1,5 +1,4 @@
-config_base = ''' name: encoder
-max_learning_rate: 0.1
+config_base = ''' name: transformer pretrain
 weight_decay: 1e-5
 learning_rate: 1e-4            
 dropout: 0.2                   
@@ -9,10 +8,8 @@ epochs: 15
 batch_size: 64
 linear_size: 120 
 loss_function: huber
-eof: eof_str'''
-sliding_window_size: 256
-window_stride: 8
+sliding_window_size: 64
+window_stride: 64
 #-----------------------------
-num_features: 5
+num_features: 7
 output_size: 1
-constraint_limit: 0.1

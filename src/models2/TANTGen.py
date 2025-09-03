@@ -1,6 +1,5 @@
 import argparse
 import os
-import math
 import time as t
 from datetime import datetime
 

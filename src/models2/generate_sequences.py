@@ -23,7 +23,7 @@ def generate_sliding_windows(
 
     path = "../../data/preprocessed/adversarial_train/"
 
-    df = pd.read_csv("benign.csv")
+    df = pd.read_csv(path + "benign.csv")
 
     #label_df = df.copy()
     #print(label_df.head(), label_df.shape)
@@ -33,15 +33,16 @@ def generate_sliding_windows(
              #'Proto', \
              'Source IP', 'Destination IP', \
              #'TCP Source Port', 'TCP Destination Port', \
-            #'Payload Length', 'Payload Entropy', 'IP Type', \
+             'Payload Length', 'Payload Entropy', \
+             # 'IP Type', \
              'IAT']]
 
     df = convert_to_relative_timestamp(df)
     df = ipaddress_to_number(df)
     df = standardize_ips(df)
     df = standardize_column(df, "Packet Size")
-    #df = standardize_column(df, "Payload Length")
-    #df = standardize_column(df, "Payload Entropy")
+    df = standardize_column(df, "Payload Length")
+    df = standardize_column(df, "Payload Entropy")
 
     mean_iat = df["IAT"].mean()
     std_iat = df["IAT"].std()
@@ -76,8 +77,7 @@ if __name__ == "__main__":
     (
         full_feature_arr,
         full_target_arr,
-        mean_iat,
-        std_iat,
+        mean_std,
         global_df,
     ) = generate_sliding_windows(
         SLIDING_WINDOW_SIZE,
@@ -116,8 +116,8 @@ if __name__ == "__main__":
     # for random 10 sets of 0.1% of the data
 
     # Get the stats on the IAT (mean, std, 90%ile, 99%ile, 99.9%ile)
-    print("Mean IAT: ", mean_iat)
-    print("Std IAT: ", std_iat)
+    print("Mean IAT: ", mean_std["mean_iat"])
+    print("Std IAT: ", mean_std["std_iat"])
     print("90%ile IAT: ", np.quantile(full_target_arr, 0.90))
     print("99%ile IAT: ", np.quantile(full_target_arr, 0.99))
     print("99.9%ile IAT: ", np.quantile(full_target_arr, 0.999))

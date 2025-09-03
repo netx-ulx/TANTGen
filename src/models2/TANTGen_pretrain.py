@@ -231,24 +231,21 @@ class TANTGen(pl.LightningModule):
         # Mask out one iat in the entire input sequence (this is now random position, not fixed as last)
         # All possible iat positions in the iats in output
 
-        # all_iat_indices = np.arange(
-        #     0, self.sliding_window_size
-        # )
+        all_iat_indices = np.arange(
+            0, self.sliding_window_size
+        )
         #all_iat_indices = np.arange(
         #    self.sliding_window_size - 512, self.sliding_window_size
         #)
 
-        # num_to_mask = math.floor(self.sliding_window_size * 0.2)
+        num_to_mask = math.floor(self.sliding_window_size * 0.2)
 
         # Randomly select num_to_mask iat positions (in input, multiply by x and subtract 1 due to x features)
-        # iat_indexes_output = np.random.choice(all_iat_indices, size=num_to_mask, replace=False)
+        iat_indexes_output = np.random.choice(all_iat_indices, size=num_to_mask, replace=False)
         # iat_indexes_input = iat_indexes_output * self.packet_size - 1
 
-        # batch_mask = torch.tensor(
-        #     [0.0], dtype=torch.double, requires_grad=True, device=self.device
-        # )
 
-        # X[:, iat_indexes_output, self.packet_size-1] = batch_mask
+        X[:, iat_indexes_output, self.packet_size-1] = 0.0
 
         # (gpt X[:, iat_indices_input] = 0.0)
 
@@ -262,17 +259,13 @@ class TANTGen(pl.LightningModule):
         ## Un-normalize the iat prediction
         # prediction = prediction * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
 
-        # loss_mask = torch.zeros_like(y, dtype=torch.bool)
-        # loss_mask[:, iat_indexes_output, :] = 1
+        loss_mask = torch.zeros_like(y, dtype=torch.bool)
+        loss_mask[:, iat_indexes_output, :] = 1
 
         ## Loss over both the loss functions
         # Reconstruction loss
-        # loss = self.loss_func(
-        #     prediction[loss_mask], y[loss_mask]
-        # )
-
         loss = self.loss_func(
-            prediction, y
+            prediction[loss_mask], y[loss_mask]
         )
 
         return loss
@@ -338,7 +331,7 @@ class TANTGen(pl.LightningModule):
 # Argument parser for the model and return
 def get_args():
     # Hyper parameters from config file
-    with open("configs/config-transformer-pretrain.yaml") as f:
+    with open("configs/config-TANTGen-pretrain.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Add default arguments from the config file
