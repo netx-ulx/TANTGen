@@ -152,6 +152,14 @@ class TANTGen(pl.LightningModule):
         self.validation_step_outputs = []
         self.test_step_outputs = []
 
+        self.training_step_predictions = []
+        self.validation_step_predictions = []
+        self.test_step_predictions = []
+
+        self.training_step_original = []
+        self.validation_step_original = []
+        self.test_step_original = []
+
     def configure_optimizers(self):
         # self.optimizer = optim.Adam(self.parameters(), betas=(0.9, 0.98),
         # eps=1e-9, lr=LEARNINGRATE, weight_decay=WEIGHTDECAY)
@@ -268,31 +276,36 @@ class TANTGen(pl.LightningModule):
             prediction[loss_mask], y[loss_mask]
         )
 
-        return loss
+        return loss, prediction, y
 
     def training_step(self, train_batch, train_idx):
         self.lr_update()
 
-        loss = self.general_step(train_batch)
+        loss, prediction, y = self.general_step(train_batch)
 
         self.log("Train loss", loss, sync_dist=True)
         self.training_step_outputs.append(loss)
+        self.training_step_predictions += prediction.squeeze()
+        self.training_step_original += y.squeeze()
         return loss
 
     def validation_step(self, val_batch, val_idx):
 
-        loss = self.general_step(val_batch)
+        loss, prediction, y = self.general_step(val_batch)
 
         self.log("Val loss", loss, sync_dist=True)
         self.validation_step_outputs.append(loss)
+        self.validation_step_predictions += prediction.squeeze()
+        self.validation_step_original += y.squeeze()
         return loss
 
     def test_step(self, test_batch, test_idx):
-        loss = self.general_step(test_batch)
-
-        self.test_step_outputs.append(loss)
+        loss, prediction, y = self.general_step(test_batch)
 
         self.log("Test loss", loss, sync_dist=True)
+        self.test_step_outputs.append(loss)
+        self.test_step_predictions += prediction.squeeze()
+        self.test_step_original += y.squeeze()
         return loss
 
     def predict_step(self, test_batch, test_idx, dataloader_idx=0): # TODO ver isto
@@ -301,31 +314,96 @@ class TANTGen(pl.LightningModule):
         return prediction
 
     def on_train_epoch_end(self):
-        loss_tensor_list = [x.detach().cpu().item() for x in self.training_step_outputs]
-        # print(loss_tensor_list, len(loss_tensor_list))
+        loss = [x.detach().cpu().item() for x in self.training_step_outputs]
+        y_pred = torch.cat(self.training_step_predictions).view(-1).cpu()
+        y_true = torch.cat(self.training_step_original).view(-1).cpu()
         self.log(
             "Avg loss per epoch",
-            np.mean(np.array(loss_tensor_list)),
+            np.mean(np.array(loss)),
             on_step=False,
             on_epoch=True,
         )
-        print(f"Avg train loss per epoch = {np.mean(loss_tensor_list):.4f}")
-        print(f"Total Train Loss = {np.sum(loss_tensor_list):.4f}")
+        print(f"Avg train loss per epoch = {np.mean(loss):.4f}")
+        print(f"Total Train Loss = {np.sum(loss):.4f}")
+
+        # plt.figure(figsize=(14,6))
+        # plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
+        # plt.plot(y_pred, label='Predição MSE', alpha=0.7)
+        # plt.xlabel('Amostra')
+        # plt.ylabel('IAT normalizado')
+        # plt.title('Comparação das previsões de IAT (MSE)')
+        # plt.legend()
+        # plt.savefig("plots/comparacao_prev_IAT_MSE.png")
+
+        # Errors
+        rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
+        mae_mse = torch.mean(torch.abs(y_pred - y_true))
+
+        print(f"RMSE MSE: {rmse_mse:.4f}")
+        print(f"MAE MSE: {mae_mse:.4f}")
+        print()
+
         self.training_step_outputs = []
+        self.training_step_predictions = []
+        self.training_step_original = []
 
     def on_validation_epoch_end(self):
         print()
         loss = [x.detach().cpu().item() for x in self.validation_step_outputs]
+        y_pred = torch.cat(self.validation_step_predictions).view(-1).cpu()
+        y_true = torch.cat(self.validation_step_original).view(-1).cpu()
         print(f"Avg val loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Validation Loss = {np.sum(loss):.4f}")
+        
+        plt.figure(figsize=(14,6))
+        plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
+        plt.plot(y_pred, label='Predição MSE', alpha=0.7)
+        plt.xlabel('Amostra')
+        plt.ylabel('IAT normalizado')
+        plt.title('Comparação das previsões de IAT (MSE)')
+        plt.legend()
+        plt.savefig("plots/comparacao_prev_IAT_MSE_validation.png")
+
+        # Errors
+        rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
+        mae_mse = torch.mean(torch.abs(y_pred - y_true))
+
+        print(f"RMSE MSE: {rmse_mse:.4f}")
+        print(f"MAE MSE: {mae_mse:.4f}")
+        print()
+
         self.validation_step_outputs = []
+        self.validation_step_predictions = []
+        self.validation_step_original = []
 
     def on_test_epoch_end(self):
         print()
         loss = [x.detach().cpu().item() for x in self.test_step_outputs]
+        y_pred = torch.cat(self.test_step_predictions).view(-1).cpu()
+        y_true = torch.cat(self.test_step_original).view(-1).cpu()
         print(f"Avg test loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Test Loss = {np.sum(loss):.4f}")
-        self.validation_step_outputs = []
+        
+        plt.figure(figsize=(14,6))
+        plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
+        plt.plot(y_pred, label='Predição MSE', alpha=0.7)
+        plt.xlabel('Amostra')
+        plt.ylabel('IAT normalizado')
+        plt.title('Comparação das previsões de IAT (MSE)')
+        plt.legend()
+        plt.savefig("plots/comparacao_prev_IAT_MSE_test.png")
+
+        # Errors
+        rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
+        mae_mse = torch.mean(torch.abs(y_pred - y_true))
+
+        print(f"RMSE MSE: {rmse_mse:.4f}")
+        print(f"MAE MSE: {mae_mse:.4f}")
+        print()
+
+        self.test_step_outputs = []
+        self.test_step_predictions = []
+        self.test_step_original = []
 
 
 # Argument parser for the model and return

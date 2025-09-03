@@ -23,7 +23,7 @@ def generate_sliding_windows(
 
     path = "../../data/preprocessed/adversarial_train/"
 
-    df = pd.read_csv(path + "benign.csv")
+    df = pd.read_csv(path + "benign_1M.csv")
 
     #label_df = df.copy()
     #print(label_df.head(), label_df.shape)
