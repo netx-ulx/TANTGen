@@ -13,6 +13,9 @@ data/original
 data/preprocessed
 
 src/Kitsune/example
+src/Feature_Extraction/CIC_IDS_divide_BM.ipynb
+src/Feature_Extraction/CIC_IDS_divide_BM2.ipynb
+src/models2/transformer_iat_logs
 
 # Others
 others
