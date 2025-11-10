@@ -11,31 +11,16 @@ def fast_read_pcap(filename):
 
 def separate_malicious(pcap_file, csv_file, output_pcap):
     # Reading pcap and csv files
-    packets = rdpcap(pcap_file)
-    labels = pd.read_csv(csv_file, header=None) # header=None to read without header
-
-    # Ensuring we have the same number of rows
-    if len(packets) != len(labels):
-        raise ValueError("NNumber of packets in pcap does not match number of rows in csv")
-
-    # Filtering packets
-    selected_packets = [pkt for pkt, flag in zip(packets, labels[0]) if flag == 1]
-
-    # Saving new pcap file
-    wrpcap(output_pcap, selected_packets)
-
-    print(f"File generated: {output_pcap} with {len(selected_packets)} packets")
-
-def separate_malicious_fast(pcap_file, csv_file, output_pcap):
-    # Reading pcap and csv files
     packets = fast_read_pcap(pcap_file)
-    labels = pd.read_csv(csv_file, header=None) # header=None to read without header
+    #labels = pd.read_csv(csv_file, header=None) # header=None to read without header
+    labels = pd.read_csv(csv_file)
 
     # Ensuring we have the same number of rows
     # We will count packets as we go
     packet_count = 0
     selected_packets = []
-    for pkt, flag in zip(packets, labels[0]):
+    #for pkt, flag in zip(packets, labels[0]):
+    for pkt, flag in zip(packets, labels['x']):
         if flag == 1:
             selected_packets.append(pkt)
         packet_count += 1
@@ -60,4 +45,4 @@ if __name__ == "__main__":
     csv_file = arg.csv_file_path
     output_pcap = arg.output_file_path
 
-    separate_malicious_fast(pcap_file, csv_file, output_pcap)
+    separate_malicious(pcap_file, csv_file, output_pcap)

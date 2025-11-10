@@ -52,12 +52,13 @@ mapping = {
     "psh_flag_cnt": "PSH Flag Count",
     "ack_flag_cnt": "ACK Flag Count",
     "urg_flag_cnt": "URG Flag Count",
-    "ece_flag_cnt": "ECE Flag Count",
     "cwr_flag_count": "CWE Flag Count",  # typo ?
+    "ece_flag_cnt": "ECE Flag Count",
     "down_up_ratio": "Down/Up Ratio",
     "pkt_size_avg": "Average Packet Size",
     "fwd_seg_size_avg": "Avg Fwd Segment Size",
     "bwd_seg_size_avg": "Avg Bwd Segment Size",
+    "fwd_header_len1": "Fwd Header Length.1",
     "fwd_byts_b_avg": "Fwd Avg Bytes/Bulk",
     "fwd_pkts_b_avg": "Fwd Avg Packets/Bulk",
     "fwd_blk_rate_avg": "Fwd Avg Bulk Rate",
@@ -89,6 +90,7 @@ def map_features(input_csv, output_csv):
 
     # Read input CSV
     df = pd.read_csv(input_csv)
+    df["fwd_header_len1"] = df["fwd_header_len"]
     df = df.rename(columns=mapping)
 
     # Reorder columns

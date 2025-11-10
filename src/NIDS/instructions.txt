@@ -1,25 +1,12 @@
 Como usar
 
 Extrair:
-python vpn_detector_pipeline.py extract --pcap-dir ./pcaps --out-dir ./artifacts --bytes-len 2048 --max-pkts 8
-(Ou fornece --label-map labels.csv com colunas filename,label, onde 1=VPN.)
+python train_discriminator.py extract --csv-dir ../../data/original/CIC-IDS-2017/CSVs/MachineLearningCVE --out-dir ../../data/preprocessed/target_train
 
 Treinar:
-python vpn_detector_pipeline.py train --artifacts ./artifacts --models-out ./models
-Tudo de uma vez:
-
-Tudo:
-python vpn_detector_pipeline.py all
-
--------------------------------------------------------------------------------------
-Como usar
-
-Extrair:
-python train_discriminator.py extract --csv-dir ../../data/original/CIC-IDS-2017/CSVs/MachineLearningCVE --out-dir ../../data/preprocessed
-
-Treinar:
-python train_discriminator.py train --artifacts ../../data/preprocessed --models-out ./models --train_models LR,SVM,RF,MLP,CNN,RNN
+python train_discriminator.py train --artifacts ../../data/preprocessed/target_train --models-out ./models --train_models LR,SVM,RF,MLP,CNN,RNN
 
 Tudo de uma vez:
-python train_discriminator.py all --csv-dir ../../data/original/CIC-IDS-2017/CSVs/MachineLearningCVE --out-dir ../../data/preprocessed --models-out ./models --train_models LR,SVM,RF,MLP,CNN,RNN
+python train_discriminator.py all --csv-dir ../../data/original/CIC-IDS-2017/CSVs/MachineLearningCVE --out-dir ../../data/preprocessed/target_train --models-out ./models --train_models LR,SVM,RF,MLP,CNN,RNN
 
+python test.py -i ../../data/preprocessed/adversarial_train/Mirai_cicflowmeter_malicious.csv

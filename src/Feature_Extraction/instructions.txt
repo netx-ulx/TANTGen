@@ -1,7 +1,10 @@
 python dataloader.py -i ../../data/original/CIC-IDS-2017/PCAPs/Monday-WorkingHours.pcap -o ../../data/preprocessed/adversarial_train/benign.csv
 
 python separate_malicious.py -i ../../data/original/Kitsune/Mirai\ Botnet/Mirai_pcap.pcap -c ../../data/original/Kitsune/Mirai\ Botnet/mirai_labels.csv -o ../../data/original/Kitsune/Mirai\ Botnet/Mirai_pcap_malicious.pcap
+python separate_malicious.py -i ../../data/original/Kitsune/SYN\ DoS/SYN_DoS_pcap.pcap -c ../../data/original/Kitsune/SYN\ DoS/SYN_DoS_labels.csv -o ../../data/original/Kitsune/SYN\ DoS/SYN_DoS_pcap_malicious.pcap
 
 cicflowmeter -f ../../data/original/Kitsune/Mirai\ Botnet/Mirai_pcap_malicious.pcap -c ../../data/original/Kitsune/Mirai\ Botnet/cicflowmeter_flows.csv
+cicflowmeter -f ../../data/original/Kitsune/SYN\ DoS/SYN_DoS_pcap_malicious.pcap -c ../../data/original/Kitsune/SYN\ DoS/cicflowmeter_flows.csv
 
-python cicflowmeter_mapping.py -i ../../data/original/Kitsune/Mirai\ Botnet/cicflowmeter_flows.csv -o ../../data/preprocessed/adversarial_train/cicflowmeter_malicious.csv
+python cicflowmeter_mapping.py -i ../../data/original/Kitsune/Mirai\ Botnet/cicflowmeter_flows.csv -o ../../data/preprocessed/adversarial_train/Mirai_cicflowmeter_malicious.csv
+python cicflowmeter_mapping.py -i ../../data/original/Kitsune/SYN\ DoS/cicflowmeter_flows.csv -o ../../data/preprocessed/adversarial_train/SYN_DoS_cicflowmeter_malicious.csv
