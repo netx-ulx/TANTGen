@@ -13,3 +13,5 @@ window_stride: 64
 #-----------------------------
 num_features: 7
 output_size: 1
+save_path: transformer_iat_logs
+model_name: TANTGen_pretrain_window

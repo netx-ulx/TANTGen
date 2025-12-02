@@ -8,7 +8,7 @@ output_file = "kitsune_features.csv"
 output_file_labels = "kitsune_labels.csv"
 
 for folder in os.listdir(path):
-    if os.path.isdir(os.path.join(path, folder)) and not folder.startswith('Fuzzing'):
+    if os.path.isdir(os.path.join(path, folder)):
         print("Found folder:", folder)
         for file in os.listdir(os.path.join(path, folder)):
             if file.endswith("pcap.pcap") or file.endswith("pcap.pcapng"):

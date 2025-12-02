@@ -274,17 +274,17 @@ def get_args():
     )
 
     parser.add_argument(
-        "--train",
-        type=bool,
-        default=True,
-        help="Train the model",
-    )
-
-    parser.add_argument(
         "--pretrained",
         type=bool,
         default=True,
         help="Use pretrained model",
+    )
+
+    parser.add_argument(
+        "--train",
+        type=bool,
+        default=True,
+        help="Train the model",
     )
 
     parser.add_argument(
@@ -308,6 +308,20 @@ def get_args():
         help="Test the model on test fraction of data",
     )
 
+    parser.add_argument(
+        "--save_path",
+        type=str,
+        default=config["save_path"],
+        help="Path to save the model and logs",
+    )
+
+    parser.add_argument(
+        "--pretrained_model_name",
+        type=str,
+        default=config["pretrained_model_name"],
+        help="Name of the pretrained model",
+    )
+
     args = parser.parse_args()
 
     return args
@@ -317,25 +331,6 @@ def get_args():
 def main():
     # Arguments
     args = get_args()
-
-    WEIGHTDECAY = args.weight_decay
-    LEARNINGRATE = args.learning_rate
-    DROPOUT = args.dropout
-    NHEAD = args.num_heads
-    LAYERS = args.num_layers
-    EPOCHS = args.epochs
-    BATCHSIZE = args.batch_size
-    LINEARSIZE = args.linear_size
-    LOSSFUNCTION_DIFF = args.loss_function_diff
-    LOSSFUNCTION_EVASION = args.loss_function_evasion
-    LOSSFUNCTION_CONSTRAINTS = args.loss_function_constraints
-    OUTPUT_SIZE = args.output_size
-    CONSTRAINT_LIMIT = args.constraint_limit
-
-    input_size = SLIDING_WINDOW_SIZE * args.num_features
-
-    # Params for the sliding window on the packet data
-    SLIDING_WINDOW_SIZE = args.sliding_window_size
 
     TRAIN = args.train
     PRETRAINED = args.pretrained
@@ -357,58 +352,6 @@ def main():
         args.num_features,
     )
 
-    if PRETRAINED:
-        ## Model definition with delay scaling params (from pretrained model)
-        cpath = "checkpoints/finetune_nonpretrained_window{}.ckpt".format(
-            SLIDING_WINDOW_SIZE
-        )
-        model = TANTGen_finetune.load_from_checkpoint(
-            input_size=input_size,
-            target_size=OUTPUT_SIZE,
-            loss_function_diff=LOSSFUNCTION_DIFF,
-            loss_function_evasion=LOSSFUNCTION_EVASION,
-            loss_function_constraints=LOSSFUNCTION_CONSTRAINTS,
-            constraint_limit=CONSTRAINT_LIMIT,
-            mean_std=mean_std,
-            layers=LAYERS,
-            num_heads=NHEAD,
-            dropout=DROPOUT,
-            weight_decay=WEIGHTDECAY,
-            learning_rate=LEARNINGRATE,
-            epochs=EPOCHS,
-            batch_size=BATCHSIZE,
-            linear_size=LINEARSIZE,
-            sliding_window_size=SLIDING_WINDOW_SIZE,
-        )
-
-        # Freeze or unfreeze everything!!
-        for params in model.parameters():
-            params.requires_grad = True
-
-        for params in model.output_head.parameters():
-            params.requires_grad = True
-
-    else:
-        # Do not freeeze anything for non pre-trained
-        model = TANTGen_finetune(
-            input_size=input_size,
-            target_size=OUTPUT_SIZE,
-            loss_function_diff=LOSSFUNCTION_DIFF,
-            loss_function_evasion=LOSSFUNCTION_EVASION,
-            loss_function_constraints=LOSSFUNCTION_CONSTRAINTS,
-            constraint_limit=CONSTRAINT_LIMIT,
-            mean_std=mean_std,
-            layers=LAYERS,
-            num_heads=NHEAD,
-            dropout=DROPOUT,
-            weight_decay=WEIGHTDECAY,
-            learning_rate=LEARNINGRATE,
-            epochs=EPOCHS,
-            batch_size=BATCHSIZE,
-            linear_size=LINEARSIZE,
-            sliding_window_size=SLIDING_WINDOW_SIZE,
-        )
-
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
         feature_arr, target_arr, test_size=0.05, shuffle=False, random_state=42
     )
@@ -422,13 +365,13 @@ def main():
     test_dataset = PacketDataset(test_vectors, test_labels)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
+        train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
+        val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
+        test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
 
     # print one dataloader item!!!!
@@ -456,11 +399,68 @@ def main():
     print(f"Feature: {feature}")
     print(f"Label: {label}")
 
-    # Make new dir for storing logs
-    os.system("mkdir -p finetune_transformer_logs")
-    save_path = "finetune_transformer_logs"
+    
+    # Model definition
+    input_size = args.sliding_window_size * args.num_features
 
-    tb_logger = pl_loggers.TensorBoardLogger(save_dir=save_path)
+    if PRETRAINED:
+        ## Model definition with delay scaling params (from pretrained model)
+        cpath = "checkpoints/{}{}.ckpt".format(
+            args.pretrained_model_name, args.sliding_window_size
+        )
+        model = TANTGen_finetune.load_from_checkpoint( # nao sei se isto vai resultar !!!
+        
+            input_size=input_size,
+            target_size=args.output_size,
+            loss_function_diff=args.loss_function_diff,
+            loss_function_evasion=args.loss_function_evasion,
+            loss_function_constraints=args.loss_function_constraints,
+            constraint_limit=args.constraint_limit,
+            mean_std=mean_std,
+            layers=args.num_layers,
+            num_heads=args.num_heads,
+            dropout=args.dropout,
+            weight_decay=args.weight_decay,
+            learning_rate=args.learning_rate,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            linear_size=args.linear_size,
+            sliding_window_size=args.sliding_window_size,
+        )
+
+        # Freeze or unfreeze everything!!
+        for params in model.parameters():
+            params.requires_grad = True
+
+        for params in model.output_head.parameters():
+            params.requires_grad = True
+
+    else:
+        # Do not freeeze anything for non pre-trained
+        model = TANTGen_finetune(
+            input_size=input_size,
+            target_size=args.output_size,
+            loss_function_diff=args.loss_function_diff,
+            loss_function_evasion=args.loss_function_evasion,
+            loss_function_constraints=args.loss_function_constraints,
+            constraint_limit=args.constraint_limit,
+            mean_std=mean_std,
+            layers=args.num_layers,
+            num_heads=args.num_heads,
+            dropout=args.dropout,
+            weight_decay=args.weight_decay,
+            learning_rate=args.learning_rate,
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            linear_size=args.linear_size,
+            sliding_window_size=args.sliding_window_size,
+        )
+
+
+    # Make new dir for storing logs
+    os.system(f"mkdir -p {args.save_path}")
+
+    tb_logger = pl_loggers.TensorBoardLogger(save_dir=args.save_path)
 
     if NUM_GPUS >= 1:
         trainer = pl.Trainer(
@@ -468,7 +468,7 @@ def main():
             accelerator="gpu",
             devices=1, # !!!!!1
             # strategy="ddp", # !!!!!1
-            max_epochs=EPOCHS,
+            max_epochs=args.epochs,
             check_val_every_n_epoch=1,
             logger=tb_logger,
             callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
@@ -476,7 +476,7 @@ def main():
     else:
         trainer = pl.Trainer(
             #gpus=None,
-            max_epochs=EPOCHS,
+            max_epochs=args.epochs,
             check_val_every_n_epoch=1,
             logger=tb_logger,
             callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
@@ -488,15 +488,15 @@ def main():
         print(time)
 
         print("Removing old logs:")
-        os.system("rm -rf {}/lightning_logs/".format(save_path))
+        os.system("rm -rf {}/lightning_logs/".format(args.save_path))
 
         trainer.fit(model, train_loader, val_loader)
         print("Finished training at:")
         time = datetime.now()
         print(time)
         trainer.save_checkpoint(
-            "{}/finetune_nonpretrained_window{}.ckpt".format(
-                save_path, SLIDING_WINDOW_SIZE
+            "{}/{}{}.ckpt".format(
+                args.save_path, args.pretrained_model_name, args.sliding_window_size
             )
         )
 
@@ -505,7 +505,7 @@ def main():
 
     if MAKE_EPOCH_PLOT:
         t.sleep(5)
-        log_dir = "{}/lightning_logs/version_0".format(save_path)
+        log_dir = "{}/lightning_logs/version_0".format(args.save_path)
         y_key = "Avg loss per epoch"
 
         event_accumulator = EventAccumulator(log_dir)
@@ -529,26 +529,26 @@ def main():
             trainer.test(model, dataloaders=test_loader)
         else:
             print("Loading checkpoint")
-            cpath = "{}/finetune_nonpretrained_window{}.ckpt".format(
-                save_path, SLIDING_WINDOW_SIZE
+            cpath = "{}/{}{}.ckpt".format(
+                args.save_path, args.pretrained_model_name, args.sliding_window_size
             )
             testmodel = TANTGen_finetune.load_from_checkpoint(
                 input_size=input_size,
-                target_size=OUTPUT_SIZE,
-                loss_function_diff=LOSSFUNCTION_DIFF,
-                loss_function_evasion=LOSSFUNCTION_EVASION,
-                loss_function_constraints=LOSSFUNCTION_CONSTRAINTS,
-                constraint_limit=CONSTRAINT_LIMIT,
+                target_size=args.output_size,
+                loss_function_diff=args.loss_function_diff,
+                loss_function_evasion=args.loss_function_evasion,
+                loss_function_constraints=args.loss_function_constraints,
+                constraint_limit=args.constraint_limit,
                 mean_std=mean_std,
-                layers=LAYERS,
-                num_heads=NHEAD,
-                dropout=DROPOUT,
-                weight_decay=WEIGHTDECAY,
-                learning_rate=LEARNINGRATE,
-                epochs=EPOCHS,
-                batch_size=BATCHSIZE,
-                linear_size=LINEARSIZE,
-                sliding_window_size=SLIDING_WINDOW_SIZE,
+                layers=args.num_layers,
+                num_heads=args.num_heads,
+                dropout=args.dropout,
+                weight_decay=args.weight_decay,
+                learning_rate=args.learning_rate,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                linear_size=args.linear_size,
+                sliding_window_size=args.sliding_window_size,
                 checkpoint_path=cpath,
                 strict=True,
             )

@@ -555,6 +555,20 @@ def get_args():
         help="Test the model on test fraction of data",
     )
 
+    parser.add_argument(
+        "--save_path",
+        type=str,
+        default=config["save_path"],
+        help="Path to save the model and logs",
+    )
+
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default=config["model_name"],
+        help="Name of the model for saving",
+    )
+
     args = parser.parse_args()
 
     return args
@@ -564,23 +578,6 @@ def get_args():
 def main():
     # Arguments
     args = get_args()
-
-    WEIGHTDECAY = args.weight_decay
-    LEARNINGRATE = args.learning_rate
-    DROPOUT = args.dropout
-    NHEAD = args.num_heads
-    LAYERS = args.num_layers
-    EPOCHS = args.epochs
-    BATCHSIZE = args.batch_size
-    LINEARSIZE = args.linear_size
-    LOSSFUNCTION = args.loss_function
-    NUM_FEATURES = args.num_features
-    OUTPUT_SIZE = args.output_size
-
-    # Params for the sliding window on the packet data
-    SLIDING_WINDOW_SIZE = args.sliding_window_size
-
-    input_size = SLIDING_WINDOW_SIZE * NUM_FEATURES 
 
     TRAIN = args.train
     SAVE_MODEL = args.save_model
@@ -601,30 +598,12 @@ def main():
         args.num_features
     )
 
-    ## Model definition with iat scaling params
-    model = TANTGen(
-        input_size=input_size,
-        target_size=OUTPUT_SIZE,
-        num_features=NUM_FEATURES,
-        loss_function=LOSSFUNCTION,
-        mean_std=mean_std,
-        layers=LAYERS,
-        num_heads=NHEAD,
-        dropout=DROPOUT,
-        weight_decay=WEIGHTDECAY,
-        learning_rate=LEARNINGRATE,
-        epochs=EPOCHS,
-        batch_size=BATCHSIZE,
-        linear_size=LINEARSIZE,
-        sliding_window_size=SLIDING_WINDOW_SIZE,
-    )
-
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
         feature_arr, target_arr, test_size=0.05, shuffle=False, random_state=42
     )
 
     train_vectors, val_vectors, train_labels, val_labels = train_test_split(
-        full_train_vectors, full_train_labels, test_size=0.1, shuffle=False
+        full_train_vectors, full_train_labels, test_size=0.1, shuffle=False, random_state=42
     )
 
     train_dataset = PacketDataset(train_vectors, train_labels)
@@ -632,13 +611,13 @@ def main():
     test_dataset = PacketDataset(test_vectors, test_labels)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
+        train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
+        val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4
+        test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
 
     # print one dataloader item!!!!
@@ -666,12 +645,30 @@ def main():
     print(f"Feature: {feature}")
     print(f"Label: {label}")
 
+    input_size = args.sliding_window_size * args.num_features 
+
+    ## Model definition with iat scaling params
+    model = TANTGen(
+        input_size=input_size,
+        target_size=args.output_size,
+        num_features=args.num_features,
+        loss_function=args.loss_function,
+        mean_std=mean_std,
+        layers=args.num_layers,
+        num_heads=args.num_heads,
+        dropout=args.dropout,
+        weight_decay=args.weight_decay,
+        learning_rate=args.learning_rate,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        linear_size=args.linear_size,
+        sliding_window_size=args.sliding_window_size,
+    )
 
     # Make new dir for storing logs
-    os.system("mkdir -p transformer_iat_logs")
-    save_path = "transformer_iat_logs"
+    os.system("mkdir -p {}".format(args.save_path))
 
-    tb_logger = pl_loggers.TensorBoardLogger(save_dir=save_path)
+    tb_logger = pl_loggers.TensorBoardLogger(save_dir=args.save_path)
 
     if NUM_GPUS >= 1:
         trainer = pl.Trainer(
@@ -679,7 +676,7 @@ def main():
             accelerator="gpu",
             devices=1, # !!!!!1
             # strategy="ddp", # !!!!!1
-            max_epochs=EPOCHS,
+            max_epochs=args.epochs,
             check_val_every_n_epoch=1,
             logger=tb_logger,
             callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
@@ -687,7 +684,7 @@ def main():
     else:
         trainer = pl.Trainer(
             #gpus=None,
-            max_epochs=EPOCHS,
+            max_epochs=args.epochs,
             check_val_every_n_epoch=1,
             logger=tb_logger,
             callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
@@ -699,15 +696,15 @@ def main():
         print(time)
 
         print("Removing old logs:")
-        os.system("rm -rf {}/lightning_logs/".format(save_path))
+        os.system("rm -rf {}/lightning_logs/".format(args.save_path))
 
         trainer.fit(model, train_loader, val_loader)
         print("Finished training at:")
         time = datetime.now()
         print(time)
         trainer.save_checkpoint(
-            "{}/finetune_nonpretrained_window{}.ckpt".format(
-                save_path, SLIDING_WINDOW_SIZE
+            "{}/{}{}.ckpt".format(
+                args.save_path, args.model_name, args.sliding_window_size
             )
         )
 
@@ -716,7 +713,7 @@ def main():
 
     if MAKE_EPOCH_PLOT:
         t.sleep(5)
-        log_dir = "{}/lightning_logs/version_0".format(save_path)
+        log_dir = "{}/lightning_logs/version_0".format(args.save_path)
         y_key = "Avg loss per epoch"
 
         event_accumulator = EventAccumulator(log_dir)
@@ -740,24 +737,24 @@ def main():
             trainer.test(model, dataloaders=test_loader)
         else:
             print("Loading checkpoint")
-            cpath = "{}/finetune_nonpretrained_window{}.ckpt".format(
-                save_path, SLIDING_WINDOW_SIZE
+            cpath = "{}/{}{}.ckpt".format(
+                args.save_path, args.model_name, args.sliding_window_size
             )
             testmodel = TANTGen.load_from_checkpoint(
                 input_size=input_size,
-                target_size=OUTPUT_SIZE,
-                num_features=NUM_FEATURES,
-                loss_function=LOSSFUNCTION,
+                target_size=args.output_size,
+                num_features=args.num_features,
+                loss_function=args.loss_function,
                 mean_std=mean_std,
-                layers=LAYERS,
-                num_heads=NHEAD,
-                dropout=DROPOUT,
-                weight_decay=WEIGHTDECAY,
-                learning_rate=LEARNINGRATE,
-                epochs=EPOCHS,
-                batch_size=BATCHSIZE,
-                linear_size=LINEARSIZE,
-                sliding_window_size=SLIDING_WINDOW_SIZE,
+                layers=args.num_layers,
+                num_heads=args.num_heads,
+                dropout=args.dropout,
+                weight_decay=args.weight_decay,
+                learning_rate=args.learning_rate,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                linear_size=args.linear_size,
+                sliding_window_size=args.sliding_window_size,
                 checkpoint_path=cpath,
                 strict=True,
             )

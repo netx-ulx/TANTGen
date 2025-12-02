@@ -1,9 +1,10 @@
-from scapy.all import TCP, UDP, IP, ICMP, IPv6, ARP
+from scapy.all import TCP, UDP, IP, IPv6, ARP
 import pandas as pd
 import math
 import argparse
 from scapy.utils import RawPcapReader
 from scapy.layers.l2 import Ether
+from tqdm import tqdm
 
 def fast_read_pcap(filename):
     for pkt_data, _ in RawPcapReader(filename):
@@ -23,65 +24,73 @@ def get_basic_features(pcap_path):
     print(f"[✓] Ficheiro PCAP '{pcap_path}' carregado com sucesso.")
     rows = []
     last_ts = None
-    for pkt in packets:
-        IPtype = -1  # Default value for non-IP packets
+    direction_helper = {}
+    for pkt in tqdm(packets, desc="Processando pacotes"):
+    #for pkt in packets:
         timestamp = pkt.time
         framelen = len(pkt)
-        protocol = -1  # Default value for non-IP packets
         if pkt.haslayer(IP):  # IPv4
             srcIP = pkt[IP].src
             dstIP = pkt[IP].dst
+            payload = bytes(pkt[IP].payload)
             IPtype = 0
             protocol = pkt[IP].proto
         elif pkt.haslayer(IPv6):  # IPv6
             srcIP = pkt[IPv6].src
             dstIP = pkt[IPv6].dst
+            payload = bytes(pkt[IPv6].payload)
             IPtype = 1
+            protocol = pkt[IPv6].nh
+        elif pkt.haslayer(ARP):  # ARP
+            srcIP = pkt[ARP].psrc  # src IP (ARP)
+            dstIP = pkt[ARP].pdst  # dst IP (ARP)
+            payload = b''
+            IPtype = 2
+            protocol = 0
         else:
-            srcIP = '-1'
-            dstIP = '-1'
+            continue # Skip non-IP packets
 
         
         if pkt.haslayer(TCP):
-            srcproto = str(pkt[TCP].sport)
-            dstproto = str(pkt[TCP].dport)
+            srcPort = str(pkt[TCP].sport)
+            dstPort = str(pkt[TCP].dport)
         elif pkt.haslayer(UDP):
-            srcproto = str(pkt[UDP].sport)
-            dstproto = str(pkt[UDP].dport)
+            srcPort = str(pkt[UDP].sport)
+            dstPort = str(pkt[UDP].dport)
         else:
-            srcproto = '-1'
-            dstproto = '-1'
+            srcPort = '-1'
+            dstPort = '-1'
         # srcMAC = pkt.src
         # dstMAC = pkt.dst
-        if srcproto == '-1':  # it's a L2/L1 level protocol
-            if pkt.haslayer(ARP):  # is ARP
-                srcproto = 'arp'
-                dstproto = 'arp'
-                srcIP = pkt[ARP].psrc  # src IP (ARP)
-                dstIP = pkt[ARP].pdst  # dst IP (ARP)
-                IPtype = 0
-            elif pkt.haslayer(ICMP):  # is ICMP
-                srcproto = 'icmp'
-                dstproto = 'icmp'
-                IPtype = 0
-            elif srcIP + srcproto + dstIP + dstproto == '':  # some other protocol
-                srcIP = pkt.src  # src MAC
-                dstIP = pkt.dst  # dst MAC
         iat = timestamp - last_ts if last_ts else 0
         last_ts = timestamp
+        flow_id_fwd = f"{srcIP}:{srcPort}-{dstIP}:{dstPort}-{protocol}"
+        flow_id_bwd = f"{dstIP}:{dstPort}-{srcIP}:{srcPort}-{protocol}"
+        if flow_id_fwd in direction_helper:
+            direction = 1  # forward
+            flow_id = flow_id_fwd
+        elif flow_id_bwd in direction_helper:
+            direction = -1  # backward
+            flow_id = flow_id_bwd
+        else:
+            direction = 1  # new flow, assume forward
+            flow_id = flow_id_fwd
+        direction_helper[flow_id] = True
 
         row= {
+            'Flow ID': flow_id,
+            'Direction': direction,
             'Timestamp': timestamp,
             'IAT': iat,
             'Packet Size': framelen,
             'Proto': protocol,
             'Source IP': srcIP,
             'Destination IP': dstIP,
-            'TCP Source Port': srcproto,
-            'TCP Destination Port': dstproto,
+            'TCP Source Port': srcPort,
+            'TCP Destination Port': dstPort,
             'TCP Flags': pkt[TCP].flags if pkt.haslayer(TCP) else 0,
-            'Payload Length': len(pkt[IP].payload) if pkt.haslayer(IP) else 0,
-            'Payload Entropy': entropy(bytes(pkt[IP].payload)) if pkt.haslayer(IP) else 0,
+            'Payload Length': len(payload),
+            'Payload Entropy': entropy(payload),
             'IP Type': IPtype
         }
         rows.append(row)

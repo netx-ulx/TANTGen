@@ -4,6 +4,13 @@ import pytorch_lightning as pl
 from sklearn.metrics import precision_recall_fscore_support, roc_auc_score, confusion_matrix
 import numpy as np
 
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+
+from generate_sequences import generate_sliding_windows_NIDS
+from datasets.PacketDatasetNIDS import PacketDatasetNIDS
+from models2.TANTGen import TANTGen
+
 class TANTGen_NIDS(pl.LightningModule):
     def __init__(
         self,
@@ -22,7 +29,6 @@ class TANTGen_NIDS(pl.LightningModule):
         # --- Obter o modelo base ---
         # Se tens a classe TANTGen no mesmo namespace, podes carregar com load_from_checkpoint.
         if pretrained_ckpt_path:
-            # Carregar checkpoint (com strict=False para permitir modificar a cabeça)
             self.base = TANTGen.load_from_checkpoint(
                 checkpoint_path=pretrained_ckpt_path,
                 input_size=base_model_kwargs["input_size"],
@@ -220,63 +226,248 @@ class TANTGen_NIDS(pl.LightningModule):
         self.test_preds = []
         self.test_labels = []
 
+# Argument parser for the model and return
+def get_args():
+    # Hyper parameters from config file
+    with open("configs/config-TANTGen-NIDS.yaml") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
 
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+    # Add default arguments from the config file
+    parser = argparse.ArgumentParser(
+        description="NIDS transformer (to detect attacks based on network packet features)",
+    )
 
-# preparar dataloaders (assumindo feature_arr, labels_arr já criados)
-train_ds = PacketDatasetNIDS(train_vectors, train_labels)
-val_ds = PacketDatasetNIDS(val_vectors, val_labels)
-test_ds = PacketDatasetNIDS(test_vectors, test_labels)
+    parser.add_argument(
+        "--weight_decay",
+        type=float,
+        default=float(config["weight_decay"]),
+        help="Weight decay for the Adam optimizer",
+    )
 
-train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=4)
-val_loader = DataLoader(val_ds, batch_size=64, shuffle=False, num_workers=4)
-test_loader = DataLoader(test_ds, batch_size=64, shuffle=False, num_workers=4)
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=float(config["learning_rate"]),
+        help="Learning rate for the Adam optimizer",
+    )
 
-base_kwargs = {
-    "input_size": input_size,
-    "target_size": OUTPUT_SIZE,
-    "num_features": NUM_FEATURES,
-    "loss_function": nn.MSELoss(),
-    "mean_std": mean_std,
-    "layers": LAYERS,
-    "num_heads": NHEAD,
-    "dropout": DROPOUT,
-    "weight_decay": WEIGHTDECAY,
-    "learning_rate": LEARNINGRATE,
-    "epochs": EPOCHS,
-    "batch_size": BATCHSIZE,
-    "linear_size": LINEARSIZE,
-    "sliding_window_size": SLIDING_WINDOW_SIZE,
-}
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=float(config["dropout"]),
+        help="Dropout for the transformer",
+    )
 
-# calcular class weights (exemplo)
-import numpy as np
-unique, counts = np.unique(train_labels, return_counts=True)
-counts_dict = dict(zip(unique, counts))
-# weight for class i = total / (num_classes * count_i)
-total = len(train_labels)
-num_classes = 2
-weights = torch.tensor([ total/(num_classes*counts_dict.get(0,1)), total/(num_classes*counts_dict.get(1,1)) ])
+    parser.add_argument(
+        "--num_heads",
+        type=int,
+        default=int(config["num_heads"]),
+        help="Number of heads for the transformer",
+    )
 
-model = TANTGenForNIDS(
-    pretrained_ckpt_path="transformer_iat_logs/finetune_nonpretrained_window512.ckpt",  # se tiveres
-    base_model_kwargs=base_kwargs,
-    num_classes=2,
-    freeze_base=True,
-    lr=1e-4,
-    weight_decay=1e-5,
-    class_weights=weights,
-    unfreeze_last_n_layers=1,
-)
+    parser.add_argument(
+        "--num_layers",
+        type=int,
+        default=int(config["num_layers"]),
+        help="Number of layers for the transformer",
+    )
 
-callbacks = [
-    EarlyStopping(monitor="val_f1", mode="max", patience=6),
-    ModelCheckpoint(monitor="val_f1", mode="max", filename="best_nids_{epoch:02d}-{val_f1:.4f}")
-]
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=int(config["epochs"]),
+        help="Number of epochs for training",
+    )
 
-trainer = Trainer(accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1 if torch.cuda.is_available() else None,
-                  max_epochs=30, callbacks=callbacks)
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=int(config["batch_size"]),
+        help="Batch size for training",
+    )
 
-trainer.fit(model, train_loader, val_loader)
-trainer.test(model, test_loader)
+    parser.add_argument(
+        "--linear_size",
+        type=int,
+        default=int(config["linear_size"]),
+        help="Linear size for the transformer",
+    )
+
+    parser.add_argument(
+        "--loss_function",
+        default=nn.MSELoss(),
+        help="Loss function for the transformer",
+    )
+
+    if "loss_function" in config.keys():
+        if config["loss_function"] == "huber":
+            parser.add_argument(
+                "--loss_function_huber",
+                default=nn.SmoothL1Loss(),
+                help="Loss function for the transformer",
+            )
+        if config["loss_function"] == "smoothl1":
+            parser.add_argument(
+                "--loss_function_smoothl1",
+                default=nn.SmoothL1Loss(),
+                help="Loss function for the transformer",
+            )
+        if config["loss_function"] == "kldiv":
+            parser.add_argument(
+                "--loss_function_kldiv",
+                default=nn.KLDivLoss(),
+                help="Loss function for the transformer",
+            )
+
+    parser.add_argument(
+        "--sliding_window_size",
+        type=int,
+        default=int(config["sliding_window_size"]),
+        help="Size of the sliding window",
+    )
+
+    parser.add_argument(
+        "--window_stride",
+        type=int,
+        default=int(config["window_stride"]),
+        help="Stride for constructing the sliding window",
+    )
+
+    parser.add_argument(
+        "--num_features",
+        type=int,
+        default=int(config["num_features"]),
+        help="Number of features in the input data",
+    )
+
+    parser.add_argument(
+        "--output_size",
+        type=int,
+        default=int(config["output_size"]),
+        help="Number of features in the output data",
+    )
+
+    parser.add_argument(
+        "--pretrained",
+        type=bool,
+        default=True,
+        help="Use a pre-trained model",
+    )
+
+    # parser.add_argument(
+    #     "--train",
+    #     type=bool,
+    #     default=True,
+    #     help="Train the model",
+    # )
+
+    # parser.add_argument(
+    #     "--save_model",
+    #     type=bool,
+    #     default=True,
+    #     help="Save the model",
+    # )
+
+    # parser.add_argument(
+    #     "--make_epoch_plot",
+    #     type=bool,
+    #     default=False,
+    #     help="Make the loss plot per epoch",
+    # )
+
+    # parser.add_argument(
+    #     "--test",
+    #     type=bool,
+    #     default=True,
+    #     help="Test the model on test fraction of data",
+    # )
+
+    args = parser.parse_args()
+
+    return args
+
+def main():
+    args = get_args()
+
+    PRETRAINED = args.pretrained
+    TRAIN = args.train
+    SAVE_MODEL = args.save_model
+    MAKE_EPOCH_PLOT = args.make_epoch_plot
+    TEST = args.test
+
+    base_kwargs = {
+        "weight_decay": args.weight_decay,
+        "learning_rate": args.learning_rate,
+        "dropout": args.dropout,
+        "num_heads": args.num_heads,
+        "layers": args.num_layers,
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "linear_size": args.linear_size,
+        "loss_function": args.loss_function,
+        "num_features": args.num_features,
+        "target_size": args.output_size,
+        "sliding_window_size": args.sliding_window_size,
+        "input_size": args.sliding_window_size * args.num_features,
+    }
+
+    if torch.cuda.is_available():
+        NUM_GPUS = torch.cuda.device_count()
+        print("Number of GPUS: {}".format(NUM_GPUS))
+    else:
+        print("ERROR: NO CUDA DEVICE FOUND")
+        NUM_GPUS = 0
+
+    ## Get the data
+    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_NIDS(
+        args.sliding_window_size,
+        args.window_stride,
+        args.num_features
+    )
+
+    full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
+        feature_arr, target_arr, test_size=0.05, shuffle=False, random_state=42
+    )
+
+    train_vectors, val_vectors, train_labels, val_labels = train_test_split(
+        full_train_vectors, full_train_labels, test_size=0.1, shuffle=False, random_state=42
+    )
+
+    train_dataset = PacketDataset(train_vectors, train_labels)
+    val_dataset = PacketDataset(val_vectors, val_labels)
+    test_dataset = PacketDataset(test_vectors, test_labels)
+
+    train_loader = DataLoader(train_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4)
+
+
+    # calcular class weights (exemplo)
+    unique, counts = np.unique(train_labels, return_counts=True)
+    counts_dict = dict(zip(unique, counts))
+    # weight for class i = total / (num_classes * count_i)
+    total = len(train_labels)
+    num_classes = 2
+    weights = torch.tensor([ total/(num_classes*counts_dict.get(0,1)), total/(num_classes*counts_dict.get(1,1)) ])
+
+    model = TANTGenForNIDS(
+        pretrained_ckpt_path="{}/finetune_nonpretrained_window{}.ckpt".format(args.pretrained_ckpt_dir, args.sliding_window_size),
+        base_model_kwargs=base_kwargs,
+        num_classes=num_classes,
+        freeze_base=True,
+        lr=args.learning_rate,
+        weight_decay=args.weight_decay,
+        class_weights=weights,
+        unfreeze_last_n_layers=1,
+    )
+
+    callbacks = [
+        EarlyStopping(monitor="val_f1", mode="max", patience=6),
+        ModelCheckpoint(monitor="val_f1", mode="max", filename="best_nids_{epoch:02d}-{val_f1:.4f}")
+    ]
+
+    trainer = Trainer(accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1 if torch.cuda.is_available() else None,
+                    max_epochs=30, callbacks=callbacks)
+
+    trainer.fit(model, train_loader, val_loader)
+    trainer.test(model, test_loader)

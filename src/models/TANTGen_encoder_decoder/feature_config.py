@@ -32,17 +32,17 @@ feature_config = {
         "min": -1,
         "max": 255,
         "values": {
-            -1: "No Protocol",
+            -1: "No Protocol", # ignorar
             1: "ICMP",
+            2: "IGMP", # ignorar
+            4: "IPv4",
             6: "TCP",
             17: "UDP",
-            58: "ICMPv6",
-            89: "OSPF",
-            132: "SCTP",
-            143: "SCTP",
-            132: "SCTP",
-            204: "SCTP",
-            255: "Other"
+            41: "IPv6",
+            58: "ICMPv6", # ignorar
+            89: "OSPF", # ignorar
+            115: "L2TP",
+            255: "Other" # ignorar
         },
         "window_based": False,
         "notes": "Network protocol used in the packet."
