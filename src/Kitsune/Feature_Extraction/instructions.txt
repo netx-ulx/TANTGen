@@ -4,4 +4,12 @@ Retirado do TrafficManipulator
 python setup.py build_ext --inplace
 
 2. Extracting features from raw packets (a csv and npy file will be generated):
-python extractor.py -i ../../../data/original/Mirai.pcap -o ../../../data/original/Mirai_Kitsune.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/Active_Wiretap_benign.pcap -o ../../../data/original/Kitsune/Benign/Active_Wiretap_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/ARP_MitM_benign.pcap -o ../../../data/original/Kitsune/Benign/ARP_MitM_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/Fuzzing_benign.pcap -o ../../../data/original/Kitsune/Benign/Fuzzing_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/Mirai_benign.pcap -o ../../../data/original/Kitsune/Benign/Mirai_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/OS_Scan_benign.pcap -o ../../../data/original/Kitsune/Benign/OS_Scan_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/SSDP_Flood_benign.pcap -o ../../../data/original/Kitsune/Benign/SSDP_Flood_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/SSL_Renegotiation_benign.pcap -o ../../../data/original/Kitsune/Benign/SSL_Renegotiation_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/SYN_DoS_benign.pcap -o ../../../data/original/Kitsune/Benign/SYN_DoS_Kitsune_Features.csv
+python extractor.py -i ../../../data/original/Kitsune/Benign/Video_Injection_benign.pcap -o ../../../data/original/Kitsune/Benign/Video_Injection_Kitsune_Features.csv

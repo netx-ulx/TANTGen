@@ -1,40 +1,36 @@
-from scapy.all import rdpcap, wrpcap
 import pandas as pd
 
 import argparse
-from scapy.utils import RawPcapReader
-from scapy.layers.l2 import Ether
-
-def fast_read_pcap(filename):
-    for pkt_data, _ in RawPcapReader(filename):
-        yield Ether(pkt_data)
+from scapy.utils import PcapReader, PcapWriter
 
 def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
-    # Reading pcap and csv files
-    packets = fast_read_pcap(pcap_file)
-    labels = pd.read_csv(labels_file)
 
-    # We will count packets as we go
-    packet_count = 0
-    malicious_packets = []
-    benign_packets = []
-    #for pkt, flag in zip(packets, labels[0]):
-    for pkt, flag in zip(packets, labels['x']):
-        if flag == 1:
-            malicious_packets.append(pkt)
+    labels = pd.read_csv(labels_file)['x']
+
+    reader = PcapReader(pcap_file)
+    writer_mal = PcapWriter(malicious_pcap, append=False, sync=True)
+    malicious_count = 0
+    writer_ben = PcapWriter(benign_pcap, append=False, sync=True)
+    benign_count = 0
+
+    for i, pkt in enumerate(reader):
+        if labels[i] == 1:
+            writer_mal.write(pkt)
+            malicious_count += 1
         else:
-            benign_packets.append(pkt)
-        packet_count += 1
-
-    if packet_count != len(labels):
+            writer_ben.write(pkt)
+            benign_count += 1
+    
+    if i + 1 != len(labels):
         raise ValueError("Number of packets in pcap does not match number of rows in csv")
 
-    # Saving new pcap file
-    wrpcap(malicious_pcap, malicious_packets)
-    wrpcap(benign_pcap, benign_packets)
 
-    print(f"File generated: {malicious_pcap} with {len(malicious_packets)} packets")
-    print(f"File generated: {benign_pcap} with {len(benign_packets)} packets")
+    reader.close()
+    writer_mal.close()
+    writer_ben.close()
+
+    print(f"File generated: {malicious_pcap} with {malicious_count} packets")
+    print(f"File generated: {benign_pcap} with {benign_count} packets")
 
 if __name__ == "__main__":
 

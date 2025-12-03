@@ -1,7 +1,19 @@
 # Train:
 python KitNET/model.py -M train -tf example/train_ben.npy
 
-save a model in example/mode.pkl
+# ------------------------------------------------------------
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/Active_Wiretap_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/ARP_MitM_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/Fuzzing_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/Mirai_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/OS_Scan_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/SSDP_Flood_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/SSL_Renegotiation_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/SYN_DoS_Kitsune_Features.npy
+python KitNET/model.py -M train -tf ../../data/original/Kitsune/Benign/Video_Injection_Kitsune_Features.npy
+# ------------------------------------------------------------
+
+save a model in example/model.pkl
 
 # execute original traffic - replace with your own traffic
 python KitNET/model.py -M exec -tf original.npy -rf original_rmse.pkl

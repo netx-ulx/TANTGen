@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parse.add_argument('-rf', '--RMSE_file_path', type=str,
                        help="resulting rmse file (.pkl) path, only for execute mode!")
 
-    parse.add_argument('-mf', '--model_file_path', type=str, default='./example/model.pkl',
+    parse.add_argument('-mf', '--model_file_path', type=str, default='./models/model.pkl',
                        help="for train mode, model is saved into 'mf'; for execute mode, model is loaded from 'mf'")
 
     parse.add_argument('-m', '--maxAE', type=int, default=10,
