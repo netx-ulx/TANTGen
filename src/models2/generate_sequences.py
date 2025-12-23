@@ -22,7 +22,7 @@ def generate_sliding_windows(
 ):
 
     path = "../../data/preprocessed/adversarial_train/"
-    file = "benign_1M.csv"
+    file = "benign.csv"
 
     df = pd.read_csv(path + file)
 
@@ -78,10 +78,10 @@ def generate_sliding_windows_NIDS(
     num_features
 ):
 
-    path = "../../data/original/Kitsune/"
+    path = "../../data/preprocessed/Kitsune/"
 
-    features_file = "kitsune_features.csv"
-    labels_file = "kitsune_labels.csv"
+    features_file = "mirai_myFE.csv"
+    labels_file = "mirai_labels.csv"
 
     label_df = pd.read_csv(path + labels_file)
     label_df = label_df[['x']].rename(columns={'x': 'Label'})

@@ -1,7 +1,6 @@
 import argparse
 import os
 import math
-import time as t
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -149,15 +148,15 @@ class TANTGen(pl.LightningModule):
         self.mean_std = mean_std
 
         self.training_step_outputs = []
-        self.validation_step_outputs = []
-        self.test_step_outputs = []
-
         self.training_step_predictions = []
-        self.validation_step_predictions = []
-        self.test_step_predictions = []
-
         self.training_step_original = []
+
+        self.validation_step_outputs = []
+        self.validation_step_predictions = []
         self.validation_step_original = []
+
+        self.test_step_outputs = []
+        self.test_step_predictions = []
         self.test_step_original = []
 
     def configure_optimizers(self):
@@ -233,7 +232,7 @@ class TANTGen(pl.LightningModule):
         return self.output_head(dec)
 
 
-    def general_step(self, batch):
+    def _step(self, batch):
         X, y = batch
 
         # Mask out one iat in the entire input sequence (this is now random position, not fixed as last)
@@ -281,7 +280,7 @@ class TANTGen(pl.LightningModule):
     def training_step(self, train_batch, train_idx):
         self.lr_update()
 
-        loss, prediction, y = self.general_step(train_batch)
+        loss, prediction, y = self._step(train_batch)
 
         self.log("Train loss", loss, sync_dist=True)
         self.training_step_outputs.append(loss)
@@ -291,7 +290,7 @@ class TANTGen(pl.LightningModule):
 
     def validation_step(self, val_batch, val_idx):
 
-        loss, prediction, y = self.general_step(val_batch)
+        loss, prediction, y = self._step(val_batch)
 
         self.log("Val loss", loss, sync_dist=True)
         self.validation_step_outputs.append(loss)
@@ -300,7 +299,7 @@ class TANTGen(pl.LightningModule):
         return loss
 
     def test_step(self, test_batch, test_idx):
-        loss, prediction, y = self.general_step(test_batch)
+        loss, prediction, y = self._step(test_batch)
 
         self.log("Test loss", loss, sync_dist=True)
         self.test_step_outputs.append(loss)
@@ -579,11 +578,6 @@ def main():
     # Arguments
     args = get_args()
 
-    TRAIN = args.train
-    SAVE_MODEL = args.save_model
-    MAKE_EPOCH_PLOT = args.make_epoch_plot
-    TEST = args.test
-
     if torch.cuda.is_available():
         NUM_GPUS = torch.cuda.device_count()
         print("Number of GPUS: {}".format(NUM_GPUS))
@@ -690,7 +684,7 @@ def main():
             callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
         )
 
-    if TRAIN:
+    if args.train:
         print("Started training at:")
         time = datetime.now()
         print(time)
@@ -708,11 +702,10 @@ def main():
             )
         )
 
-    if SAVE_MODEL:
+    if args.save_model:
         torch.save(model.state_dict(), "models/new.pth")
 
-    if MAKE_EPOCH_PLOT:
-        t.sleep(5)
+    if args.make_epoch_plot:
         log_dir = "{}/lightning_logs/version_0".format(args.save_path)
         y_key = "Avg loss per epoch"
 
@@ -732,8 +725,8 @@ def main():
         ax.set_ylabel(y_key)
         fig.savefig("lossplot_perepoch.png")
 
-    if TEST:
-        if TRAIN:
+    if args.test:
+        if args.train:
             trainer.test(model, dataloaders=test_loader)
         else:
             print("Loading checkpoint")

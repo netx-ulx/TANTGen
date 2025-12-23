@@ -1,17 +1,19 @@
 config_base = ''' name: transformer NIDS
-# weight_decay: 1e-5
-# learning_rate: 1e-4            
-# dropout: 0.2                   
-# num_heads: 8                      
-# num_layers: 6                      
-# epochs: 15
+weight_decay: 1e-5
+learning_rate: 1e-4            
+dropout: 0.2                   
+num_heads: 8                      
+num_layers: 6                      
+epochs: 30 #|TODO verify
 batch_size: 64
 linear_size: 120 
-# loss_function: huber
+loss_function: huber
 sliding_window_size: 64
 window_stride: 64
 #-----------------------------
-# num_features: 7
+num_features: 7
 output_size: 1
-save_path: transformer_iat_logs
+pretrained_save_path: transformer_iat_logs
 pretrained_model_name: TANTGen_pretrain_window
+save_path: transformer_nids_logs
+model_name: TANTGen_NIDS_window

@@ -1,30 +1,45 @@
+import os
+import time as t
+from datetime import datetime
+import yaml
+import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+
 import torch
 from torch import nn, optim
-import pytorch_lightning as pl
+from torch.utils.data import DataLoader
 from sklearn.metrics import precision_recall_fscore_support, roc_auc_score, confusion_matrix
-import numpy as np
+from sklearn.model_selection import train_test_split
 
+import pytorch_lightning as pl
+from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+
 from generate_sequences import generate_sliding_windows_NIDS
-from datasets.PacketDatasetNIDS import PacketDatasetNIDS
-from models2.TANTGen import TANTGen
+from utils import (
+    PacketDataset,
+)
+from TANTGen import TANTGen
 
 class TANTGen_NIDS(pl.LightningModule):
     def __init__(
         self,
         pretrained_ckpt_path=None,   # path for the checkpoint of pre-trained TANTGen
         base_model_kwargs=None,      # kwargs for building TANTGen from scratch
-        num_classes=2,               # 2 = binary (normal vs attack)
         freeze_base=True,            # freeze encoder initially
         lr=1e-4,
         weight_decay=0.0,
-        class_weights=None,          # tensor or None (for CrossEntropy/BCE)
         unfreeze_last_n_layers=0,    # if >0, unfreeze last N layers of the encoder
     ):
         super().__init__()
-        self.save_hyperparameters(ignore=["base_model_kwargs","pretrained_ckpt_path","class_weights"])
+        self.save_hyperparameters(ignore=["base_model_kwargs","pretrained_ckpt_path"])
+
+        self.lr = lr
+        self.weight_decay = weight_decay
 
         # --- Obter o modelo base ---
         # Se tens a classe TANTGen no mesmo namespace, podes carregar com load_from_checkpoint.
@@ -59,11 +74,8 @@ class TANTGen_NIDS(pl.LightningModule):
             nn.Linear(enc_out_dim, enc_out_dim//2),
             nn.GELU(),
             nn.Dropout(0.2),
-            nn.Linear(enc_out_dim//2, num_classes)  # logits
+            nn.Linear(enc_out_dim//2, 1)  # logits
         )
-
-        # Option: se for binário podes ter um único logit (num_classes=1) e usar BCEWithLogitsLoss
-        self.num_classes = num_classes
 
         # Congelar parâmetros do base se pedido
         if freeze_base:
@@ -81,150 +93,173 @@ class TANTGen_NIDS(pl.LightningModule):
                         p.requires_grad = True
 
         # Loss
-        if num_classes == 1 or num_classes == 2:
-            # para binário: usar BCEWithLogitsLoss (expect logits size [B,1]) ou CrossEntropy com 2 classes
-            if num_classes == 1:
-                self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=class_weights)
-            else:
-                if class_weights is not None:
-                    self.loss_fn = nn.CrossEntropyLoss(weight=class_weights)
-                else:
-                    self.loss_fn = nn.CrossEntropyLoss()
-        else:
-            self.loss_fn = nn.CrossEntropyLoss(weight=class_weights)
+        self.loss_fn = nn.BCEWithLogitsLoss()
+        # TODO: com balanceamento de classes, se necessário
+        # pos_weight = torch.tensor([num_benign / num_malicious])
+        # self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-        # Metrics storage
-        self.train_preds = []
-        self.train_labels = []
-        self.val_preds = []
-        self.val_labels = []
-        self.test_preds = []
-        self.test_labels = []
+        self.training_step_outputs = []
+        self.training_step_predictions = []
+        self.training_step_original = []
 
-        self.lr = lr
-        self.weight_decay = weight_decay
+        self.validation_step_outputs = []
+        self.validation_step_predictions = []
+        self.validation_step_original = []
+
+        self.test_step_outputs = []
+        self.test_step_predictions = []
+        self.test_step_original = []
+
 
     def forward(self, src):
         """
         Input: src shape (B, seq_len, num_features)
-        Queremos extrair representação de sequência inteira — estratégia simples:
-        - Passar por feature_transform1 + positional + encoder -> memory (B, seq_len, d)
-        - Agregar (e.g. mean pool) sobre seq_len -> vetor (B, d)
-        - Classifier sobre esse vetor
+        - feature_transform1 + positional + encoder -> memory (B, seq_len, d)
+        - Aggregate (e.g., average pool) over seq_len -> vector (B, d)
+        - Classify over that vector
         """
-        # reusar transformações do base
         x = src.double()
-        x = self.base.feature_transform1(x)   # (B, seq, d)
-        x = self.base.positional_encoding(x)
-        memory = self.base.encoder(x)         # (B, seq, d)
 
-        # Agregação: mean pooling (podes também usar [CLS] token, max, attention pooling)
-        pooled = memory.mean(dim=1)          # (B, d)
-        logits = self.classifier_head(pooled)  # (B, num_classes) ou (B,1)
-        return logits
+        x = self.base.feature_transform1(x)
+        x = self.base.positional_encoding(x)
+
+        memory = self.base.encoder(x)
+        # pooled = memory.mean(dim=1)
+
+        return self.classifier_head(memory).squeeze(1)
 
     def configure_optimizers(self):
         # Apenas parâmetros com requires_grad=True serão otimizados
         params = [p for p in self.parameters() if p.requires_grad]
         optimizer = optim.Adam(params, lr=self.lr, weight_decay=self.weight_decay)
         # opcional: scheduler
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3)
-        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "monitor": "val_loss"}}
+        # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3)
+        # return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "monitor": "val_loss"}}
+        return optimizer
 
     def _step(self, batch):
         X, y = batch  # X: (B, seq, feat), y: (B,) int labels or (B,1) float
-        logits = self.forward(X)
-        if self.num_classes <= 2:
-            if self.num_classes == 1:
-                loss = self.loss_fn(logits.view(-1), y.float())
-                preds = torch.sigmoid(logits).view(-1).detach().cpu().numpy()
-            else:
-                loss = self.loss_fn(logits, y.long())
-                probs = torch.softmax(logits, dim=1)[:,1]
-                preds = probs.detach().cpu().numpy()
-        else:
-            loss = self.loss_fn(logits, y.long())
-            probs = torch.softmax(logits, dim=1)
-            preds = probs[:,1].detach().cpu().numpy()  # assumes interested in class 1 prob
 
-        return loss, preds, y.detach().cpu().numpy()
+        logits = self.forward(X)
+        loss = self.loss_fn(logits, y.float())
+        y_pred = torch.sigmoid(logits).view(-1).detach().cpu().numpy()
+        
+        return loss, y_pred, y.view(-1).detach().cpu().numpy()
 
     def training_step(self, batch, batch_idx):
-        loss, preds, labels = self._step(batch)
-        self.train_preds.append(preds)
-        self.train_labels.append(labels)
-        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
+        loss, prediction, y = self._step(batch)
+
+        self.log("Train loss", loss, sync_dist=True)
+        self.training_step_outputs.append(loss)
+        self.training_step_predictions.append(prediction)
+        self.training_step_original.append(y)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss, preds, labels = self._step(batch)
-        self.val_preds.append(preds)
-        self.val_labels.append(labels)
-        self.log("val_loss", loss, prog_bar=True, on_epoch=True)
+        loss, prediction, y = self._step(batch)
+
+        self.log("Val loss", loss, sync_dist=True)
+        self.validation_step_outputs.append(loss)
+        self.validation_step_predictions.append(prediction)
+        self.validation_step_original.append(y)
         return loss
 
     def test_step(self, batch, batch_idx):
-        loss, preds, labels = self._step(batch)
-        self.test_preds.append(preds)
-        self.test_labels.append(labels)
-        self.log("test_loss", loss, prog_bar=True, on_epoch=True)
+        loss, prediction, y = self._step(batch)
+
+        self.log("Test loss", loss, sync_dist=True)
+        self.test_step_outputs.append(loss)
+        self.test_step_predictions.append(prediction)
+        self.test_step_original.append(y)
         return loss
 
     def on_train_epoch_end(self):
-        preds = np.concatenate(self.train_preds)
-        labels = np.concatenate(self.train_labels)
+        loss = [x.detach().cpu().item() for x in self.training_step_outputs]
+        y_pred = np.concatenate(self.training_step_predictions)
+        y_true = np.concatenate(self.training_step_original)
+        self.log(
+            "Avg loss per epoch",
+            np.mean(np.array(loss)),
+            on_step=False,
+            on_epoch=True,
+        )
+        print(f"Avg train loss per epoch = {np.mean(loss):.4f}")
+        print(f"Total Train Loss = {np.sum(loss):.4f}")
+
         # escolher threshold 0.5 para binário
         th = 0.5
-        yhat = (preds > th).astype(int)
-        p, r, f1, _ = precision_recall_fscore_support(labels, yhat, average="binary", zero_division=0)
+        yhat = (y_pred > th).astype(int)
+        p, r, f1, _ = precision_recall_fscore_support(y_true, yhat, average="binary", zero_division=0)
         try:
-            auc = roc_auc_score(labels, preds)
+            auc = roc_auc_score(y_true, y_pred)
         except:
             auc = float("nan")
         self.log("train_precision", p)
         self.log("train_recall", r)
         self.log("train_f1", f1)
         self.log("train_auc", auc)
-        self.train_preds = []
-        self.train_labels = []
+
+        self.training_step_outputs = []
+        self.training_step_predictions = []
+        self.training_step_original = []
 
     def on_validation_epoch_end(self):
-        preds = np.concatenate(self.val_preds)
-        labels = np.concatenate(self.val_labels)
+        print()
+        loss = [x.detach().cpu().item() for x in self.validation_step_outputs]
+        y_pred = np.concatenate(self.validation_step_predictions)
+        y_true = np.concatenate(self.validation_step_original)
+        print(f"Avg val loss per epoch = {np.mean(loss):.4f}")
+        print(f"Total Validation Loss = {np.sum(loss):.4f}")
+
         th = 0.5
-        yhat = (preds > th).astype(int)
-        p, r, f1, _ = precision_recall_fscore_support(labels, yhat, average="binary", zero_division=0)
+        yhat = (y_pred > th).astype(int)
+        p, r, f1, _ = precision_recall_fscore_support(y_true, yhat, average="binary", zero_division=0)
         try:
-            auc = roc_auc_score(labels, preds)
+            auc = roc_auc_score(y_true, y_pred)
         except:
             auc = float("nan")
-        cm = confusion_matrix(labels, yhat)
+        cm = confusion_matrix(y_true, yhat, labels=[0,1])
         self.log("val_precision", p)
         self.log("val_recall", r)
         self.log("val_f1", f1)
         self.log("val_auc", auc)
-        self.log("val_confusion_TN_FP_FN_TP", cm.reshape(-1).tolist())  # podes separar se quiseres
-        self.val_preds = []
-        self.val_labels = []
+        self.log("val_confusion_TN", cm[0,0])
+        self.log("val_confusion_FP", cm[0,1]) # TODO verificar se é isto
+        self.log("val_confusion_FN", cm[1,0])
+        self.log("val_confusion_TP", cm[1,1])
+
+        self.validation_step_outputs = []
+        self.validation_step_predictions = []
+        self.validation_step_original = []
 
     def on_test_epoch_end(self):
-        preds = np.concatenate(self.test_preds)
-        labels = np.concatenate(self.test_labels)
+        print()
+        loss = [x.detach().cpu().item() for x in self.test_step_outputs]
+        y_pred = np.concatenate(self.test_step_predictions)
+        y_true = np.concatenate(self.test_step_original)
+        print(f"Avg test loss per epoch = {np.mean(loss):.4f}")
+        print(f"Total Test Loss = {np.sum(loss):.4f}")
+
         th = 0.5
-        yhat = (preds > th).astype(int)
-        p, r, f1, _ = precision_recall_fscore_support(labels, yhat, average="binary", zero_division=0)
+        yhat = (y_pred > th).astype(int)
+        p, r, f1, _ = precision_recall_fscore_support(y_true, yhat, average="binary", zero_division=0)
         try:
-            auc = roc_auc_score(labels, preds)
+            auc = roc_auc_score(y_true, y_pred)
         except:
             auc = float("nan")
-        cm = confusion_matrix(labels, yhat)
+        cm = confusion_matrix(y_true, yhat, labels=[0,1])
         self.log("test_precision", p)
         self.log("test_recall", r)
         self.log("test_f1", f1)
         self.log("test_auc", auc)
-        self.log("test_confusion_TN_FP_FN_TP", cm.reshape(-1).tolist())
-        self.test_preds = []
-        self.test_labels = []
+        self.log("test_confusion_TN", cm[0,0])
+        self.log("test_confusion_FP", cm[0,1]) # TODO verificar se é isto
+        self.log("test_confusion_FN", cm[1,0])
+        self.log("test_confusion_TP", cm[1,1])
+
+        self.test_step_outputs = []
+        self.test_step_predictions = []
+        self.test_step_original = []
 
 # Argument parser for the model and return
 def get_args():
@@ -348,39 +383,60 @@ def get_args():
     )
 
     parser.add_argument(
-        "--pretrained",
+        "--train",
         type=bool,
         default=True,
-        help="Use a pre-trained model",
+        help="Train the model",
     )
 
-    # parser.add_argument(
-    #     "--train",
-    #     type=bool,
-    #     default=True,
-    #     help="Train the model",
-    # )
+    parser.add_argument(
+        "--save_model",
+        type=bool,
+        default=True,
+        help="Save the model",
+    )
 
-    # parser.add_argument(
-    #     "--save_model",
-    #     type=bool,
-    #     default=True,
-    #     help="Save the model",
-    # )
+    parser.add_argument(
+        "--make_epoch_plot",
+        type=bool,
+        default=True,
+        help="Make the loss plot per epoch",
+    )
 
-    # parser.add_argument(
-    #     "--make_epoch_plot",
-    #     type=bool,
-    #     default=False,
-    #     help="Make the loss plot per epoch",
-    # )
+    parser.add_argument(
+        "--test",
+        type=bool,
+        default=True,
+        help="Test the model on test fraction of data",
+    )
 
-    # parser.add_argument(
-    #     "--test",
-    #     type=bool,
-    #     default=True,
-    #     help="Test the model on test fraction of data",
-    # )
+    parser.add_argument(
+        "--pretrained_save_path",
+        type=str,
+        default=config["pretrained_save_path"],
+        help="Path to load the pretrained model and logs",
+    )
+
+    parser.add_argument(
+        "--pretrained_model_name",
+        type=str,
+        default=config["pretrained_model_name"],
+        help="Name of the pretrained model",
+    )
+
+    parser.add_argument(
+        "--save_path",
+        type=str,
+        default=config["save_path"],
+        help="Path to save the model and logs",
+    )
+
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default=config["model_name"],
+        help="Name of the model",
+    )
 
     args = parser.parse_args()
 
@@ -389,11 +445,9 @@ def get_args():
 def main():
     args = get_args()
 
-    PRETRAINED = args.pretrained
-    TRAIN = args.train
-    SAVE_MODEL = args.save_model
-    MAKE_EPOCH_PLOT = args.make_epoch_plot
-    TEST = args.test
+    cpath = "{}/{}{}.ckpt".format(
+                args.save_path, args.model_name, args.sliding_window_size
+            )
 
     base_kwargs = {
         "weight_decay": args.weight_decay,
@@ -419,55 +473,134 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_NIDS(
+    feature_arr, target_arr, _ = generate_sliding_windows_NIDS(
         args.sliding_window_size,
         args.window_stride,
         args.num_features
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
-        feature_arr, target_arr, test_size=0.05, shuffle=False, random_state=42
-    )
+        feature_arr, target_arr, test_size=0.05, shuffle=True, random_state=42
+    ) # TODO ver melhor shuffle
 
     train_vectors, val_vectors, train_labels, val_labels = train_test_split(
-        full_train_vectors, full_train_labels, test_size=0.1, shuffle=False, random_state=42
-    )
+        full_train_vectors, full_train_labels, test_size=0.1, shuffle=True, random_state=42
+    ) # TODO ver melhor shuffle
 
     train_dataset = PacketDataset(train_vectors, train_labels)
     val_dataset = PacketDataset(val_vectors, val_labels)
     test_dataset = PacketDataset(test_vectors, test_labels)
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=BATCHSIZE, shuffle=False, num_workers=4)
+    train_loader = DataLoader(
+        train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+    )
 
-
-    # calcular class weights (exemplo)
-    unique, counts = np.unique(train_labels, return_counts=True)
-    counts_dict = dict(zip(unique, counts))
-    # weight for class i = total / (num_classes * count_i)
-    total = len(train_labels)
-    num_classes = 2
-    weights = torch.tensor([ total/(num_classes*counts_dict.get(0,1)), total/(num_classes*counts_dict.get(1,1)) ])
-
-    model = TANTGenForNIDS(
-        pretrained_ckpt_path="{}/finetune_nonpretrained_window{}.ckpt".format(args.pretrained_ckpt_dir, args.sliding_window_size),
+    model = TANTGen_NIDS(
+        pretrained_ckpt_path="{}/{}{}.ckpt".format(
+                args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
+            ), # TODO change name 
         base_model_kwargs=base_kwargs,
-        num_classes=num_classes,
         freeze_base=True,
         lr=args.learning_rate,
         weight_decay=args.weight_decay,
-        class_weights=weights,
         unfreeze_last_n_layers=1,
     )
+
+    # Make new dir for storing logs
+    os.system("mkdir -p {}".format(args.save_path))
+
+    tb_logger = pl_loggers.TensorBoardLogger(save_dir=args.save_path)
 
     callbacks = [
         EarlyStopping(monitor="val_f1", mode="max", patience=6),
         ModelCheckpoint(monitor="val_f1", mode="max", filename="best_nids_{epoch:02d}-{val_f1:.4f}")
     ]
 
-    trainer = Trainer(accelerator="gpu" if torch.cuda.is_available() else "cpu", devices=1 if torch.cuda.is_available() else None,
-                    max_epochs=30, callbacks=callbacks)
+    if NUM_GPUS >= 1:
+        trainer = pl.Trainer(
+            precision=16,
+            accelerator="gpu",
+            devices=1, # !!!!!1
+            # strategy="ddp", # !!!!!1
+            max_epochs=args.epochs,
+            logger=tb_logger,
+            callbacks=callbacks,
+        )
+    else:
+        trainer = pl.Trainer(
+            max_epochs=args.epochs,
+            check_val_every_n_epoch=1,
+            logger=tb_logger,
+            callbacks=callbacks,
+        )
 
-    trainer.fit(model, train_loader, val_loader)
-    trainer.test(model, test_loader)
+    # trainer.fit(model, train_loader, val_loader)
+    # trainer.test(model, test_loader)
+
+    if args.train:
+        print("Started training at:")
+        time = datetime.now()
+        print(time)
+
+        print("Removing old logs:")
+        os.system("rm -rf {}/lightning_logs/".format(args.save_path))
+
+        trainer.fit(model, train_loader, val_loader)
+        print("Finished training at:")
+        time = datetime.now()
+        print(time)
+        trainer.save_checkpoint(cpath)
+
+    if args.save_model:
+        torch.save(model.state_dict(), "models/NIDS.pth")
+
+    if args.make_epoch_plot:
+        log_dir = "{}/lightning_logs/version_0".format(args.save_path)
+        y_key = "Avg loss per epoch"
+
+        event_accumulator = EventAccumulator(log_dir)
+        event_accumulator.Reload()
+
+        steps = {x.step for x in event_accumulator.Scalars("epoch")}
+        epoch_vals = list({x.value for x in event_accumulator.Scalars("epoch")})
+
+        x = list(range(len(steps)))
+        y = [x.value for x in event_accumulator.Scalars(y_key) if x.step in steps]
+
+        fig, ax = plt.subplots()
+        ax.plot(epoch_vals, y)
+        ax.set_xlabel("epoch")
+        ax.set_ylabel(y_key)
+        fig.savefig("plots/lossplot_perepoch_NIDS.png")
+
+    if args.test:
+        if args.train:
+            trainer.test(model, test_loader)
+        else:
+            print("Loading checkpoint")
+            testmodel = TANTGen_NIDS.load_from_checkpoint(
+                pretrained_ckpt_path="{}/{}{}.ckpt".format(
+                    args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
+                    ), # TODO change name 
+                base_model_kwargs=base_kwargs,
+                freeze_base=True,
+                lr=args.learning_rate,
+                weight_decay=args.weight_decay,
+                unfreeze_last_n_layers=1,
+                checkpoint_path=cpath,
+                strict=True,
+            )
+            testmodel.eval()
+
+            trainer.test(testmodel, dataloaders=test_loader)
+
+
+
+if __name__ == "__main__":
+    main()
