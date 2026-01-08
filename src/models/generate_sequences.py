@@ -18,13 +18,11 @@ STRIDE = 16
 def generate_sliding_windows(
     window_size,
     stride,
-    num_features
+    num_features,
+    path
 ):
 
-    path = "../../data/preprocessed/adversarial_train/"
-    file = "benign.csv"
-
-    df = pd.read_csv(path + file)
+    df = pd.read_csv(path)
 
     #label_df = df.copy()
     #print(label_df.head(), label_df.shape)
@@ -127,6 +125,39 @@ def generate_sliding_windows_NIDS(
     print(len(feature_arr), len(target_arr))
 
     return feature_arr, target_arr, df
+
+
+def generate_sliding_windows_pretrain(
+    window_size,
+    stride,
+    num_features
+):
+
+    path = "../../data/preprocessed/adversarial_train/"
+    file = "benign.csv"
+
+    return generate_sliding_windows(
+        window_size,
+        stride,
+        num_features,
+        path + file
+    )
+
+def generate_sliding_windows_finetune(
+    window_size,
+    stride,
+    num_features
+):
+
+    path = "../../data/preprocessed/Kitsune/"
+    file = "mirai_myFE.csv"
+
+    return generate_sliding_windows(
+        window_size,
+        stride,
+        num_features,
+        path + file
+    )
 
 
 

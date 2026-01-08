@@ -23,7 +23,7 @@ from generate_sequences import generate_sliding_windows_NIDS
 from utils import (
     PacketDataset,
 )
-from TANTGen import TANTGen
+from TANTGen_pretrain import TANTGen
 
 class TANTGen_NIDS(pl.LightningModule):
     def __init__(
@@ -524,10 +524,9 @@ def main():
 
     if NUM_GPUS >= 1:
         trainer = pl.Trainer(
-            precision=16,
+            precision=16, # Passar para 32 ???!!!#1
             accelerator="gpu",
-            devices=1, # !!!!!1
-            # strategy="ddp", # !!!!!1
+            devices=1,
             max_epochs=args.epochs,
             logger=tb_logger,
             callbacks=callbacks,
@@ -539,9 +538,6 @@ def main():
             logger=tb_logger,
             callbacks=callbacks,
         )
-
-    # trainer.fit(model, train_loader, val_loader)
-    # trainer.test(model, test_loader)
 
     if args.train:
         print("Started training at:")
@@ -587,7 +583,7 @@ def main():
             testmodel = TANTGen_NIDS.load_from_checkpoint(
                 pretrained_ckpt_path="{}/{}{}.ckpt".format(
                     args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
-                    ), # TODO change name 
+                    ),
                 base_model_kwargs=base_kwargs,
                 freeze_base=True,
                 lr=args.learning_rate,

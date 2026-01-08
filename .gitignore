@@ -7,8 +7,6 @@ data/original
 data/preprocessed
 
 # src
-src/models/TANTGen_encoder_decoder/TANTGen_encoder_decoder_experiment
-src/models/TANTGen_gpt2/gpt2-finetuned-traffic
 
 src/Kitsune/example
 src/Kitsune/Feature_Extraction/build
@@ -17,8 +15,9 @@ src/Kitsune/Feature_Extraction/AfterImage.cpython*
 src/Feature_Extraction/CIC_IDS_divide_BM.ipynb
 src/Feature_Extraction/CIC_IDS_divide_BM2.ipynb
 
-src/models2/transformer_iat_logs/lightning_logs
-src/models2/transformer_nids_logs/lightning_logs
+src/models/transformer_iat_logs/lightning_logs
+src/models/transformer_nids_logs/lightning_logs
+src/models/TANTGen_logs/lightning_logs
 
 # Others
 others

@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from generate_sequences import generate_sliding_windows
+from generate_sequences import generate_sliding_windows_pretrain
 from utils import (
     PacketDataset,
     PositionalEncoding,
@@ -24,7 +24,7 @@ from utils import (
 
 torch.manual_seed(0)
 
-torch.set_default_dtype(torch.float64)
+torch.set_default_dtype(torch.float64) # Remover ???!!!#1
 
 # TRANSFOMER CLASS TO PREDICT IATs
 class TANTGen(pl.LightningModule):
@@ -472,31 +472,25 @@ def get_args():
         help="Linear size for the transformer",
     )
 
-    parser.add_argument(
-        "--loss_function",
-        default=nn.MSELoss(),
-        help="Loss function for the transformer",
-    )
-
     if "loss_function" in config.keys():
         if config["loss_function"] == "huber":
-            parser.add_argument(
-                "--loss_function_huber",
-                default=nn.SmoothL1Loss(),
-                help="Loss function for the transformer",
-            )
+            default_loss_func = nn.HuberLoss()
+        if config["loss_function"] == "mse":
+            default_loss_func = nn.MSELoss()
+        if config["loss_function"] == "mae":
+            default_loss_func = nn.L1Loss()
         if config["loss_function"] == "smoothl1":
-            parser.add_argument(
-                "--loss_function_smoothl1",
-                default=nn.SmoothL1Loss(),
-                help="Loss function for the transformer",
-            )
+            default_loss_func = nn.SmoothL1Loss()
         if config["loss_function"] == "kldiv":
-            parser.add_argument(
-                "--loss_function_kldiv",
-                default=nn.KLDivLoss(),
-                help="Loss function for the transformer",
-            )
+            default_loss_func = nn.KLDivLoss()
+    else:
+        default_loss_func = nn.MSELoss() # o treino fez com este !!!
+
+    parser.add_argument(
+        "--loss_function",
+        default=default_loss_func,
+        help="Loss function for the transformer",
+    )
 
     parser.add_argument(
         "--sliding_window_size",
@@ -578,6 +572,10 @@ def main():
     # Arguments
     args = get_args()
 
+    cpath = "{}/{}{}.ckpt".format(
+                args.save_path, args.model_name, args.sliding_window_size
+            )
+
     if torch.cuda.is_available():
         NUM_GPUS = torch.cuda.device_count()
         print("Number of GPUS: {}".format(NUM_GPUS))
@@ -586,7 +584,7 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
+    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_pretrain(
         args.sliding_window_size,
         args.window_stride,
         args.num_features
@@ -613,31 +611,6 @@ def main():
     test_loader = DataLoader(
         test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
-
-    # print one dataloader item!!!!
-    train_features, train_lbls = next(iter(train_loader))
-    print(f"Feature batch shape: {train_features.size()}")
-    print(f"Labels batch shape: {train_lbls.size()}")
-    feature = train_features[0]
-    label = train_lbls[0]
-    print(f"Feature: {feature}")
-    print(f"Label: {label}")
-
-    val_features, val_lbls = next(iter(val_loader))
-    print(f"Feature batch shape: {val_features.size()}")
-    print(f"Labels batch shape: {val_lbls.size()}")
-    feature = val_features[0]
-    label = val_lbls[0]
-    print(f"Feature: {feature}")
-    print(f"Label: {label}")
-
-    test_features, test_lbls = next(iter(test_loader))
-    print(f"Feature batch shape: {test_features.size()}")
-    print(f"Labels batch shape: {test_lbls.size()}")
-    feature = test_features[0]
-    label = test_lbls[0]
-    print(f"Feature: {feature}")
-    print(f"Label: {label}")
 
     input_size = args.sliding_window_size * args.num_features 
 
@@ -666,10 +639,9 @@ def main():
 
     if NUM_GPUS >= 1:
         trainer = pl.Trainer(
-            precision=16,
+            precision=16, # Passar para 32 ???!!!#1
             accelerator="gpu",
-            devices=1, # !!!!!1
-            # strategy="ddp", # !!!!!1
+            devices=1,
             max_epochs=args.epochs,
             check_val_every_n_epoch=1,
             logger=tb_logger,
@@ -696,11 +668,7 @@ def main():
         print("Finished training at:")
         time = datetime.now()
         print(time)
-        trainer.save_checkpoint(
-            "{}/{}{}.ckpt".format(
-                args.save_path, args.model_name, args.sliding_window_size
-            )
-        )
+        trainer.save_checkpoint(cpath)
 
     if args.save_model:
         torch.save(model.state_dict(), "models/new.pth")
@@ -723,16 +691,13 @@ def main():
         ax.plot(epoch_vals, y)
         ax.set_xlabel("epoch")
         ax.set_ylabel(y_key)
-        fig.savefig("lossplot_perepoch.png")
+        fig.savefig("plots/lossplot_perepoch_pretrain.png")
 
     if args.test:
         if args.train:
             trainer.test(model, dataloaders=test_loader)
         else:
             print("Loading checkpoint")
-            cpath = "{}/{}{}.ckpt".format(
-                args.save_path, args.model_name, args.sliding_window_size
-            )
             testmodel = TANTGen.load_from_checkpoint(
                 input_size=input_size,
                 target_size=args.output_size,
