@@ -63,9 +63,9 @@ def process_pcap_with_TANTGen(
 
     for window in feature_arr:
 
-        X = torch.tensor(window).unsqueeze(0).double()          # [1, T, F]
-        y_in = torch.zeros((1, window_size, 1)).double()        # dummy decoder input
-        tgt_mask = torch.zeros((window_size, window_size))
+        X = torch.tensor(window).unsqueeze(0).float()
+        y_in = torch.zeros((1, window_size, 1), dtype=torch.float32)
+        tgt_mask = torch.zeros((window_size, window_size), dtype=torch.float32)
 
         with torch.no_grad():
             pred = model(X, y_in, tgt_mask)                     # [1, T, 1]
@@ -81,6 +81,10 @@ def process_pcap_with_TANTGen(
 
     # save modified_iats
     np.save("data/adversarial/modified_iats.npy", modified_iats)
+
+    # load
+    # modified_iats = np.load("data/adversarial/modified_iats.npy").flatten()
+    print(modified_iats[:10])
 
     # =====================================================
     # 5. Reconstruir PCAP com os novos IATs

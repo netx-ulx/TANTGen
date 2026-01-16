@@ -191,7 +191,7 @@ class TANTGen_pretrain(pl.LightningModule):
         # used for the forward pass of the model
 
         # Cast to doubletensor
-        scaled_input = src.double()
+        scaled_input = src.float()
 
         #---
         # EMBEDDING AND HIERARCHICAL AGGREGATION
@@ -250,7 +250,9 @@ class TANTGen_pretrain(pl.LightningModule):
         # iat_indexes_input = iat_indexes_output * self.packet_size - 1
 
 
-        X[:, iat_indexes_output, self.packet_size-1] = 0.0
+        X[:, iat_indexes_output, self.packet_size-1] = torch.zeros_like(
+            X[:, iat_indexes_output, self.packet_size-1]
+        )
 
         # (gpt X[:, iat_indices_input] = 0.0)
 

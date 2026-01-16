@@ -17,7 +17,7 @@ def rebuild_pcap(original_pcap, modified_IAT, output_pcap):
         # print(f"[{i}] Processing original packet {i}...")
         # print(f"[{j}] Processing adversarial packet {j}...")
     
-        new_time = last_timestamp + modified_IAT[i+1]
+        new_time = last_timestamp + float(modified_IAT[i+1])
         last_timestamp = new_time
 
         pkt.time = new_time

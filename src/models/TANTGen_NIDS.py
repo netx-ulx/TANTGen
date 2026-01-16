@@ -117,7 +117,7 @@ class TANTGen_NIDS(pl.LightningModule):
         - Aggregate (e.g., average pool) over seq_len -> vector (B, d)
         - Classify over that vector
         """
-        x = src.double()
+        x = src.float() #.double()
 
         x = self.base.feature_transform1(x)
         x = self.base.positional_encoding(x)

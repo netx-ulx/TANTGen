@@ -31,10 +31,11 @@ def read_dataset(path):
 
     mean_iat = df["IAT"].mean()
     std_iat = df["IAT"].std()
-    mean_std = {"mean_iat": mean_iat, "std_iat": std_iat}
     df["IAT"] = df["IAT"].apply(
         lambda x: (x - mean_iat) / std_iat
     )
+
+    mean_std = {"mean_iat": float(mean_iat), "std_iat": float(std_iat)}
 
     return df, mean_std
 
