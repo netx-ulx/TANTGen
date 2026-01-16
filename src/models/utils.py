@@ -94,6 +94,28 @@ def ipaddress_to_number(df):
     return df
 
 
+# def make_windows_features(input_array, window_length, num_features, stride):
+#     """Yield windows with a given stride."""
+#     # Adjust window and batch size for multiple features.
+#     #_windowsize = num_features * window_length
+#     #_stride = stride * num_features
+#     _windowsize = window_length
+#     _stride = stride
+
+#     batchsize = 5000 # for efficiency purposes only
+
+#     last_start = len(input_array) - _windowsize
+#     window_starts = np.arange(0, last_start, _stride)
+
+#     for batch_start in range(0, len(window_starts), batchsize):
+#         batch_indices = window_starts[batch_start:batch_start + batchsize]
+
+#         index_matrix = batch_indices[:, None] + np.arange(_windowsize)[None, :]
+
+#         # Yield sequence por sequence
+#         yield from input_array[index_matrix]
+
+
 def make_windows_features(input_array, window_length, num_features, stride):
     """Yield windows with a given stride."""
     # Adjust window and batch size for multiple features.
@@ -104,9 +126,13 @@ def make_windows_features(input_array, window_length, num_features, stride):
 
     batchsize = 5000 # for efficiency purposes only
 
-    last_start = len(input_array) - _windowsize
-    window_starts = np.arange(0, last_start, _stride)
+    n = len(input_array)
+    last_start = n - _windowsize
+    window_starts = np.arange(0, last_start + 1, _stride)
 
+    # --------------------------------------
+    # 1) Create complete windows in batches
+    # --------------------------------------
     for batch_start in range(0, len(window_starts), batchsize):
         batch_indices = window_starts[batch_start:batch_start + batchsize]
 
@@ -114,6 +140,24 @@ def make_windows_features(input_array, window_length, num_features, stride):
 
         # Yield sequence por sequence
         yield from input_array[index_matrix]
+
+    # ------------------------------------------------
+    # 2) Create last window with padding if necessary
+    # ------------------------------------------------
+    last_start = window_starts[-1] + _stride
+    if last_start < n:
+        leftover = input_array[last_start:n]
+        pad_len = _windowsize - len(leftover)
+
+        # padding em zeros no mesmo shape das features
+        padded_window = np.pad(
+            leftover,
+            ((0, pad_len), (0, 0)),  # pad only on sequence dimension
+            mode='constant'
+        )
+
+        yield padded_window
+
 
 
 def make_windows_iat(input_array, window_length, stride):
