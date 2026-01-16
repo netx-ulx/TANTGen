@@ -139,6 +139,9 @@ class TANTGen_NIDS(pl.LightningModule):
     def _step(self, batch):
         X, y = batch  # X: (B, seq, feat), y: (B,) int labels or (B,1) float
 
+        X = X.float()
+        y = y.float()
+
         logits = self.forward(X)
         loss = self.loss_fn(logits, y.float())
         y_pred = torch.sigmoid(logits).view(-1).detach().cpu().numpy()

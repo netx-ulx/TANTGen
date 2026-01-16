@@ -232,6 +232,9 @@ class TANTGen_pretrain(pl.LightningModule):
 
     def _step(self, batch):
         X, y = batch
+        
+        X = X.float()
+        y = y.float()
 
         # Mask out one iat in the entire input sequence (this is now random position, not fixed as last)
         # All possible iat positions in the iats in output
@@ -253,8 +256,6 @@ class TANTGen_pretrain(pl.LightningModule):
         X[:, iat_indexes_output, self.packet_size-1] = torch.zeros_like(
             X[:, iat_indexes_output, self.packet_size-1]
         )
-
-        # (gpt X[:, iat_indices_input] = 0.0)
 
         y_input_shifted = y.clone()
         y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right

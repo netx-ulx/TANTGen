@@ -157,6 +157,9 @@ class TANTGen(TANTGen_pretrain):
     def _step(self, batch):
         X, y = batch
 
+        X = X.float()
+        y = y.float()
+
         y_input_shifted = y.clone()
         y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
         y_input_shifted[:, 0, :] = 0
