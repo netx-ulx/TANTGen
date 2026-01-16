@@ -1,0 +1,10 @@
+1. TANTGen Train (models) (feature extraction + adversarial traffic generation)
+python -m src.models.TANTGen_pretrain
+
+python -m src.models.TANTGen_NIDS
+
+python -m src.models.TANTGen
+
+2. Kitsune Train
+
+3. Kitsune Execute

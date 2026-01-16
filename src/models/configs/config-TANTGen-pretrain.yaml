@@ -1,3 +1,6 @@
+#---------------------------
+# Pretrain model parameters
+#---------------------------
 config_base = ''' name: transformer pretrain
 weight_decay: 1e-5
 learning_rate: 1e-4            
@@ -8,10 +11,22 @@ epochs: 15
 batch_size: 64
 linear_size: 120 
 loss_function: huber
+
+# --------------------------
+# Sliding window parameters
+# --------------------------
 sliding_window_size: 64
 window_stride: 64
-#-----------------------------
+
+#--------------------
+# Dataset parameters
+#--------------------
+dataset_path: data/preprocessed/adversarial_train/benign.csv
 num_features: 7
 output_size: 1
-save_path: transformer_iat_logs
+
+#--------------------
+# Save parameters
+#--------------------
+save_path: src/models/transformer_iat_logs
 model_name: TANTGen_pretrain_window

@@ -1,3 +1,0 @@
-python TANTGen_pretrain.py
-
-python TANTGen_NIDS.py

@@ -3,10 +3,10 @@ import pandas as pd
 import numpy as np
 import yaml
 from scapy.all import *
-from Feature_Extraction.dataloader_old import get_basic_features
-from models.generate_sequences import generate_sliding_windows
-from models.TANTGen import TANTGen_finetune
-from rebuild_pcap import rebuild_pcap
+from src.Feature_Extraction.dataloader_old import get_basic_features
+from src.models.generate_sequences import generate_sliding_windows
+from src.models.TANTGen import TANTGen
+from src.rebuild_pcap import rebuild_pcap
 
 
 # =========================================================
@@ -25,18 +25,16 @@ def process_pcap_with_TANTGen(
     # 1. Extrair Features do PCAP original
     # =====================================================
     df = get_basic_features(pcap_path)
-    df.to_csv("../data/preprocessed/temp_features.csv", index=False)
+    df.to_csv("data/preprocessed/temp_features.csv", index=False)
+    # df = pd.read_csv("data/preprocessed/temp_features.csv")
 
     print(f"[✓] Features extraídas: {df.shape}")
-
-    # # load
-    # df = pd.read_csv("../data/preprocessed/temp_features.csv")
 
     # =====================================================
     # 2. Gerar Sliding Windows exatamente como no treino
     # =====================================================
     feature_arr, target_arr, mean_std, df_clean = generate_sliding_windows(
-        window_size, stride, num_features, "../data/preprocessed/temp_features.csv"
+        window_size, stride, num_features, "data/preprocessed/temp_features.csv"
     )
 
     print(f"[✓] Janelas criadas: {len(feature_arr)}")
@@ -44,7 +42,7 @@ def process_pcap_with_TANTGen(
     # =====================================================
     # 3. Carregar modelo TANTGen
     # =====================================================
-    model = TANTGen_finetune.load_from_checkpoint(
+    model = TANTGen.load_from_checkpoint(
         checkpoint_path,
         mean_std=mean_std,
         loss_function_diff=None,
@@ -82,7 +80,7 @@ def process_pcap_with_TANTGen(
     print("[✓] IATs modificados obtidos.")
 
     # save modified_iats
-    np.save("../data/adversarial/modified_iats.npy", modified_iats)
+    np.save("data/adversarial/modified_iats.npy", modified_iats)
 
     # =====================================================
     # 5. Reconstruir PCAP com os novos IATs
@@ -97,13 +95,13 @@ def process_pcap_with_TANTGen(
 # EXECUÇÃO DIRETA
 # =========================================================
 if __name__ == "__main__":
-    with open("models/configs/config-TANTGen-finetune.yaml") as f:
+    with open("src/models/configs/config-TANTGen-finetune.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     process_pcap_with_TANTGen(
-        pcap_path="../data/original/Kitsune/Mirai Botnet/Mirai.pcap",
-        checkpoint_path="models/TANTGen_logs/1#_final_TANTGen_window64.ckpt",
+        pcap_path="data/original/Kitsune/Mirai Botnet/Mirai.pcap",
+        checkpoint_path="src/models/TANTGen_logs/1#_final_TANTGen_window64.ckpt",
         window_size=int(config["sliding_window_size"]),
         stride=int(config["window_stride"]),
         num_features=int(config["num_features"]),
-        output_pcap_path="../data/adversarial/modified_output.pcap"
+        output_pcap_path="data/adversarial/modified_output.pcap"
     )

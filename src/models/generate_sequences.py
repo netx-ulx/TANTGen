@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from utils import (
+from src.models.utils import (
     convert_to_relative_timestamp,
     ipaddress_to_number,
     make_windows_iat,
@@ -10,31 +10,17 @@ from utils import (
     standardize_ips
 )
 
-# Params for the sliding window on the packet data
-SLIDING_WINDOW_SIZE = 1024
-NUM_FEATURES = 5
-STRIDE = 16
-
-def generate_sliding_windows(
-    window_size,
-    stride,
-    num_features,
-    path
-):
-
+def read_dataset(path):
     df = pd.read_csv(path)
-
-    #label_df = df.copy()
-    #print(label_df.head(), label_df.shape)
-    ### Keep the IAT, mask nth IAT in batch during training
+    print("Dataset read from: ", path)
 
     df = df[['Timestamp', 'Packet Size', \
-             #'Proto', \
-             'Source IP', 'Destination IP', \
-             #'TCP Source Port', 'TCP Destination Port', \
-             'Payload Length', 'Payload Entropy', \
-             # 'IP Type', \
-             'IAT']]
+            #'Proto', \
+            'Source IP', 'Destination IP', \
+            #'TCP Source Port', 'TCP Destination Port', \
+            'Payload Length', 'Payload Entropy', \
+            # 'IP Type', \
+            'IAT']]
 
     df = convert_to_relative_timestamp(df)
     df = ipaddress_to_number(df)
@@ -50,7 +36,15 @@ def generate_sliding_windows(
         lambda x: (x - mean_iat) / std_iat
     )
 
-    label_df = df["IAT"].copy()
+    return df, mean_std
+
+def create_windows(
+    df, 
+    label_df,
+    window_size,
+    stride,
+    num_features
+):
 
     # Create sliding window features
     input_array = df.values
@@ -62,10 +56,37 @@ def generate_sliding_windows(
         )
     )
     target_arr = list(
-        make_windows_features(target_array, window_size, num_features, stride)
+        make_windows_features(
+            target_array, window_size, num_features, stride
+        )
     )
 
     print(len(feature_arr), len(target_arr))
+
+    return feature_arr, target_arr
+
+def generate_sliding_windows(
+    window_size,
+    stride,
+    num_features,
+    path
+):
+
+    df, mean_std = read_dataset(path)
+
+    #label_df = df.copy()
+    #print(label_df.head(), label_df.shape)
+    ### Keep the IAT, mask nth IAT in batch during training
+
+    label_df = df["IAT"].copy()
+
+    feature_arr, target_arr = create_windows(
+        df,
+        label_df,
+        window_size,
+        stride,
+        num_features
+    )
 
     return feature_arr, target_arr, mean_std, df
 
@@ -73,92 +94,25 @@ def generate_sliding_windows(
 def generate_sliding_windows_NIDS(
     window_size,
     stride,
-    num_features
+    num_features,
+    features_path,
+    labels_path
 ):
 
-    path = "../../data/preprocessed/Kitsune/"
+    df, _ = read_dataset(features_path)
 
-    features_file = "mirai_myFE.csv"
-    labels_file = "mirai_labels.csv"
-
-    label_df = pd.read_csv(path + labels_file)
+    label_df = pd.read_csv(labels_path)
     label_df = label_df[['x']].rename(columns={'x': 'Label'})
 
-    df = pd.read_csv(path + features_file)
-
-    ### Keep the IAT, mask nth IAT in batch during training
-
-    df = df[['Timestamp', 'Packet Size', \
-             #'Proto', \
-             'Source IP', 'Destination IP', \
-             #'TCP Source Port', 'TCP Destination Port', \
-             'Payload Length', 'Payload Entropy', \
-             # 'IP Type', \
-             'IAT']]
-
-    df = convert_to_relative_timestamp(df)
-    df = ipaddress_to_number(df)
-    df = standardize_ips(df)
-    df = standardize_column(df, "Packet Size")
-    df = standardize_column(df, "Payload Length")
-    df = standardize_column(df, "Payload Entropy")
-
-    mean_iat = df["IAT"].mean()
-    std_iat = df["IAT"].std()
-    df["IAT"] = df["IAT"].apply(
-        lambda x: (x - mean_iat) / std_iat
+    feature_arr, target_arr = create_windows(
+        df,
+        label_df,
+        window_size,
+        stride,
+        num_features
     )
-
-    # Create sliding window features
-    input_array = df.values
-    #input_array = np.hstack(df.apply(lambda row: row.to_numpy(), axis=1).values.flatten())
-    target_array = np.array([[float(value)] for value in label_df.values])
-    feature_arr = list(
-        make_windows_features(
-            input_array, window_size, num_features, stride
-        )
-    )
-    target_arr = list(
-        make_windows_features(target_array, window_size, num_features, stride)
-    )
-
-    print(len(feature_arr), len(target_arr))
 
     return feature_arr, target_arr, df
-
-
-def generate_sliding_windows_pretrain(
-    window_size,
-    stride,
-    num_features
-):
-
-    path = "../../data/preprocessed/adversarial_train/"
-    file = "benign.csv"
-
-    return generate_sliding_windows(
-        window_size,
-        stride,
-        num_features,
-        path + file
-    )
-
-def generate_sliding_windows_finetune(
-    window_size,
-    stride,
-    num_features
-):
-
-    path = "../../data/preprocessed/Kitsune/"
-    file = "mirai_myFE.csv"
-
-    return generate_sliding_windows(
-        window_size,
-        stride,
-        num_features,
-        path + file
-    )
-
 
 
 # if __name__ == "__main__":
@@ -171,7 +125,8 @@ def generate_sliding_windows_finetune(
 #     ) = generate_sliding_windows(
 #         SLIDING_WINDOW_SIZE,
 #         STRIDE,
-#         NUM_FEATURES
+#         NUM_FEATURES,
+#         path="data/preprocessed/adversarial_train/benign.csv"
 #     )
 
 
@@ -222,6 +177,12 @@ def generate_sliding_windows_finetune(
 
 if __name__ == "__main__":
     # Generate sliding windows
+
+    # Params for the sliding window on the packet data
+    SLIDING_WINDOW_SIZE = 1024
+    NUM_FEATURES = 5
+    STRIDE = 16
+
     (
         full_feature_arr,
         full_target_arr,

@@ -16,21 +16,18 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from generate_sequences import generate_sliding_windows_pretrain
-from utils import (
+from src.models.generate_sequences import generate_sliding_windows
+from src.models.utils import (
     PacketDataset,
     PositionalEncoding,
 )
 
 torch.manual_seed(0)
 
-torch.set_default_dtype(torch.float64) # Remover ???!!!#1
-
 # TRANSFOMER CLASS TO PREDICT IATs
-class TANTGen(pl.LightningModule):
+class TANTGen_pretrain(pl.LightningModule):
     def __init__(
         self,
-        input_size,
         target_size,
         num_features,
         loss_function,
@@ -45,7 +42,8 @@ class TANTGen(pl.LightningModule):
         linear_size,
         sliding_window_size,
     ):
-        super(TANTGen, self).__init__()
+
+        super(TANTGen_pretrain, self).__init__()
 
         self.step = 0
 
@@ -53,7 +51,7 @@ class TANTGen(pl.LightningModule):
         self.learning_rate = learning_rate
         self.linear_size = linear_size
         self.sliding_window_size = sliding_window_size
-        self.input_size = input_size
+        self.input_size = sliding_window_size * num_features
 
         parameters = {
             "WEIGHTDECAY": self.weight_decay,
@@ -332,7 +330,7 @@ class TANTGen(pl.LightningModule):
         # plt.ylabel('IAT normalizado')
         # plt.title('Comparação das previsões de IAT (MSE)')
         # plt.legend()
-        # plt.savefig("plots/comparacao_prev_IAT_MSE.png")
+        # plt.savefig("src/plots/comparacao_prev_IAT_MSE.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -361,7 +359,7 @@ class TANTGen(pl.LightningModule):
         plt.ylabel('IAT normalizado')
         plt.title('Comparação das previsões de IAT (MSE)')
         plt.legend()
-        plt.savefig("plots/comparacao_prev_IAT_MSE_validation.png")
+        plt.savefig("src/plots/comparacao_prev_IAT_MSE_validation.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -390,7 +388,7 @@ class TANTGen(pl.LightningModule):
         plt.ylabel('IAT normalizado')
         plt.title('Comparação das previsões de IAT (MSE)')
         plt.legend()
-        plt.savefig("plots/comparacao_prev_IAT_MSE_test.png")
+        plt.savefig("src/plots/comparacao_prev_IAT_MSE_test.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -408,7 +406,7 @@ class TANTGen(pl.LightningModule):
 # Argument parser for the model and return
 def get_args():
     # Hyper parameters from config file
-    with open("configs/config-TANTGen-pretrain.yaml") as f:
+    with open("src/models/configs/config-TANTGen-pretrain.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Add default arguments from the config file
@@ -549,6 +547,13 @@ def get_args():
     )
 
     parser.add_argument(
+        "--dataset_path",
+        type=str,
+        default=config["dataset_path"],
+        help="Path to the dataset",
+    )
+
+    parser.add_argument(
         "--save_path",
         type=str,
         default=config["save_path"],
@@ -584,10 +589,11 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_pretrain(
+    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
         args.sliding_window_size,
         args.window_stride,
-        args.num_features
+        args.num_features,
+        args.dataset_path,
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
@@ -612,11 +618,8 @@ def main():
         test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
 
-    input_size = args.sliding_window_size * args.num_features 
-
     ## Model definition with iat scaling params
-    model = TANTGen(
-        input_size=input_size,
+    model = TANTGen_pretrain(
         target_size=args.output_size,
         num_features=args.num_features,
         loss_function=args.loss_function,
@@ -639,7 +642,7 @@ def main():
 
     if NUM_GPUS >= 1:
         trainer = pl.Trainer(
-            precision=16, # Passar para 32 ???!!!#1
+            precision=32,
             accelerator="gpu",
             devices=1,
             max_epochs=args.epochs,
@@ -671,7 +674,7 @@ def main():
         trainer.save_checkpoint(cpath)
 
     if args.save_model:
-        torch.save(model.state_dict(), "models/new.pth")
+        torch.save(model.state_dict(), "src/models/models/new.pth")
 
     if args.make_epoch_plot:
         log_dir = "{}/lightning_logs/version_0".format(args.save_path)
@@ -691,15 +694,14 @@ def main():
         ax.plot(epoch_vals, y)
         ax.set_xlabel("epoch")
         ax.set_ylabel(y_key)
-        fig.savefig("plots/lossplot_perepoch_pretrain.png")
+        fig.savefig("src/plots/lossplot_perepoch_pretrain.png")
 
     if args.test:
         if args.train:
             trainer.test(model, dataloaders=test_loader)
         else:
             print("Loading checkpoint")
-            testmodel = TANTGen.load_from_checkpoint(
-                input_size=input_size,
+            testmodel = TANTGen_pretrain.load_from_checkpoint(
                 target_size=args.output_size,
                 num_features=args.num_features,
                 loss_function=args.loss_function,

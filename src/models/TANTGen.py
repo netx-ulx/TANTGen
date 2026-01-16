@@ -14,41 +14,46 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn
 from torch.utils.data import DataLoader
-from generate_sequences import generate_sliding_windows_finetune
-from utils import (
+from src.models.generate_sequences import generate_sliding_windows
+from src.models.utils import (
     PacketDataset
 )
-from TANTGen_pretrain import TANTGen
-from TANTGen_NIDS import TANTGen_NIDS
+from src.models.TANTGen_pretrain import TANTGen_pretrain
+from src.models.TANTGen_NIDS import TANTGen_NIDS
 
 torch.manual_seed(0)
 
-torch.set_default_dtype(torch.float64) # Remover ???!!!#1
+config_path = "src/models/configs/config-TANTGen-finetune.yaml"
+# Hyper parameters from config file
+with open(config_path) as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
-class TANTGen_finetune(TANTGen):
+class TANTGen(TANTGen_pretrain):
     def __init__(
         self,
-        input_size,
-        target_size,
-        num_features,
-        loss_function_diff,
-        loss_function_evasion,
-        loss_function_constraints,
-        constraint_limit,
         mean_std,
-        layers,
-        num_heads,
-        dropout,
-        weight_decay,
-        learning_rate,
-        epochs,
-        batch_size,
-        linear_size,
-        sliding_window_size,
-        nids_ckpt_path,
+        loss_function_diff, #=config["loss_function_diff"], # rever !!!
+        loss_function_evasion, #=config["loss_function_evasion"], # rever !!!
+        loss_function_constraints, #=config["loss_function_constraints"], # rever !!!
+        weight_decay=config["weight_decay"],
+        learning_rate=config["learning_rate"],
+        dropout=config["dropout"],
+        num_heads=config["num_heads"],
+        layers=config["num_layers"],
+        epochs=config["epochs"],
+        batch_size=config["batch_size"],
+        linear_size=config["linear_size"],
+        constraint_limit=config["constraint_limit"],
+        sliding_window_size=config["sliding_window_size"],
+        num_features=config["num_features"],
+        target_size=config["output_size"],
+        nids_ckpt_path="{}/{}{}.ckpt".format(
+            config["nids_save_path"], config["nids_model_name"], config["sliding_window_size"]
+        ),
     ):
-        super(TANTGen_finetune, self).__init__(
-            input_size,
+        input_size = sliding_window_size * num_features
+
+        super(TANTGen, self).__init__(
             target_size,
             num_features,
             loss_function_diff,
@@ -66,7 +71,6 @@ class TANTGen_finetune(TANTGen):
 
         self.nids = TANTGen_NIDS(
             base_model_kwargs={
-                "input_size": input_size,
                 "target_size": target_size,
                 "num_features": num_features,
                 "loss_function": loss_function_diff,
@@ -83,14 +87,15 @@ class TANTGen_finetune(TANTGen):
             }
         )
 
-        ckpt = torch.load(nids_ckpt_path, map_location="cpu")
-        self.nids.load_state_dict(ckpt["state_dict"], strict=True)
+        if nids_ckpt_path is not None:
+            ckpt = torch.load(nids_ckpt_path, map_location="cpu")
+            self.nids.load_state_dict(ckpt["state_dict"], strict=True)
 
-        self.nids.eval()
+            self.nids.eval()
 
-        # congelar completamente
-        for p in self.nids.parameters():
-            p.requires_grad = False
+            # congelar completamente
+            for p in self.nids.parameters():
+                p.requires_grad = False
 
         self.loss_func_diff = loss_function_diff
         self.loss_func_evasion = loss_function_evasion
@@ -193,9 +198,6 @@ class TANTGen_finetune(TANTGen):
 
 # Argument parser for the model and return
 def get_args():
-    # Hyper parameters from config file
-    with open("configs/config-TANTGen-finetune.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Add default arguments from the config file
     parser = argparse.ArgumentParser(
@@ -382,6 +384,13 @@ def get_args():
     )
 
     parser.add_argument(
+        "--dataset_path",
+        type=str,
+        default=config["dataset_path"],
+        help="Path to the dataset",
+    )
+
+    parser.add_argument(
         "--pretrained_save_path",
         type=str,
         default=config["pretrained_save_path"],
@@ -449,10 +458,11 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_finetune(
+    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
         args.sliding_window_size,
         args.window_stride,
         args.num_features,
+        args.dataset_path,
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
@@ -477,15 +487,12 @@ def main():
         test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
 
-    input_size = args.sliding_window_size * args.num_features
-
     if args.pretrained:
         pretrained_ckpt_path = "{}/{}{}.ckpt".format(
             args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
         )
 
-        model = TANTGen_finetune(
-            input_size=input_size,
+        model = TANTGen(
             target_size=args.output_size,
             num_features=args.num_features,
 
@@ -519,8 +526,7 @@ def main():
 
     else:
         # Do not freeze anything for non pre-trained
-        model = TANTGen_finetune(
-            input_size=input_size,
+        model = TANTGen(
             target_size=args.output_size,
             num_features=args.num_features,
 
@@ -550,7 +556,7 @@ def main():
 
     if NUM_GPUS >= 1:
         trainer = pl.Trainer(
-            precision=16, # Passar para 32 ???!!!#1
+            precision=32,
             accelerator="gpu",
             devices=1,
             max_epochs=args.epochs,
@@ -580,7 +586,7 @@ def main():
         trainer.save_checkpoint(cpath)
 
     if args.save_model:
-        torch.save(model.state_dict(), "models/TANTGen.pth")
+        torch.save(model.state_dict(), "src/models/models/TANTGen.pth")
 
     if args.make_epoch_plot:
         log_dir = "{}/lightning_logs/version_0".format(args.save_path)
@@ -600,7 +606,7 @@ def main():
         ax.plot(epoch_vals, y)
         ax.set_xlabel("epoch")
         ax.set_ylabel(y_key)
-        fig.savefig("plots/lossplot_perepoch_TANTGen.png")
+        fig.savefig("src/plots/lossplot_perepoch_TANTGen.png")
 
     if args.test:
         if args.train:
@@ -610,8 +616,7 @@ def main():
             pretrained_ckpt_path = "{}/{}{}.ckpt".format(
                 args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
             )
-            testmodel = TANTGen_finetune(
-                input_size=input_size,
+            testmodel = TANTGen(
                 target_size=args.output_size,
                 num_features=args.num_features,
 

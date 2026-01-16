@@ -19,11 +19,11 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
-from generate_sequences import generate_sliding_windows_NIDS
-from utils import (
+from src.models.generate_sequences import generate_sliding_windows_NIDS
+from src.models.utils import (
     PacketDataset,
 )
-from TANTGen_pretrain import TANTGen
+from src.models.TANTGen_pretrain import TANTGen_pretrain
 
 class TANTGen_NIDS(pl.LightningModule):
     def __init__(
@@ -44,9 +44,8 @@ class TANTGen_NIDS(pl.LightningModule):
         # --- Obter o modelo base ---
         # Se tens a classe TANTGen no mesmo namespace, podes carregar com load_from_checkpoint.
         if pretrained_ckpt_path:
-            self.base = TANTGen.load_from_checkpoint(
+            self.base = TANTGen_pretrain.load_from_checkpoint(
                 checkpoint_path=pretrained_ckpt_path,
-                input_size=base_model_kwargs["input_size"],
                 target_size=base_model_kwargs["target_size"],
                 num_features=base_model_kwargs["num_features"],
                 loss_function=base_model_kwargs.get("loss_function", nn.MSELoss()),
@@ -64,7 +63,7 @@ class TANTGen_NIDS(pl.LightningModule):
             )
         else:
             # criar um TANTGen do zero (caso não queiras carregar checkpoint)
-            self.base = TANTGen(**base_model_kwargs)
+            self.base = TANTGen_pretrain(**base_model_kwargs)
 
         # --- Remover ou ignorar a cabeça de output do pretreino e criar uma cabeça para classificação ---
         # Cria uma cabeça simples: LayerNorm -> Linear -> GELU -> Linear (logits)
@@ -264,7 +263,7 @@ class TANTGen_NIDS(pl.LightningModule):
 # Argument parser for the model and return
 def get_args():
     # Hyper parameters from config file
-    with open("configs/config-TANTGen-NIDS.yaml") as f:
+    with open("src/models/configs/config-TANTGen-NIDS.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Add default arguments from the config file
@@ -411,6 +410,20 @@ def get_args():
     )
 
     parser.add_argument(
+        "--dataset_path",
+        type=str,
+        default=config["dataset_path"],
+        help="Path to the dataset file (features)",
+    )
+
+    parser.add_argument(
+        "--dataset_labels_path",
+        type=str,
+        default=config["dataset_labels_path"],
+        help="Path to the labels file",
+    )
+
+    parser.add_argument(
         "--pretrained_save_path",
         type=str,
         default=config["pretrained_save_path"],
@@ -462,7 +475,6 @@ def main():
         "num_features": args.num_features,
         "target_size": args.output_size,
         "sliding_window_size": args.sliding_window_size,
-        "input_size": args.sliding_window_size * args.num_features,
     }
 
     if torch.cuda.is_available():
@@ -476,7 +488,9 @@ def main():
     feature_arr, target_arr, _ = generate_sliding_windows_NIDS(
         args.sliding_window_size,
         args.window_stride,
-        args.num_features
+        args.num_features,
+        args.dataset_path,
+        args.dataset_labels_path,
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
@@ -524,7 +538,7 @@ def main():
 
     if NUM_GPUS >= 1:
         trainer = pl.Trainer(
-            precision=16, # Passar para 32 ???!!!#1
+            precision=32,
             accelerator="gpu",
             devices=1,
             max_epochs=args.epochs,
@@ -554,7 +568,7 @@ def main():
         trainer.save_checkpoint(cpath)
 
     if args.save_model:
-        torch.save(model.state_dict(), "models/NIDS.pth")
+        torch.save(model.state_dict(), "src/models/models/NIDS.pth")
 
     if args.make_epoch_plot:
         log_dir = "{}/lightning_logs/version_0".format(args.save_path)
@@ -573,7 +587,7 @@ def main():
         ax.plot(epoch_vals, y)
         ax.set_xlabel("epoch")
         ax.set_ylabel(y_key)
-        fig.savefig("plots/lossplot_perepoch_NIDS.png")
+        fig.savefig("src/plots/lossplot_perepoch_NIDS.png")
 
     if args.test:
         if args.train:
