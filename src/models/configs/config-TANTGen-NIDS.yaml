@@ -1,16 +1,16 @@
 #---------------------------
 # Pretrain model parameters
 #---------------------------
-config_base = ''' name: transformer NIDS
+name: transformer NIDS
 weight_decay: 1e-5
 learning_rate: 1e-4            
 dropout: 0.2                   
 num_heads: 8                      
 num_layers: 6                      
-epochs: 30 #|TODO verify
-batch_size: 64
 linear_size: 120 
 loss_function: huber
+epochs: 30 #|TODO verify
+batch_size: 64
 
 # --------------------------
 # Sliding window parameters
@@ -30,8 +30,7 @@ output_size: 1
 #--------------------
 # Save parameters
 #--------------------
-pretrained_save_path: src/models/transformer_iat_logs
-pretrained_model_name: TANTGen_pretrain_window
+pretrained_save_path: src/models/transformer_iat_logs/TANTGen_pretrain_window
 
 save_path: src/models/transformer_nids_logs
 model_name: TANTGen_NIDS_window

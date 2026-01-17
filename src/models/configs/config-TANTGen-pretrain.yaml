@@ -1,16 +1,17 @@
 #---------------------------
 # Pretrain model parameters
 #---------------------------
-config_base = ''' name: transformer pretrain
+name: transformer pretrain
+
 weight_decay: 1e-5
 learning_rate: 1e-4            
 dropout: 0.2                   
 num_heads: 8                      
 num_layers: 6                      
-epochs: 15
-batch_size: 64
 linear_size: 120 
 loss_function: huber
+epochs: 15
+batch_size: 64
 
 # --------------------------
 # Sliding window parameters
@@ -21,7 +22,7 @@ window_stride: 64
 #--------------------
 # Dataset parameters
 #--------------------
-dataset_path: data/preprocessed/adversarial_train/benign.csv
+dataset_path: data/preprocessed/adversarial_train/benign_1M.csv
 num_features: 7
 output_size: 1
 

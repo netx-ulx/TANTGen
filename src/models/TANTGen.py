@@ -32,60 +32,33 @@ class TANTGen(TANTGen_pretrain):
     def __init__(
         self,
         mean_std,
-        loss_function_diff, #=config["loss_function_diff"], # rever !!!
-        loss_function_evasion, #=config["loss_function_evasion"], # rever !!!
-        loss_function_constraints, #=config["loss_function_constraints"], # rever !!!
-        weight_decay=config["weight_decay"],
-        learning_rate=config["learning_rate"],
-        dropout=config["dropout"],
-        num_heads=config["num_heads"],
-        layers=config["num_layers"],
         epochs=config["epochs"],
         batch_size=config["batch_size"],
-        linear_size=config["linear_size"],
-        constraint_limit=config["constraint_limit"],
-        sliding_window_size=config["sliding_window_size"],
-        num_features=config["num_features"],
-        target_size=config["output_size"],
-        nids_ckpt_path="{}/{}{}.ckpt".format(
-            config["nids_save_path"], config["nids_model_name"], config["sliding_window_size"]
-        ),
     ):
-        input_size = sliding_window_size * num_features
+
+        # weight_decay=config["weight_decay"]
+        # learning_rate=config["learning_rate"]
+        # dropout=config["dropout"]
+        # num_heads=config["num_heads"]
+        # layers=config["num_layers"]
+        # linear_size=config["linear_size"]
+        # sliding_window_size=config["sliding_window_size"]
+        # num_features=config["num_features"]
+        # target_size=config["output_size"]
+        # input_size = sliding_window_size * num_features
+
+        nids_ckpt_path="{}{}.ckpt".format(
+            config["nids_save_path"], config["sliding_window_size"]
+        )
 
         super(TANTGen, self).__init__(
-            target_size,
-            num_features,
-            loss_function_diff,
             mean_std,
-            layers,
-            num_heads,
-            dropout,
-            weight_decay,
-            learning_rate,
             epochs,
             batch_size,
-            linear_size,
-            sliding_window_size,
+            ## posso precisar de enviar os outros ? ver que funções ele reutiliza
         )
 
-        self.nids = TANTGen_NIDS(
-            base_model_kwargs={
-                "target_size": target_size,
-                "num_features": num_features,
-                "loss_function": loss_function_diff,
-                "mean_std": mean_std,
-                "layers": layers,
-                "num_heads": num_heads,
-                "dropout": dropout,
-                "weight_decay": weight_decay,
-                "learning_rate": learning_rate,
-                "epochs": epochs,
-                "batch_size": batch_size,
-                "linear_size": linear_size,
-                "sliding_window_size": sliding_window_size,
-            }
-        )
+        self.nids = TANTGen_NIDS()
 
         if nids_ckpt_path is not None:
             ckpt = torch.load(nids_ckpt_path, map_location="cpu")
@@ -97,15 +70,50 @@ class TANTGen(TANTGen_pretrain):
             for p in self.nids.parameters():
                 p.requires_grad = False
 
-        self.loss_func_diff = loss_function_diff
-        self.loss_func_evasion = loss_function_evasion
-        self.loss_func_constraints = loss_function_constraints
 
-        self.lambda_diff = 1.0
-        self.lambda_evasion = 1.0
-        self.lambda_constraints = 1.0
+        # TODO Confirmar se estes tipos de loss fazem sentido
 
-        self.constraint_limit = constraint_limit
+        if "loss_function_diff" in config.keys():
+            if config["loss_function_diff"] == "huber":
+                default_loss_diff = nn.SmoothL1Loss()
+            if config["loss_function_diff"] == "smoothl1":
+                default_loss_diff = nn.SmoothL1Loss()
+            if config["loss_function_diff"] == "kldiv":
+                default_loss_diff = nn.KLDivLoss()
+        else:
+            default_loss_diff = nn.MSELoss()
+        self.loss_func_diff = default_loss_diff
+
+        if "loss_function_evasion" in config.keys():
+            if config["loss_function_evasion"] == "huber":
+                default_loss_evasion = nn.SmoothL1Loss()
+            if config["loss_function_evasion"] == "smoothl1":
+                default_loss_evasion = nn.SmoothL1Loss()
+            if config["loss_function_evasion"] == "kldiv":
+                default_loss_evasion = nn.KLDivLoss()
+            if config["loss_function_evasion"] == "bce":
+                default_loss_evasion = nn.BCEWithLogitsLoss()
+        else:
+            #default_loss_evasion = nn.CrossEntropyLoss()
+            default_loss_evasion = nn.BCEWithLogitsLoss()
+        self.loss_func_evasion = default_loss_evasion
+
+        if "loss_function_constraints" in config.keys():
+            if config["loss_function_constraints"] == "huber":
+                default_loss_constraints = nn.SmoothL1Loss()
+            if config["loss_function_constraints"] == "smoothl1":
+                default_loss_constraints = nn.SmoothL1Loss()
+            if config["loss_function_constraints"] == "kldiv":
+                default_loss_constraints = nn.KLDivLoss()
+        else:
+            default_loss_constraints = nn.CrossEntropyLoss()
+        self.loss_func_constraints = default_loss_constraints
+
+        self.lambda_diff = config["lambda_diff"]
+        self.lambda_evasion = config["lambda_evasion"]
+        self.lambda_constraints = config["lambda_constraints"]
+
+        self.constraint_limit = config["constraint_limit"]
 
     # def forward(self, src, tgt, tgt_mask=None):
     #     # used for the forward pass of the model
@@ -208,41 +216,6 @@ def get_args():
     )
 
     parser.add_argument(
-        "--weight_decay",
-        type=float,
-        default=float(config["weight_decay"]),
-        help="Weight decay for the Adam optimizer",
-    )
-
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=float(config["learning_rate"]),
-        help="Learning rate for the Adam optimizer",
-    )
-
-    parser.add_argument(
-        "--dropout",
-        type=float,
-        default=float(config["dropout"]),
-        help="Dropout for the transformer",
-    )
-
-    parser.add_argument(
-        "--num_heads",
-        type=int,
-        default=int(config["num_heads"]),
-        help="Number of heads for the transformer",
-    )
-
-    parser.add_argument(
-        "--num_layers",
-        type=int,
-        default=int(config["num_layers"]),
-        help="Number of layers for the transformer",
-    )
-
-    parser.add_argument(
         "--epochs",
         type=int,
         default=int(config["epochs"]),
@@ -254,101 +227,6 @@ def get_args():
         type=int,
         default=int(config["batch_size"]),
         help="Batch size for training",
-    )
-
-    parser.add_argument(
-        "--linear_size",
-        type=int,
-        default=int(config["linear_size"]),
-        help="Linear size for the transformer",
-    )
-
-    # TODO Confirmar se estes tipos de loss fazem sentido
-
-    if "loss_function_diff" in config.keys():
-        if config["loss_function_diff"] == "huber":
-            default_loss_diff = nn.SmoothL1Loss()
-        if config["loss_function_diff"] == "smoothl1":
-            default_loss_diff = nn.SmoothL1Loss()
-        if config["loss_function_diff"] == "kldiv":
-            default_loss_diff = nn.KLDivLoss()
-    else:
-        default_loss_diff = nn.MSELoss()
-
-    parser.add_argument(
-        "--loss_function_diff",
-        default=default_loss_diff,
-        help="Loss function for the difference between the original and generated traffic. \nOptions: huber, smoothl1, kldiv. \nDefault: MSELoss",
-    )
-
-    if "loss_function_evasion" in config.keys():
-        if config["loss_function_evasion"] == "huber":
-            default_loss_evasion = nn.SmoothL1Loss()
-        if config["loss_function_evasion"] == "smoothl1":
-            default_loss_evasion = nn.SmoothL1Loss()
-        if config["loss_function_evasion"] == "kldiv":
-            default_loss_evasion = nn.KLDivLoss()
-        if config["loss_function_evasion"] == "bce":
-            default_loss_evasion = nn.BCEWithLogitsLoss()
-    else:
-        #default_loss_evasion = nn.CrossEntropyLoss()
-        default_loss_evasion = nn.BCEWithLogitsLoss()
-
-    parser.add_argument(
-        "--loss_function_evasion",
-        default=default_loss_evasion,
-        help="Loss function for the effectiveness of the generated traffic to fool the evasion. \nOptions: huber, smoothl1, kldiv. \nDefault: CrossEntropyLoss",
-    )
-
-    if "loss_function_constraints" in config.keys():
-        if config["loss_function_constraints"] == "huber":
-            default_loss_constraints = nn.SmoothL1Loss()
-        if config["loss_function_constraints"] == "smoothl1":
-            default_loss_constraints = nn.SmoothL1Loss()
-        if config["loss_function_constraints"] == "kldiv":
-            default_loss_constraints = nn.KLDivLoss()
-    else:
-        default_loss_constraints = nn.CrossEntropyLoss()
-
-    parser.add_argument(
-        "--loss_function_constraints",
-        default=default_loss_constraints,
-        help="Loss function for the constraints on the generated traffic. \nOptions: huber, smoothl1, kldiv. \nDefault: CrossEntropyLoss",
-    )
-
-    parser.add_argument(
-        "--sliding_window_size",
-        type=int,
-        default=int(config["sliding_window_size"]),
-        help="Size of the sliding window",
-    )
-
-    parser.add_argument(
-        "--window_stride",
-        type=int,
-        default=int(config["window_stride"]),
-        help="Stride for constructing the sliding window",
-    )
-
-    parser.add_argument(
-        "--num_features",
-        type=int,
-        default=int(config["num_features"]),
-        help="Number of features in the input data",
-    )
-
-    parser.add_argument(
-        "--output_size",
-        type=int,
-        default=int(config["output_size"]),
-        help="Number of features in the output data",
-    )
-
-    parser.add_argument(
-        "--constraint_limit",
-        type=float,
-        default=float(config["constraint_limit"]),
-        help="Constraint limit for the generated traffic",
     )
 
     parser.add_argument(
@@ -394,34 +272,6 @@ def get_args():
     )
 
     parser.add_argument(
-        "--pretrained_save_path",
-        type=str,
-        default=config["pretrained_save_path"],
-        help="Path to load the pretrained model and logs",
-    )
-
-    parser.add_argument(
-        "--pretrained_model_name",
-        type=str,
-        default=config["pretrained_model_name"],
-        help="Name of the pretrained model",
-    )
-
-    parser.add_argument(
-        "--nids_save_path",
-        type=str,
-        default=config["nids_save_path"],
-        help="Path to load the NIDS model and logs",
-    )
-
-    parser.add_argument(
-        "--nids_model_name",
-        type=str,
-        default=config["nids_model_name"],
-        help="Name of the NIDS model",
-    )
-
-    parser.add_argument(
         "--save_path",
         type=str,
         default=config["save_path"],
@@ -444,13 +294,12 @@ def get_args():
 def main():
     # Arguments
     args = get_args()
+    sliding_window_size = int(config["sliding_window_size"])
+    window_stride = int(config["window_stride"])
+    num_features = int(config["num_features"])
 
     cpath = "{}/{}{}.ckpt".format(
-            args.save_path, args.model_name, args.sliding_window_size
-        )
-
-    nids_ckpt_path = "{}/{}{}.ckpt".format(
-            args.nids_save_path, args.nids_model_name, args.sliding_window_size
+            args.save_path, args.model_name, sliding_window_size
         )
 
     if torch.cuda.is_available():
@@ -462,9 +311,9 @@ def main():
 
     ## Get the data
     feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
-        args.sliding_window_size,
-        args.window_stride,
-        args.num_features,
+        sliding_window_size,
+        window_stride,
+        num_features,
         args.dataset_path,
     )
 
@@ -491,30 +340,14 @@ def main():
     )
 
     if args.pretrained:
-        pretrained_ckpt_path = "{}/{}{}.ckpt".format(
-            args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
+        pretrained_ckpt_path = "{}{}.ckpt".format(
+            config["pretrained_save_path"], sliding_window_size
         )
 
         model = TANTGen(
-            target_size=args.output_size,
-            num_features=args.num_features,
-
-            loss_function_diff=args.loss_function_diff,
-            loss_function_evasion=args.loss_function_evasion,
-            loss_function_constraints=args.loss_function_constraints,
-            constraint_limit=args.constraint_limit,
-
             mean_std=mean_std,
-            layers=args.num_layers,
-            num_heads=args.num_heads,
-            dropout=args.dropout,
-            weight_decay=args.weight_decay,
-            learning_rate=args.learning_rate,
             epochs=args.epochs,
             batch_size=args.batch_size,
-            linear_size=args.linear_size,
-            sliding_window_size=args.sliding_window_size,
-            nids_ckpt_path=nids_ckpt_path,
         )
 
         ckpt = torch.load(pretrained_ckpt_path, map_location="cpu")
@@ -530,25 +363,9 @@ def main():
     else:
         # Do not freeze anything for non pre-trained
         model = TANTGen(
-            target_size=args.output_size,
-            num_features=args.num_features,
-
-            loss_function_diff=args.loss_function_diff,
-            loss_function_evasion=args.loss_function_evasion,
-            loss_function_constraints=args.loss_function_constraints,
-            constraint_limit=args.constraint_limit,
-
             mean_std=mean_std,
-            layers=args.num_layers,
-            num_heads=args.num_heads,
-            dropout=args.dropout,
-            weight_decay=args.weight_decay,
-            learning_rate=args.learning_rate,
             epochs=args.epochs,
             batch_size=args.batch_size,
-            linear_size=args.linear_size,
-            sliding_window_size=args.sliding_window_size,
-            nids_ckpt_path=nids_ckpt_path,
         )
 
 
@@ -616,28 +433,13 @@ def main():
             trainer.test(model, test_loader)
         else:
             print("Loading checkpoint")
-            pretrained_ckpt_path = "{}/{}{}.ckpt".format(
-                args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
+            pretrained_ckpt_path = "{}{}.ckpt".format(
+                config["pretrained_save_path"], sliding_window_size
             )
             testmodel = TANTGen(
-                target_size=args.output_size,
-                num_features=args.num_features,
-
-                loss_function_diff=args.loss_function_diff,
-                loss_function_evasion=args.loss_function_evasion,
-                loss_function_constraints=args.loss_function_constraints,
-                constraint_limit=args.constraint_limit,
-
                 mean_std=mean_std,
-                layers=args.num_layers,
-                num_heads=args.num_heads,
-                dropout=args.dropout,
-                weight_decay=args.weight_decay,
-                learning_rate=args.learning_rate,
                 epochs=args.epochs,
                 batch_size=args.batch_size,
-                linear_size=args.linear_size,
-                sliding_window_size=args.sliding_window_size,
             )
 
             ckpt = torch.load(pretrained_ckpt_path, map_location="cpu")

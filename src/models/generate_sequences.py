@@ -4,7 +4,6 @@ import pandas as pd
 from src.models.utils import (
     convert_to_relative_timestamp,
     ipaddress_to_number,
-    make_windows_iat,
     make_windows_features,
     standardize_column,
     standardize_ips

@@ -24,43 +24,42 @@ from src.models.utils import (
 
 torch.manual_seed(0)
 
+config_path = "src/models/configs/config-TANTGen-pretrain.yaml"
+# Hyper parameters from config file
+with open(config_path) as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
+
 # TRANSFOMER CLASS TO PREDICT IATs
 class TANTGen_pretrain(pl.LightningModule):
     def __init__(
         self,
-        target_size,
-        num_features,
-        loss_function,
         mean_std,
-        layers,
-        num_heads,
-        dropout,
-        weight_decay,
-        learning_rate,
-        epochs,
-        batch_size,
-        linear_size,
-        sliding_window_size,
+        epochs=int(config["epochs"]),
+        batch_size=int(config["batch_size"]),
     ):
 
         super(TANTGen_pretrain, self).__init__()
 
         self.step = 0
 
-        self.weight_decay = weight_decay
-        self.learning_rate = learning_rate
-        self.linear_size = linear_size
-        self.sliding_window_size = sliding_window_size
-        self.input_size = sliding_window_size * num_features
+        self.weight_decay = float(config["weight_decay"])
+        self.learning_rate = float(config["learning_rate"])
+        self.num_heads = int(config["num_heads"])
+        self.layers = int(config["num_layers"])
+        self.linear_size = int(config["linear_size"])
+        self.sliding_window_size = int(config["sliding_window_size"])
+        self.num_features = int(config["num_features"])
+        self.target_size = int(config["output_size"])
+        self.input_size = self.sliding_window_size * self.num_features
 
         parameters = {
             "WEIGHTDECAY": self.weight_decay,
             "LEARNINGRATE": self.learning_rate,
+            "NHEAD": self.num_heads,
+            "LAYERS": self.layers,
+            "LINEARSIZE": self.linear_size,
             "EPOCHS": epochs,
             "BATCHSIZE": batch_size,
-            "LINEARSIZE": self.linear_size,
-            "NHEAD": num_heads,
-            "LAYERS": layers,
         }
         self.df = pd.DataFrame()
         self.df["parameters"] = [json.dumps(parameters)]
@@ -68,22 +67,20 @@ class TANTGen_pretrain(pl.LightningModule):
         ## Mask out the nth iat in every input sequence (do it at run time)
 
         ## Use multi-level hierarchical aggregation
-        #self.packet_size = int(input_size / self.sliding_window_size)
         # Change into hierarchical embedding
         #self.feature_transform1 = nn.Sequential(
         #    Rearrange(
         #        "b (seq feat) -> b seq feat",
         #        seq=self.sliding_window_size,
-        #        feat=self.packet_size,
+        #        feat=self.num_features,
         #    ),  # Make 1000
-        #    nn.Linear(self.packet_size, self.linear_size),
+        #    nn.Linear(self.num_features, self.linear_size),
         #    nn.LayerNorm(self.linear_size),  # pre-normalization
         #)
 
-        self.packet_size = num_features
         self.feature_transform1 = nn.Sequential(
-            nn.Linear(self.packet_size, linear_size),
-            nn.LayerNorm(linear_size)
+            nn.Linear(self.num_features, self.linear_size),
+            nn.LayerNorm(self.linear_size)
         )
 
         # (remaining_packets = self.sliding_window_size - 512)
@@ -100,7 +97,7 @@ class TANTGen_pretrain(pl.LightningModule):
         #    nn.LayerNorm(self.linear_size),  # pre-normalization
         #)
 
-        self.tgt_embedding = nn.Linear(target_size, self.linear_size)
+        self.tgt_embedding = nn.Linear(self.target_size, self.linear_size)
 
         self.positional_encoding = PositionalEncoding(self.linear_size)
 
@@ -108,19 +105,19 @@ class TANTGen_pretrain(pl.LightningModule):
         # These are our transformer layers (stay the same)
         self.encoder_layer = nn.TransformerEncoderLayer(
             d_model=self.linear_size,
-            nhead=num_heads,
+            nhead=self.num_heads,
             batch_first=True,
-            dropout=dropout,
+            dropout=float(config["dropout"]),
         )
-        self.encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=layers)
+        self.encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=self.layers)
 
         self.decoder_layer = nn.TransformerDecoderLayer(
             d_model=self.linear_size,
-            nhead=num_heads,
+            nhead=self.num_heads,
             batch_first=True,
-            dropout=dropout,
+            dropout=float(config["dropout"]),
         )
-        self.decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=layers)
+        self.decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=self.layers)
 
         # This is our prediction layer, change for finetuning as needed TODO ??? rever
         # self.norm1 = nn.LayerNorm(self.linear_size)
@@ -131,16 +128,30 @@ class TANTGen_pretrain(pl.LightningModule):
         # self.activ2 = nn.GELU()
         # self.encoderpred1 = nn.Linear(self.linear_size, input_size // 8)
         # self.activ3 = nn.ReLU()
-        # self.encoderpred2 = nn.Linear(input_size // 8, target_size)
+        # self.encoderpred2 = nn.Linear(input_size // 8, self.target_size)
 
         self.output_head = nn.Sequential(
             nn.LayerNorm(self.linear_size),
             nn.Linear(self.linear_size, self.linear_size*2),
             nn.GELU(),
-            nn.Linear(self.linear_size*2, target_size)
+            nn.Linear(self.linear_size*2, self.target_size)
         )
 
-        self.loss_func = loss_function
+        if "loss_function" in config.keys():
+            if config["loss_function"] == "huber":
+                default_loss_func = nn.HuberLoss()
+            if config["loss_function"] == "mse":
+                default_loss_func = nn.MSELoss()
+            if config["loss_function"] == "mae":
+                default_loss_func = nn.L1Loss()
+            if config["loss_function"] == "smoothl1":
+                default_loss_func = nn.SmoothL1Loss()
+            if config["loss_function"] == "kldiv":
+                default_loss_func = nn.KLDivLoss()
+        else:
+            default_loss_func = nn.MSELoss()
+
+        self.loss_func = default_loss_func
 
         # Mean and std for the iat un-normalization
         self.mean_std = mean_std
@@ -250,11 +261,11 @@ class TANTGen_pretrain(pl.LightningModule):
 
         # Randomly select num_to_mask iat positions (in input, multiply by x and subtract 1 due to x features)
         iat_indexes_output = np.random.choice(all_iat_indices, size=num_to_mask, replace=False)
-        # iat_indexes_input = iat_indexes_output * self.packet_size - 1
+        # iat_indexes_input = iat_indexes_output * self.num_features - 1
 
 
-        X[:, iat_indexes_output, self.packet_size-1] = torch.zeros_like(
-            X[:, iat_indexes_output, self.packet_size-1]
+        X[:, iat_indexes_output, self.num_features-1] = torch.zeros_like(
+            X[:, iat_indexes_output, self.num_features-1]
         )
 
         y_input_shifted = y.clone()
@@ -408,48 +419,10 @@ class TANTGen_pretrain(pl.LightningModule):
 
 # Argument parser for the model and return
 def get_args():
-    # Hyper parameters from config file
-    with open("src/models/configs/config-TANTGen-pretrain.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Add default arguments from the config file
     parser = argparse.ArgumentParser(
         description="Transformer for iat prediction"
-    )
-
-    parser.add_argument(
-        "--weight_decay",
-        type=float,
-        default=float(config["weight_decay"]),
-        help="Weight decay for the Adam optimizer",
-    )
-
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=float(config["learning_rate"]),
-        help="Learning rate for the Adam optimizer",
-    )
-
-    parser.add_argument(
-        "--dropout",
-        type=float,
-        default=float(config["dropout"]),
-        help="Dropout for the transformer",
-    )
-
-    parser.add_argument(
-        "--num_heads",
-        type=int,
-        default=int(config["num_heads"]),
-        help="Number of heads for the transformer",
-    )
-
-    parser.add_argument(
-        "--num_layers",
-        type=int,
-        default=int(config["num_layers"]),
-        help="Number of layers for the transformer",
     )
 
     parser.add_argument(
@@ -464,61 +437,6 @@ def get_args():
         type=int,
         default=int(config["batch_size"]),
         help="Batch size for training",
-    )
-
-    parser.add_argument(
-        "--linear_size",
-        type=int,
-        default=int(config["linear_size"]),
-        help="Linear size for the transformer",
-    )
-
-    if "loss_function" in config.keys():
-        if config["loss_function"] == "huber":
-            default_loss_func = nn.HuberLoss()
-        if config["loss_function"] == "mse":
-            default_loss_func = nn.MSELoss()
-        if config["loss_function"] == "mae":
-            default_loss_func = nn.L1Loss()
-        if config["loss_function"] == "smoothl1":
-            default_loss_func = nn.SmoothL1Loss()
-        if config["loss_function"] == "kldiv":
-            default_loss_func = nn.KLDivLoss()
-    else:
-        default_loss_func = nn.MSELoss() # o treino fez com este !!!
-
-    parser.add_argument(
-        "--loss_function",
-        default=default_loss_func,
-        help="Loss function for the transformer",
-    )
-
-    parser.add_argument(
-        "--sliding_window_size",
-        type=int,
-        default=int(config["sliding_window_size"]),
-        help="Size of the sliding window",
-    )
-
-    parser.add_argument(
-        "--window_stride",
-        type=int,
-        default=int(config["window_stride"]),
-        help="Stride for constructing the sliding window",
-    )
-
-    parser.add_argument(
-        "--num_features",
-        type=int,
-        default=int(config["num_features"]),
-        help="Number of features in the input data",
-    )
-
-    parser.add_argument(
-        "--output_size",
-        type=int,
-        default=int(config["output_size"]),
-        help="Number of features in the output data",
     )
 
     parser.add_argument(
@@ -579,9 +497,12 @@ def get_args():
 def main():
     # Arguments
     args = get_args()
+    num_features = int(config["num_features"])
+    sliding_window_size = int(config["sliding_window_size"])
+    window_stride = int(config["window_stride"])
 
     cpath = "{}/{}{}.ckpt".format(
-                args.save_path, args.model_name, args.sliding_window_size
+                args.save_path, args.model_name, sliding_window_size
             )
 
     if torch.cuda.is_available():
@@ -593,9 +514,9 @@ def main():
 
     ## Get the data
     feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
-        args.sliding_window_size,
-        args.window_stride,
-        args.num_features,
+        sliding_window_size,
+        window_stride,
+        num_features,
         args.dataset_path,
     )
 
@@ -623,19 +544,9 @@ def main():
 
     ## Model definition with iat scaling params
     model = TANTGen_pretrain(
-        target_size=args.output_size,
-        num_features=args.num_features,
-        loss_function=args.loss_function,
         mean_std=mean_std,
-        layers=args.num_layers,
-        num_heads=args.num_heads,
-        dropout=args.dropout,
-        weight_decay=args.weight_decay,
-        learning_rate=args.learning_rate,
         epochs=args.epochs,
         batch_size=args.batch_size,
-        linear_size=args.linear_size,
-        sliding_window_size=args.sliding_window_size,
     )
 
     # Make new dir for storing logs
@@ -705,19 +616,9 @@ def main():
         else:
             print("Loading checkpoint")
             testmodel = TANTGen_pretrain.load_from_checkpoint(
-                target_size=args.output_size,
-                num_features=args.num_features,
-                loss_function=args.loss_function,
                 mean_std=mean_std,
-                layers=args.num_layers,
-                num_heads=args.num_heads,
-                dropout=args.dropout,
-                weight_decay=args.weight_decay,
-                learning_rate=args.learning_rate,
                 epochs=args.epochs,
                 batch_size=args.batch_size,
-                linear_size=args.linear_size,
-                sliding_window_size=args.sliding_window_size,
                 checkpoint_path=cpath,
                 strict=True,
             )

@@ -160,22 +160,6 @@ def make_windows_features(input_array, window_length, num_features, stride):
 
 
 
-def make_windows_iat(input_array, window_length, stride):
-    """Yield IAT windows with a given stride."""
-    last_start = len(input_array) - window_length
-    window_starts = np.arange(0, last_start, stride)
-
-    batchsize = 5000 # for efficiency purposes only
-
-    for batch_start in range(0, len(window_starts), batchsize):
-        batch_indices = window_starts[batch_start:batch_start + batchsize]
-
-        index_matrix = batch_indices[:, None] + np.arange(window_length)[None, :]
-
-        # Yield sequence por sequence
-        yield from input_array[index_matrix]
-
-
 # Extract last digit of the IP integer
 def get_last_digit(ip):
     return ip % 10

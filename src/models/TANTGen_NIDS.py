@@ -25,45 +25,34 @@ from src.models.utils import (
 )
 from src.models.TANTGen_pretrain import TANTGen_pretrain
 
+config_path = "src/models/configs/config-TANTGen-NIDS.yaml"
+# Hyper parameters from config file
+with open(config_path) as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
+
 class TANTGen_NIDS(pl.LightningModule):
     def __init__(
         self,
-        pretrained_ckpt_path=None,   # path for the checkpoint of pre-trained TANTGen
-        base_model_kwargs=None,      # kwargs for building TANTGen from scratch
         freeze_base=True,            # freeze encoder initially
-        lr=1e-4,
-        weight_decay=0.0,
         unfreeze_last_n_layers=0,    # if >0, unfreeze last N layers of the encoder
     ):
         super().__init__()
+        pretrained_ckpt_path = "{}{}.ckpt".format(
+            config["pretrained_save_path"], config["sliding_window_size"]
+        )
         self.save_hyperparameters(ignore=["base_model_kwargs","pretrained_ckpt_path"])
 
-        self.lr = lr
-        self.weight_decay = weight_decay
+        self.lr = float(config["learning_rate"])
+        self.weight_decay = float(config["weight_decay"])
+        self.dropout = float(config["dropout"])
 
         # --- Obter o modelo base ---
-        # Se tens a classe TANTGen no mesmo namespace, podes carregar com load_from_checkpoint.
-        if pretrained_ckpt_path:
-            self.base = TANTGen_pretrain.load_from_checkpoint(
-                checkpoint_path=pretrained_ckpt_path,
-                target_size=base_model_kwargs["target_size"],
-                num_features=base_model_kwargs["num_features"],
-                loss_function=base_model_kwargs.get("loss_function", nn.MSELoss()),
-                mean_std=base_model_kwargs.get("mean_std", None),
-                layers=base_model_kwargs.get("layers"),
-                num_heads=base_model_kwargs.get("num_heads"),
-                dropout=base_model_kwargs.get("dropout"),
-                weight_decay=base_model_kwargs.get("weight_decay", 0.0),
-                learning_rate=base_model_kwargs.get("learning_rate", lr),
-                epochs=base_model_kwargs.get("epochs", 1),
-                batch_size=base_model_kwargs.get("batch_size", 32),
-                linear_size=base_model_kwargs.get("linear_size"),
-                sliding_window_size=base_model_kwargs.get("sliding_window_size"),
-                strict=False,
-            )
-        else:
-            # criar um TANTGen do zero (caso não queiras carregar checkpoint)
-            self.base = TANTGen_pretrain(**base_model_kwargs)
+        base_model_kwargs = {} # TODO remover!!!
+        self.base = TANTGen_pretrain.load_from_checkpoint(
+            checkpoint_path=pretrained_ckpt_path,
+            mean_std=None,
+            strict=False,
+        )
 
         # --- Remover ou ignorar a cabeça de output do pretreino e criar uma cabeça para classificação ---
         # Cria uma cabeça simples: LayerNorm -> Linear -> GELU -> Linear (logits)
@@ -72,7 +61,7 @@ class TANTGen_NIDS(pl.LightningModule):
             nn.LayerNorm(enc_out_dim),
             nn.Linear(enc_out_dim, enc_out_dim//2),
             nn.GELU(),
-            nn.Dropout(0.2),
+            nn.Dropout(self.dropout),
             nn.Linear(enc_out_dim//2, 1)  # logits
         )
 
@@ -265,48 +254,10 @@ class TANTGen_NIDS(pl.LightningModule):
 
 # Argument parser for the model and return
 def get_args():
-    # Hyper parameters from config file
-    with open("src/models/configs/config-TANTGen-NIDS.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
 
     # Add default arguments from the config file
     parser = argparse.ArgumentParser(
         description="NIDS transformer (to detect attacks based on network packet features)",
-    )
-
-    parser.add_argument(
-        "--weight_decay",
-        type=float,
-        default=float(config["weight_decay"]),
-        help="Weight decay for the Adam optimizer",
-    )
-
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=float(config["learning_rate"]),
-        help="Learning rate for the Adam optimizer",
-    )
-
-    parser.add_argument(
-        "--dropout",
-        type=float,
-        default=float(config["dropout"]),
-        help="Dropout for the transformer",
-    )
-
-    parser.add_argument(
-        "--num_heads",
-        type=int,
-        default=int(config["num_heads"]),
-        help="Number of heads for the transformer",
-    )
-
-    parser.add_argument(
-        "--num_layers",
-        type=int,
-        default=int(config["num_layers"]),
-        help="Number of layers for the transformer",
     )
 
     parser.add_argument(
@@ -321,67 +272,6 @@ def get_args():
         type=int,
         default=int(config["batch_size"]),
         help="Batch size for training",
-    )
-
-    parser.add_argument(
-        "--linear_size",
-        type=int,
-        default=int(config["linear_size"]),
-        help="Linear size for the transformer",
-    )
-
-    parser.add_argument(
-        "--loss_function",
-        default=nn.MSELoss(),
-        help="Loss function for the transformer",
-    )
-
-    if "loss_function" in config.keys():
-        if config["loss_function"] == "huber":
-            parser.add_argument(
-                "--loss_function_huber",
-                default=nn.SmoothL1Loss(),
-                help="Loss function for the transformer",
-            )
-        if config["loss_function"] == "smoothl1":
-            parser.add_argument(
-                "--loss_function_smoothl1",
-                default=nn.SmoothL1Loss(),
-                help="Loss function for the transformer",
-            )
-        if config["loss_function"] == "kldiv":
-            parser.add_argument(
-                "--loss_function_kldiv",
-                default=nn.KLDivLoss(),
-                help="Loss function for the transformer",
-            )
-
-    parser.add_argument(
-        "--sliding_window_size",
-        type=int,
-        default=int(config["sliding_window_size"]),
-        help="Size of the sliding window",
-    )
-
-    parser.add_argument(
-        "--window_stride",
-        type=int,
-        default=int(config["window_stride"]),
-        help="Stride for constructing the sliding window",
-    )
-
-    parser.add_argument(
-        "--num_features",
-        type=int,
-        default=int(config["num_features"]),
-        help="Number of features in the input data",
-    )
-
-    parser.add_argument(
-        "--output_size",
-        type=int,
-        default=int(config["output_size"]),
-        help="Number of features in the output data",
     )
 
     parser.add_argument(
@@ -427,20 +317,6 @@ def get_args():
     )
 
     parser.add_argument(
-        "--pretrained_save_path",
-        type=str,
-        default=config["pretrained_save_path"],
-        help="Path to load the pretrained model and logs",
-    )
-
-    parser.add_argument(
-        "--pretrained_model_name",
-        type=str,
-        default=config["pretrained_model_name"],
-        help="Name of the pretrained model",
-    )
-
-    parser.add_argument(
         "--save_path",
         type=str,
         default=config["save_path"],
@@ -460,25 +336,13 @@ def get_args():
 
 def main():
     args = get_args()
+    sliding_window_size = int(config["sliding_window_size"])
+    window_stride = int(config["window_stride"])
+    num_features = int(config["num_features"])
 
     cpath = "{}/{}{}.ckpt".format(
-                args.save_path, args.model_name, args.sliding_window_size
+                args.save_path, args.model_name, sliding_window_size
             )
-
-    base_kwargs = {
-        "weight_decay": args.weight_decay,
-        "learning_rate": args.learning_rate,
-        "dropout": args.dropout,
-        "num_heads": args.num_heads,
-        "layers": args.num_layers,
-        "epochs": args.epochs,
-        "batch_size": args.batch_size,
-        "linear_size": args.linear_size,
-        "loss_function": args.loss_function,
-        "num_features": args.num_features,
-        "target_size": args.output_size,
-        "sliding_window_size": args.sliding_window_size,
-    }
 
     if torch.cuda.is_available():
         NUM_GPUS = torch.cuda.device_count()
@@ -489,9 +353,9 @@ def main():
 
     ## Get the data
     feature_arr, target_arr, _ = generate_sliding_windows_NIDS(
-        args.sliding_window_size,
-        args.window_stride,
-        args.num_features,
+        sliding_window_size,
+        window_stride,
+        num_features,
         args.dataset_path,
         args.dataset_labels_path,
     )
@@ -519,13 +383,7 @@ def main():
     )
 
     model = TANTGen_NIDS(
-        pretrained_ckpt_path="{}/{}{}.ckpt".format(
-                args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
-            ), # TODO change name 
-        base_model_kwargs=base_kwargs,
         freeze_base=True,
-        lr=args.learning_rate,
-        weight_decay=args.weight_decay,
         unfreeze_last_n_layers=1,
     )
 
@@ -598,13 +456,7 @@ def main():
         else:
             print("Loading checkpoint")
             testmodel = TANTGen_NIDS.load_from_checkpoint(
-                pretrained_ckpt_path="{}/{}{}.ckpt".format(
-                    args.pretrained_save_path, args.pretrained_model_name, args.sliding_window_size
-                    ),
-                base_model_kwargs=base_kwargs,
                 freeze_base=True,
-                lr=args.learning_rate,
-                weight_decay=args.weight_decay,
                 unfreeze_last_n_layers=1,
                 checkpoint_path=cpath,
                 strict=True,
