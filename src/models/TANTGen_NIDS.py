@@ -25,10 +25,13 @@ from src.models.utils import (
 )
 from src.models.TANTGen_pretrain import TANTGen_pretrain
 
-config_path = "src/models/configs/config-TANTGen-NIDS.yaml"
 # Hyper parameters from config file
-with open(config_path) as f:
-    config = yaml.load(f, Loader=yaml.FullLoader)
+with open("src/models/configs/config-TANTGen-general.yaml") as f:
+    config_general = yaml.load(f, Loader=yaml.FullLoader)
+
+# Hyper parameters from config file
+with open("src/models/configs/config-TANTGen-NIDS.yaml") as f:
+    config_nids = yaml.load(f, Loader=yaml.FullLoader)
 
 class TANTGen_NIDS(pl.LightningModule):
     def __init__(
@@ -37,14 +40,14 @@ class TANTGen_NIDS(pl.LightningModule):
         unfreeze_last_n_layers=0,    # if >0, unfreeze last N layers of the encoder
     ):
         super().__init__()
-        pretrained_ckpt_path = "{}{}.ckpt".format(
-            config["pretrained_save_path"], config["sliding_window_size"]
+        pretrained_ckpt_path = "{}/{}{}.ckpt".format(
+            config_general["save_path_pretrain"], config_general["model_name_pretrain"] ,config_general["sliding_window_size"]
         )
         self.save_hyperparameters(ignore=["base_model_kwargs","pretrained_ckpt_path"])
 
-        self.lr = float(config["learning_rate"])
-        self.weight_decay = float(config["weight_decay"])
-        self.dropout = float(config["dropout"])
+        self.lr = float(config_general["learning_rate"])
+        self.weight_decay = float(config_general["weight_decay"])
+        self.dropout = float(config_general["dropout"])
 
         # --- Obter o modelo base ---
         base_model_kwargs = {} # TODO remover!!!
@@ -263,14 +266,14 @@ def get_args():
     parser.add_argument(
         "--epochs",
         type=int,
-        default=int(config["epochs"]),
+        default=int(config_nids["epochs"]),
         help="Number of epochs for training",
     )
 
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=int(config["batch_size"]),
+        default=int(config_nids["batch_size"]),
         help="Batch size for training",
     )
 
@@ -305,28 +308,28 @@ def get_args():
     parser.add_argument(
         "--dataset_path",
         type=str,
-        default=config["dataset_path"],
+        default=config_nids["dataset_path"],
         help="Path to the dataset file (features)",
     )
 
     parser.add_argument(
         "--dataset_labels_path",
         type=str,
-        default=config["dataset_labels_path"],
+        default=config_nids["dataset_labels_path"],
         help="Path to the labels file",
     )
 
     parser.add_argument(
         "--save_path",
         type=str,
-        default=config["save_path"],
+        default=config_general["save_path_nids"],
         help="Path to save the model and logs",
     )
 
     parser.add_argument(
         "--model_name",
         type=str,
-        default=config["model_name"],
+        default=config_general["model_name_nids"],
         help="Name of the model",
     )
 
@@ -336,9 +339,9 @@ def get_args():
 
 def main():
     args = get_args()
-    sliding_window_size = int(config["sliding_window_size"])
-    window_stride = int(config["window_stride"])
-    num_features = int(config["num_features"])
+    sliding_window_size = int(config_general["sliding_window_size"])
+    window_stride = int(config_general["window_stride"])
+    num_features = int(config_general["num_features"])
 
     cpath = "{}/{}{}.ckpt".format(
                 args.save_path, args.model_name, sliding_window_size

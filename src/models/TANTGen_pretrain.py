@@ -24,32 +24,35 @@ from src.models.utils import (
 
 torch.manual_seed(0)
 
-config_path = "src/models/configs/config-TANTGen-pretrain.yaml"
 # Hyper parameters from config file
-with open(config_path) as f:
-    config = yaml.load(f, Loader=yaml.FullLoader)
+with open("src/models/configs/config-TANTGen-general.yaml") as f:
+    config_general = yaml.load(f, Loader=yaml.FullLoader)
+
+# Hyper parameters from config file
+with open("src/models/configs/config-TANTGen-pretrain.yaml") as f:
+    config_pretrain = yaml.load(f, Loader=yaml.FullLoader)
 
 # TRANSFOMER CLASS TO PREDICT IATs
 class TANTGen_pretrain(pl.LightningModule):
     def __init__(
         self,
         mean_std,
-        epochs=int(config["epochs"]),
-        batch_size=int(config["batch_size"]),
+        epochs=int(config_pretrain["epochs"]),
+        batch_size=int(config_pretrain["batch_size"]),
     ):
 
         super(TANTGen_pretrain, self).__init__()
 
         self.step = 0
 
-        self.weight_decay = float(config["weight_decay"])
-        self.learning_rate = float(config["learning_rate"])
-        self.num_heads = int(config["num_heads"])
-        self.layers = int(config["num_layers"])
-        self.linear_size = int(config["linear_size"])
-        self.sliding_window_size = int(config["sliding_window_size"])
-        self.num_features = int(config["num_features"])
-        self.target_size = int(config["output_size"])
+        self.weight_decay = float(config_general["weight_decay"])
+        self.learning_rate = float(config_general["learning_rate"])
+        self.num_heads = int(config_general["num_heads"])
+        self.layers = int(config_general["num_layers"])
+        self.linear_size = int(config_general["linear_size"])
+        self.sliding_window_size = int(config_general["sliding_window_size"])
+        self.num_features = int(config_general["num_features"])
+        self.target_size = int(config_general["output_size"])
         self.input_size = self.sliding_window_size * self.num_features
 
         parameters = {
@@ -107,7 +110,7 @@ class TANTGen_pretrain(pl.LightningModule):
             d_model=self.linear_size,
             nhead=self.num_heads,
             batch_first=True,
-            dropout=float(config["dropout"]),
+            dropout=float(config_general["dropout"]),
         )
         self.encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=self.layers)
 
@@ -115,7 +118,7 @@ class TANTGen_pretrain(pl.LightningModule):
             d_model=self.linear_size,
             nhead=self.num_heads,
             batch_first=True,
-            dropout=float(config["dropout"]),
+            dropout=float(config_general["dropout"]),
         )
         self.decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=self.layers)
 
@@ -137,16 +140,16 @@ class TANTGen_pretrain(pl.LightningModule):
             nn.Linear(self.linear_size*2, self.target_size)
         )
 
-        if "loss_function" in config.keys():
-            if config["loss_function"] == "huber":
+        if "loss_function" in config_pretrain.keys():
+            if config_pretrain["loss_function"] == "huber":
                 default_loss_func = nn.HuberLoss()
-            if config["loss_function"] == "mse":
+            if config_pretrain["loss_function"] == "mse":
                 default_loss_func = nn.MSELoss()
-            if config["loss_function"] == "mae":
+            if config_pretrain["loss_function"] == "mae":
                 default_loss_func = nn.L1Loss()
-            if config["loss_function"] == "smoothl1":
+            if config_pretrain["loss_function"] == "smoothl1":
                 default_loss_func = nn.SmoothL1Loss()
-            if config["loss_function"] == "kldiv":
+            if config_pretrain["loss_function"] == "kldiv":
                 default_loss_func = nn.KLDivLoss()
         else:
             default_loss_func = nn.MSELoss()
@@ -198,11 +201,16 @@ class TANTGen_pretrain(pl.LightningModule):
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = learning_rate
 
-    def forward(self, src, tgt, tgt_mask=None):
+    def forward(self, src, tgt):
         # used for the forward pass of the model
 
         # Cast to doubletensor
         scaled_input = src.float()
+
+        # Create target mask for decoder (prevent positions from attending to subsequent positions)
+        tgt_mask = torch.triu(
+            torch.ones(tgt.size(1), tgt.size(1)) * float("-inf"), diagonal=1
+        ).to(self.device)
 
         #---
         # EMBEDDING AND HIERARCHICAL AGGREGATION
@@ -257,35 +265,36 @@ class TANTGen_pretrain(pl.LightningModule):
         #    self.sliding_window_size - 512, self.sliding_window_size
         #)
 
-        num_to_mask = math.floor(self.sliding_window_size * 0.2)
+        num_to_mask = math.floor(self.sliding_window_size * 0.9)
 
         # Randomly select num_to_mask iat positions (in input, multiply by x and subtract 1 due to x features)
         iat_indexes_output = np.random.choice(all_iat_indices, size=num_to_mask, replace=False)
         # iat_indexes_input = iat_indexes_output * self.num_features - 1
 
 
-        X[:, iat_indexes_output, self.num_features-1] = torch.zeros_like(
+        X[:, iat_indexes_output, self.num_features-1] = torch.ones_like(
             X[:, iat_indexes_output, self.num_features-1]
-        )
+        ) * int(config_general["mask_token"])
 
-        y_input_shifted = y.clone()
-        y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
-        y_input_shifted[:, 0, :] = 0
-        tgt_mask = torch.triu(torch.ones(y_input_shifted.size(1), y_input_shifted.size(1)) * float('-inf'), diagonal=1).to(self.device)
-
-        prediction = self.forward(X, y_input_shifted, tgt_mask)
+        y_input_shifted = torch.zeros_like(y)
+        y_input_shifted[:, 1:, :] = y[:, :-1, :]
+        y_input_shifted[:, 0, :] = int(config_general["start_token"])
+    
+        prediction = self.forward(X, y_input_shifted)
 
         ## Un-normalize the iat prediction
         # prediction = prediction * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
 
-        loss_mask = torch.zeros_like(y, dtype=torch.bool)
-        loss_mask[:, iat_indexes_output, :] = 1
-
-        ## Loss over both the loss functions
-        # Reconstruction loss
-        loss = self.loss_func(
-            prediction[loss_mask], y[loss_mask]
-        )
+        # Compute loss on ALL positions for stronger gradient signal
+        # You can still mask during training if needed, but start with full loss
+        loss = self.loss_func(prediction, y)
+        
+        # Alternative: Use weighted loss focusing more on masked positions
+        # loss_mask = torch.zeros_like(y, dtype=torch.bool)
+        # loss_mask[:, iat_indexes_output, :] = 1
+        # loss_masked = self.loss_func(prediction[loss_mask], y[loss_mask])
+        # loss_full = self.loss_func(prediction, y)
+        # loss = 0.7 * loss_masked + 0.3 * loss_full
 
         return loss, prediction, y
 
@@ -428,14 +437,14 @@ def get_args():
     parser.add_argument(
         "--epochs",
         type=int,
-        default=int(config["epochs"]),
+        default=int(config_pretrain["epochs"]),
         help="Number of epochs for training",
     )
 
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=int(config["batch_size"]),
+        default=int(config_pretrain["batch_size"]),
         help="Batch size for training",
     )
 
@@ -470,21 +479,21 @@ def get_args():
     parser.add_argument(
         "--dataset_path",
         type=str,
-        default=config["dataset_path"],
+        default=config_pretrain["dataset_path"],
         help="Path to the dataset",
     )
 
     parser.add_argument(
         "--save_path",
         type=str,
-        default=config["save_path"],
+        default=config_general["save_path_pretrain"],
         help="Path to save the model and logs",
     )
 
     parser.add_argument(
         "--model_name",
         type=str,
-        default=config["model_name"],
+        default=config_general["model_name_pretrain"],
         help="Name of the model for saving",
     )
 
@@ -497,9 +506,9 @@ def get_args():
 def main():
     # Arguments
     args = get_args()
-    num_features = int(config["num_features"])
-    sliding_window_size = int(config["sliding_window_size"])
-    window_stride = int(config["window_stride"])
+    num_features = int(config_general["num_features"])
+    sliding_window_size = int(config_general["sliding_window_size"])
+    window_stride = int(config_general["window_stride"])
 
     cpath = "{}/{}{}.ckpt".format(
                 args.save_path, args.model_name, sliding_window_size
@@ -563,6 +572,7 @@ def main():
             check_val_every_n_epoch=1,
             logger=tb_logger,
             callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
+            gradient_clip_val=1.0,  # Add gradient clipping
         )
     else:
         trainer = pl.Trainer(
@@ -571,6 +581,7 @@ def main():
             check_val_every_n_epoch=1,
             logger=tb_logger,
             callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
+            gradient_clip_val=1.0,  # Add gradient clipping
         )
 
     if args.train:

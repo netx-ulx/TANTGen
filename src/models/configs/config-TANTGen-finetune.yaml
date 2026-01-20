@@ -1,14 +1,6 @@
 #---------------------------
 # Pretrain model parameters
 #---------------------------
-name: transformer finetune
-weight_decay: 1e-5
-learning_rate: 1e-4            
-dropout: 0.2                   
-num_heads: 8                      
-num_layers: 6                      
-linear_size: 120 
-
 loss_fun_diff: huber
 loss_fun_evasion: bce
 loss_fun_constraints: mse
@@ -22,25 +14,7 @@ constraint_limit: 0.1
 epochs: 15
 batch_size: 64
 
-# --------------------------
-# Sliding window parameters
-# --------------------------
-sliding_window_size: 64
-window_stride: 64
-
 #--------------------
 # Dataset parameters
 #--------------------
 dataset_path: data/preprocessed/Kitsune/mirai_myFE.csv
-num_features: 7
-output_size: 1
-
-#--------------------
-# Save parameters
-#--------------------
-pretrained_save_path: src/models/transformer_iat_logs/TANTGen_pretrain_window
-
-nids_save_path: src/models/transformer_nids_logs/TANTGen_NIDS_window
-
-save_path: src/models/TANTGen_logs
-model_name: 1#_final_TANTGen_window

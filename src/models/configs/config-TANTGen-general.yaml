@@ -1,0 +1,36 @@
+#---------------------------
+# General model parameters
+#---------------------------
+start_token: -10.0
+mask_token: 0
+
+weight_decay: 1e-5
+learning_rate: 1e-4            
+dropout: 0.2                   
+num_heads: 8                      
+num_layers: 6                      
+linear_size: 120 
+
+# --------------------------
+# Sliding window parameters
+# --------------------------
+sliding_window_size: 64
+window_stride: 64
+
+#--------------------
+# Dataset parameters
+#--------------------
+num_features: 6
+output_size: 1
+
+#--------------------
+# Save parameters
+#--------------------
+save_path_pretrain: src/models/transformer_iat_logs
+model_name_pretrain: TANTGen_pretrain_window
+
+save_path_nids: src/models/transformer_nids_logs
+model_name_nids: TANTGen_NIDS_window
+
+save_path_finetune: src/models/TANTGen_logs
+model_name_finetune: 1#_final_TANTGen_window

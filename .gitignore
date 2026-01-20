@@ -25,3 +25,11 @@ others
 venv
 
 *.pth
+
+
+saved_models
+
+src/models/transformer_iat_logs
+src/models/transformer_nids_logs
+src/models/TANTGen_logs
+src/plots

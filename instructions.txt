@@ -5,6 +5,9 @@ python -m src.models.TANTGen_NIDS
 
 python -m src.models.TANTGen
 
-2. Kitsune Train
+2. NIDS Train
 
-3. Kitsune Execute
+3. Apply Changes to PCAP
+python -m src.apply_TANTGen_to_pcap
+
+3. Execute Attack

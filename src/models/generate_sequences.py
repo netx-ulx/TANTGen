@@ -13,7 +13,8 @@ def read_dataset(path):
     df = pd.read_csv(path)
     print("Dataset read from: ", path)
 
-    df = df[['Timestamp', 'Packet Size', \
+    df = df[[#'Timestamp', 
+            'Packet Size', \
             #'Proto', \
             'Source IP', 'Destination IP', \
             #'TCP Source Port', 'TCP Destination Port', \
@@ -21,7 +22,7 @@ def read_dataset(path):
             # 'IP Type', \
             'IAT']]
 
-    df = convert_to_relative_timestamp(df)
+    #df = convert_to_relative_timestamp(df)
     df = ipaddress_to_number(df)
     df = standardize_ips(df)
     df = standardize_column(df, "Packet Size")

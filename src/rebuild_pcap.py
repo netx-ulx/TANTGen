@@ -10,8 +10,8 @@ def rebuild_pcap(original_pcap, modified_IAT, output_pcap):
 
     # read first packet to get initial timestamp
     first_pkt = original_pcap_reader.read_packet()
+    writer.write(first_pkt)
     last_timestamp = first_pkt.time
-
 
     for i, pkt in enumerate(original_pcap_reader):
         # print(f"[{i}] Processing original packet {i}...")

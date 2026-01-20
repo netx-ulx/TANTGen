@@ -8,6 +8,8 @@ from src.models.generate_sequences import generate_sliding_windows
 from src.models.TANTGen import TANTGen
 from src.rebuild_pcap import rebuild_pcap
 
+with open("src/models/configs/config-TANTGen-general.yaml") as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
 # =========================================================
 # MAIN PIPELINE
@@ -15,11 +17,15 @@ from src.rebuild_pcap import rebuild_pcap
 def process_pcap_with_TANTGen(
     pcap_path,
     checkpoint_path,
-    window_size,
-    stride,
-    num_features,
     output_pcap_path,
 ):
+
+    start_token = int(config["start_token"])
+
+    window_size = int(config["sliding_window_size"])
+    stride = int(config["window_stride"])
+    num_features = int(config["num_features"])
+    output_size = int(config["output_size"])
 
     # =====================================================
     # 1. Extrair Features do PCAP original
@@ -33,7 +39,7 @@ def process_pcap_with_TANTGen(
     # =====================================================
     # 2. Gerar Sliding Windows exatamente como no treino
     # =====================================================
-    feature_arr, target_arr, mean_std, df_clean = generate_sliding_windows(
+    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
         window_size, stride, num_features, "data/preprocessed/temp_features.csv"
     )
 
@@ -45,10 +51,6 @@ def process_pcap_with_TANTGen(
     model = TANTGen.load_from_checkpoint(
         checkpoint_path,
         mean_std=mean_std,
-        loss_function_diff=None,
-        loss_function_evasion=None,
-        loss_function_constraints=None,
-        nids_ckpt_path=None,
         strict=False
     )
     model.eval()
@@ -60,15 +62,15 @@ def process_pcap_with_TANTGen(
     # =====================================================
     print("[*] Modificando IATs...")
     modified_iats = []
+    y_in = torch.zeros((1, window_size, output_size), dtype=torch.float32)
+    y_in[:, 0, :] = start_token
 
     for window in feature_arr:
 
         X = torch.tensor(window).unsqueeze(0).float()
-        y_in = torch.zeros((1, window_size, 1), dtype=torch.float32)
-        tgt_mask = torch.zeros((window_size, window_size), dtype=torch.float32)
 
         with torch.no_grad():
-            pred = model(X, y_in, tgt_mask)                     # [1, T, 1]
+            pred = model(X, y_in)                     # [1, T, 1]
 
         pred = pred.squeeze(0).detach().cpu().numpy()
         modified_iats.extend(pred)
@@ -84,7 +86,6 @@ def process_pcap_with_TANTGen(
 
     # load
     # modified_iats = np.load("data/adversarial/modified_iats.npy").flatten()
-    print(modified_iats[:10])
 
     # =====================================================
     # 5. Reconstruir PCAP com os novos IATs
@@ -99,13 +100,9 @@ def process_pcap_with_TANTGen(
 # EXECUÇÃO DIRETA
 # =========================================================
 if __name__ == "__main__":
-    with open("src/models/configs/config-TANTGen-finetune.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
     process_pcap_with_TANTGen(
         pcap_path="data/original/Kitsune/Mirai Botnet/Mirai.pcap",
         checkpoint_path="src/models/TANTGen_logs/1#_final_TANTGen_window64.ckpt",
-        window_size=int(config["sliding_window_size"]),
-        stride=int(config["window_stride"]),
-        num_features=int(config["num_features"]),
+        #checkpoint_path="src/models/transformer_iat_logs/TANTGen_pretrain_window64.ckpt",
         output_pcap_path="data/adversarial/modified_output.pcap"
     )
