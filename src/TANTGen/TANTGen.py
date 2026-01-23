@@ -380,7 +380,7 @@ def main():
             #gpus=None,
             max_epochs=args.epochs,
             logger=tb_logger,
-            callbacks=callbacks,
+            callbacks=[EarlyStopping(monitor="Val loss", patience=5)],
         )
 
     if args.train:
