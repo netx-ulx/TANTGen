@@ -19,18 +19,18 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
-from src.models.generate_sequences import generate_sliding_windows_NIDS
-from src.models.utils import (
+from src.TANTGen.generate_sequences import generate_sliding_windows_NIDS
+from src.TANTGen.utils import (
     PacketDataset,
 )
-from src.models.TANTGen_pretrain import TANTGen_pretrain
+from src.TANTGen.TANTGen_pretrain import TANTGen_pretrain
 
 # Hyper parameters from config file
-with open("src/models/configs/config-TANTGen-general.yaml") as f:
+with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
     config_general = yaml.load(f, Loader=yaml.FullLoader)
 
 # Hyper parameters from config file
-with open("src/models/configs/config-TANTGen-NIDS.yaml") as f:
+with open("src/TANTGen/configs/config-TANTGen-NIDS.yaml") as f:
     config_nids = yaml.load(f, Loader=yaml.FullLoader)
 
 class TANTGen_NIDS(pl.LightningModule):
@@ -432,7 +432,7 @@ def main():
         trainer.save_checkpoint(cpath)
 
     if args.save_model:
-        torch.save(model.state_dict(), "src/models/models/NIDS.pth")
+        torch.save(model.state_dict(), "src/TANTGen/models/TANTGen_NIDS.pth")
 
     if args.make_epoch_plot:
         log_dir = "{}/lightning_logs/version_0".format(args.save_path)
@@ -451,7 +451,7 @@ def main():
         ax.plot(epoch_vals, y)
         ax.set_xlabel("epoch")
         ax.set_ylabel(y_key)
-        fig.savefig("src/plots/lossplot_perepoch_NIDS.png")
+        fig.savefig("src/TANTGen/plots/lossplot_perepoch_NIDS.png")
 
     if args.test:
         if args.train:

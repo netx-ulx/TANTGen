@@ -14,21 +14,21 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn
 from torch.utils.data import DataLoader
-from src.models.generate_sequences import generate_sliding_windows
-from src.models.utils import (
+from src.TANTGen.generate_sequences import generate_sliding_windows
+from src.TANTGen.utils import (
     PacketDataset
 )
-from src.models.TANTGen_pretrain import TANTGen_pretrain
-from src.models.TANTGen_NIDS import TANTGen_NIDS
+from src.TANTGen.TANTGen_pretrain import TANTGen_pretrain
+from src.TANTGen.TANTGen_NIDS import TANTGen_NIDS
 
 torch.manual_seed(0)
 
 # Hyper parameters from config file
-with open("src/models/configs/config-TANTGen-general.yaml") as f:
+with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
     config_general = yaml.load(f, Loader=yaml.FullLoader)
 
 # Hyper parameters from config file
-with open("src/models/configs/config-TANTGen-finetune.yaml") as f:
+with open("src/TANTGen/configs/config-TANTGen-finetune.yaml") as f:
     config_finetune = yaml.load(f, Loader=yaml.FullLoader)
 
 class TANTGen(TANTGen_pretrain):
@@ -398,7 +398,7 @@ def main():
         trainer.save_checkpoint(cpath)
 
     if args.save_model:
-        torch.save(model.state_dict(), "src/models/models/TANTGen.pth")
+        torch.save(model.state_dict(), "src/TANTGen/models/TANTGen.pth")
 
     if args.make_epoch_plot:
         log_dir = "{}/lightning_logs/version_0".format(args.save_path)
@@ -418,7 +418,7 @@ def main():
         ax.plot(epoch_vals, y)
         ax.set_xlabel("epoch")
         ax.set_ylabel(y_key)
-        fig.savefig("src/plots/lossplot_perepoch_TANTGen.png")
+        fig.savefig("src/TANTGen/plots/lossplot_perepoch_TANTGen.png")
 
     if args.test:
         if args.train:

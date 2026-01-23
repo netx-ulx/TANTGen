@@ -1,9 +1,9 @@
 1. TANTGen Train (models) (feature extraction + adversarial traffic generation)
-python -m src.models.TANTGen_pretrain
+python -m src.TANTGen.TANTGen_pretrain
 
-python -m src.models.TANTGen_NIDS
+python -m src.TANTGen.TANTGen_NIDS
 
-python -m src.models.TANTGen
+python -m src.TANTGen.TANTGen
 
 2. NIDS Train
 

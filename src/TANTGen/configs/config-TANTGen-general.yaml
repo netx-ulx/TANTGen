@@ -26,11 +26,11 @@ output_size: 1
 #--------------------
 # Save parameters
 #--------------------
-save_path_pretrain: src/models/transformer_iat_logs
+save_path_pretrain: src/TANTGen/transformer_iat_logs
 model_name_pretrain: TANTGen_pretrain_window
 
-save_path_nids: src/models/transformer_nids_logs
+save_path_nids: src/TANTGen/transformer_nids_logs
 model_name_nids: TANTGen_NIDS_window
 
-save_path_finetune: src/models/TANTGen_logs
+save_path_finetune: src/TANTGen/TANTGen_logs
 model_name_finetune: 1#_final_TANTGen_window

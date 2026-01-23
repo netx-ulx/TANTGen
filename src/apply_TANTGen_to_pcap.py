@@ -4,11 +4,12 @@ import numpy as np
 import yaml
 from scapy.all import *
 from src.Feature_Extraction.dataloader_old import get_basic_features
-from src.models.generate_sequences import generate_sliding_windows
-from src.models.TANTGen import TANTGen
+from src.TANTGen.generate_sequences import generate_sliding_windows
+from src.TANTGen.TANTGen import TANTGen
+from src.TANTGen.TANTGen_pretrain import TANTGen_pretrain
 from src.rebuild_pcap import rebuild_pcap
 
-with open("src/models/configs/config-TANTGen-general.yaml") as f:
+with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
 # =========================================================
@@ -104,8 +105,8 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser()
 
     parse.add_argument('-i', '--pcap_path', type=str, required=False, help="original raw traffic (.pcap) path", default="data/original/Kitsune/Mirai Botnet/Mirai.pcap")
-    parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/models/transformer_iat_logs/TANTGen_pretrain_window{}.ckpt".format(config["sliding_window_size"]))
-    #parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/models/TANTGen_logs/1#_final_TANTGen_window{}.ckpt".format(config["sliding_window_size"]))
+    #parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/TANTGen/transformer_iat_logs/TANTGen_pretrain_window{}.ckpt".format(config["sliding_window_size"]))
+    parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/TANTGen/TANTGen_logs/1#_final_TANTGen_window{}.ckpt".format(config["sliding_window_size"]))
     parse.add_argument('-o', '--output_path', type=str, required=False, help="modified raw traffic (.pcap) path", default="data/adversarial/modified_output.pcap")
     arg = parse.parse_args()
 

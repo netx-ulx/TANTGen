@@ -16,8 +16,8 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from src.models.generate_sequences import generate_sliding_windows
-from src.models.utils import (
+from src.TANTGen.generate_sequences import generate_sliding_windows
+from src.TANTGen.utils import (
     PacketDataset,
     PositionalEncoding,
 )
@@ -25,11 +25,11 @@ from src.models.utils import (
 torch.manual_seed(0)
 
 # Hyper parameters from config file
-with open("src/models/configs/config-TANTGen-general.yaml") as f:
+with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
     config_general = yaml.load(f, Loader=yaml.FullLoader)
 
 # Hyper parameters from config file
-with open("src/models/configs/config-TANTGen-pretrain.yaml") as f:
+with open("src/TANTGen/configs/config-TANTGen-pretrain.yaml") as f:
     config_pretrain = yaml.load(f, Loader=yaml.FullLoader)
 
 # TRANSFOMER CLASS TO PREDICT IATs
@@ -353,7 +353,7 @@ class TANTGen_pretrain(pl.LightningModule):
         # plt.ylabel('IAT normalizado')
         # plt.title('Comparação das previsões de IAT (MSE)')
         # plt.legend()
-        # plt.savefig("src/plots/comparacao_prev_IAT_MSE.png")
+        # plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -382,7 +382,7 @@ class TANTGen_pretrain(pl.LightningModule):
         plt.ylabel('IAT normalizado')
         plt.title('Comparação das previsões de IAT (MSE)')
         plt.legend()
-        plt.savefig("src/plots/comparacao_prev_IAT_MSE_validation.png")
+        plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE_validation.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -411,7 +411,7 @@ class TANTGen_pretrain(pl.LightningModule):
         plt.ylabel('IAT normalizado')
         plt.title('Comparação das previsões de IAT (MSE)')
         plt.legend()
-        plt.savefig("src/plots/comparacao_prev_IAT_MSE_test.png")
+        plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE_test.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -599,7 +599,7 @@ def main():
         trainer.save_checkpoint(cpath)
 
     if args.save_model:
-        torch.save(model.state_dict(), "src/models/models/new.pth")
+        torch.save(model.state_dict(), "src/TANTGen/models/TANTGen_pretrain.pth")
 
     if args.make_epoch_plot:
         log_dir = "{}/lightning_logs/version_0".format(args.save_path)
@@ -619,7 +619,7 @@ def main():
         ax.plot(epoch_vals, y)
         ax.set_xlabel("epoch")
         ax.set_ylabel(y_key)
-        fig.savefig("src/plots/lossplot_perepoch_pretrain.png")
+        fig.savefig("src/TANTGen/plots/lossplot_perepoch_pretrain.png")
 
     if args.test:
         if args.train:

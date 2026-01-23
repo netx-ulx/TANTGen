@@ -15,9 +15,9 @@ src/Kitsune/Feature_Extraction/AfterImage.cpython*
 src/Feature_Extraction/CIC_IDS_divide_BM.ipynb
 src/Feature_Extraction/CIC_IDS_divide_BM2.ipynb
 
-src/models/transformer_iat_logs/lightning_logs
-src/models/transformer_nids_logs/lightning_logs
-src/models/TANTGen_logs/lightning_logs
+src/TANTGen/transformer_iat_logs/lightning_logs
+src/TANTGen/transformer_nids_logs/lightning_logs
+src/TANTGen/TANTGen_logs/lightning_logs
 
 # Others
 others
@@ -26,10 +26,7 @@ venv
 
 *.pth
 
-
-saved_models
-
-src/models/transformer_iat_logs
-src/models/transformer_nids_logs
-src/models/TANTGen_logs
-src/plots
+src/TANTGen/transformer_iat_logs
+src/TANTGen/transformer_nids_logs
+src/TANTGen/TANTGen_logs
+src/TANTGen/plots

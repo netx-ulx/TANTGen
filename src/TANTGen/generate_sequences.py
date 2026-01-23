@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from src.models.utils import (
+from src.TANTGen.utils import (
     convert_to_relative_timestamp,
     ipaddress_to_number,
     make_windows_features,
