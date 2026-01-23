@@ -2,10 +2,10 @@
 # Pretrain model parameters
 #---------------------------
 loss_function: mse
-epochs: 15
-batch_size: 64
+epochs: 10
+batch_size: 128
 
 #--------------------
 # Dataset parameters
 #--------------------
-dataset_path: data/preprocessed/adversarial_train/benign_1M.csv
+dataset_path: data/preprocessed/adversarial_train/benign.csv

@@ -95,7 +95,6 @@ if __name__ == "__main__":
     parse.add_argument('-o', '--output_path', type=str, required=True, help="feature vectors (.csv) path")
     arg = parse.parse_args()
     pcap_file = arg.input_path
-
     feat_file = arg.output_path
 
     df = get_basic_features(pcap_file)

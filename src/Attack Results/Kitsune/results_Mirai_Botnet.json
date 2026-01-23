@@ -1,0 +1,20 @@
+{
+    "attack_name": "Mirai_Botnet",
+    "model": "Kitsune",
+    "threshold": 0.5071611113809764,
+    "num_packets": 764137,
+    "confusion_matrix": {
+        "TP": 566166,
+        "FP": 61,
+        "FN": 76350,
+        "TN": 121560
+    },
+    "metrics": {
+        "accuracy": 0.9000035333978069,
+        "precision": 0.9998922693548701,
+        "recall": 0.8811702743589265,
+        "f1_score": 0.9367847424969575,
+        "auc": 0.946408933253816,
+        "attack_success_rate": 0.11882972564107168
+    }
+}

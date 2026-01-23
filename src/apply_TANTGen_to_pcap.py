@@ -100,9 +100,18 @@ def process_pcap_with_TANTGen(
 # EXECUÇÃO DIRETA
 # =========================================================
 if __name__ == "__main__":
+
+    parse = argparse.ArgumentParser()
+
+    parse.add_argument('-i', '--pcap_path', type=str, required=False, help="original raw traffic (.pcap) path", default="data/original/Kitsune/Mirai Botnet/Mirai.pcap")
+    parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/models/transformer_iat_logs/TANTGen_pretrain_window{}.ckpt".format(config["sliding_window_size"]))
+    #parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/models/TANTGen_logs/1#_final_TANTGen_window{}.ckpt".format(config["sliding_window_size"]))
+    parse.add_argument('-o', '--output_path', type=str, required=False, help="modified raw traffic (.pcap) path", default="data/adversarial/modified_output.pcap")
+    arg = parse.parse_args()
+
+
     process_pcap_with_TANTGen(
-        pcap_path="data/original/Kitsune/Mirai Botnet/Mirai.pcap",
-        checkpoint_path="src/models/TANTGen_logs/1#_final_TANTGen_window64.ckpt",
-        #checkpoint_path="src/models/transformer_iat_logs/TANTGen_pretrain_window64.ckpt",
-        output_pcap_path="data/adversarial/modified_output.pcap"
+        pcap_path=arg.pcap_path,
+        checkpoint_path=arg.model_path,
+        output_pcap_path=arg.output_path,
     )

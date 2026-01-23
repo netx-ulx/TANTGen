@@ -1,0 +1,19 @@
+{
+    "attack_name": "All",
+    "model": "MLP_128_64",
+    "num_packets": 1415372,
+    "confusion_matrix": {
+        "TP": 270571,
+        "FP": 2993,
+        "FN": 8252,
+        "TN": 1133556
+    },
+    "metrics": {
+        "accuracy": 0.9920550922301699,
+        "precision": 0.9890592329400067,
+        "recall": 0.970404163214656,
+        "f1_score": 0.9796428952889912,
+        "auc": 0.999622841582693,
+        "attack_success_rate": 0.029595836785343044
+    }
+}

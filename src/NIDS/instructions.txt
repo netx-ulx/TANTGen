@@ -8,5 +8,3 @@ python train_discriminator.py train --artifacts ../../data/preprocessed/target_t
 
 Tudo de uma vez:
 python train_discriminator.py all --csv-dir ../../data/original/CIC-IDS-2017/CSVs/MachineLearningCVE --out-dir ../../data/preprocessed/target_train --models-out ./models --train_models LR,SVM,RF,MLP,CNN,RNN
-
-python test.py -i ../../data/preprocessed/adversarial_train/Mirai_cicflowmeter_malicious.csv

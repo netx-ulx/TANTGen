@@ -265,7 +265,7 @@ class TANTGen_pretrain(pl.LightningModule):
         #    self.sliding_window_size - 512, self.sliding_window_size
         #)
 
-        num_to_mask = math.floor(self.sliding_window_size * 0.9)
+        num_to_mask = math.floor(self.sliding_window_size * 0.5)
 
         # Randomly select num_to_mask iat positions (in input, multiply by x and subtract 1 due to x features)
         iat_indexes_output = np.random.choice(all_iat_indices, size=num_to_mask, replace=False)

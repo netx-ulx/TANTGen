@@ -7,7 +7,28 @@ python -m src.models.TANTGen
 
 2. NIDS Train
 
+2.1. Compiling cython file in AfterImage as follows:
+cd src/Kitsune/Feature_Extraction && python setup.py build_ext --inplace && cd ../../../
+
+2.2. Extracting features from raw packets (a csv and npy file will be generated):
+python src/Kitsune/Feature_Extraction/extractor.py -i data/original/Kitsune/Benign/Mirai_benign.pcap -o data/original/Kitsune/Benign/Mirai_Kitsune_Features2.csv
+
+2.3. Training KitNET models (a model.pkl file will be generated):
+python src/Kitsune/KitNET/model.py -M train -tf data/original/Kitsune/Benign/Mirai_Kitsune_Features.npy
+
+
 3. Apply Changes to PCAP
 python -m src.apply_TANTGen_to_pcap
 
 3. Execute Attack
+python src/Kitsune/Feature_Extraction/extractor.py -i <adversarial.pcap> -o <path_to_test_features.csv>
+# python src/Kitsune/Feature_Extraction/extractor.py -i data/original/Kitsune/Mirai\ Botnet/Mirai.pcap -o data/preprocessed/Kitsune/Mirai_Features.csv
+python src/Kitsune/KitNET/model.py -M exec -mf <path_to_model.pkl> -tf <path_to_test_features.npy> -rf <path_to_resulting_rmse.pkl> -an <attack_name> -yt <path_to_true_labels.csv>
+# python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/Mirai_model.pkl -tf data/preprocessed/Kitsune/Mirai_Features.npy -an Mirai_Botnet -yt data/original/Kitsune/Mirai\ Botnet/mirai_labels.csv
+
+python src/NIDS/test_models_final.py -i <path_to_test_features.csv> -a <attack_name> -yt <path_to_true_labels.csv>
+# python src/NIDS/test_models_final.py -i data/preprocessed/target_train/target_train.csv -a All -yt data/preprocessed/target_train/target_train.csv 
+
+4. Create Plots
+python src/Attack\ Results/create_plots.py
+# plots will be saved in src/Attack Results/plots/<nids_folder>
