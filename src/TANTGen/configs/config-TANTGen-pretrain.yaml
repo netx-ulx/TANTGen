@@ -8,4 +8,4 @@ batch_size: 128
 #--------------------
 # Dataset parameters
 #--------------------
-dataset_path: data/preprocessed/adversarial_train/benign.csv
+dataset_path: data/preprocessed/adversarial_train/pretrain/benign.csv

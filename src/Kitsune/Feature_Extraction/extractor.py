@@ -9,7 +9,7 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser()
 
     parse.add_argument('-i', '--input_path', type=str, required=True, help="raw traffic (.pcap) path")
-    parse.add_argument('-o', '--output_path', type=str, required=True, help="feature vectors (.csv) path")
+    parse.add_argument('-o', '--output_path', type=str, required=True, help="feature vectors (.npy) path")
 
     arg = parse.parse_args()
     pcap_file = arg.input_path
@@ -19,10 +19,8 @@ if __name__ == "__main__":
     scapyin = rdpcap(pcap_file)
 
     FE = Fe.Kitsune(scapyin, np.inf)
-    feature, _ = RunFE(FE, output_file=feat_file, show_info=True)
-
-    feat_file_npy = feat_file.replace('.csv', '.npy')
+    feature, _ = RunFE(FE, show_info=True)
 
     print(np.asarray(feature).shape)
-    np.save(feat_file_npy, feature)
+    np.save(feat_file, feature)
 

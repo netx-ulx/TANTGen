@@ -8,5 +8,5 @@ batch_size: 64
 #--------------------
 # Dataset parameters
 #--------------------
-dataset_path: data/preprocessed/Kitsune/mirai_myFE.csv
-dataset_labels_path: data/preprocessed/Kitsune/mirai_labels.csv
+dataset_path: data/preprocessed/adversarial_train/mirai_myFE.csv
+dataset_labels_path: data/preprocessed/adversarial_train/mirai_labels.csv

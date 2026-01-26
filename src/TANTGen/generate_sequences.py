@@ -127,7 +127,7 @@ def generate_sliding_windows_NIDS(
 #         SLIDING_WINDOW_SIZE,
 #         STRIDE,
 #         NUM_FEATURES,
-#         path="data/preprocessed/adversarial_train/benign.csv"
+#         path="data/preprocessed/adversarial_train/pretrain/benign.csv"
 #     )
 
 

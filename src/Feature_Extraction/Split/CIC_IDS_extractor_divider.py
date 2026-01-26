@@ -41,10 +41,10 @@ def command_extract(args):
 
     # Save in separate files
     df_train_surrogate.to_csv(out_dir / "surrogate_train.csv", index=False)
-    df_train_target.to_csv(out_dir / "target_train.csv", index=False)
+    df_train_target.to_csv(out_dir / "CIC_IDS_target_train.csv", index=False)
 
     print(f"[INFO] Saved {len(df_train_surrogate)} rows to surrogate_train.csv")
-    print(f"[INFO] Saved {len(df_train_target)} rows to target_train.csv")
+    print(f"[INFO] Saved {len(df_train_target)} rows to CIC_IDS_target_train.csv")
 
 def __main__():
     parser = argparse.ArgumentParser(description="Extract features from flow CSV files")

@@ -32,16 +32,16 @@ def process_pcap_with_TANTGen(
     # 1. Extrair Features do PCAP original
     # =====================================================
     df = get_basic_features(pcap_path)
-    df.to_csv("data/preprocessed/temp_features.csv", index=False)
-    # df = pd.read_csv("data/preprocessed/temp_features.csv")
+    df.to_csv("data/preprocessed/adversarial_test/temp_features.csv", index=False)
+    #df = pd.read_csv("data/preprocessed/adversarial_test/temp_features.csv")
 
     print(f"[✓] Features extraídas: {df.shape}")
 
     # =====================================================
     # 2. Gerar Sliding Windows exatamente como no treino
     # =====================================================
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
-        window_size, stride, num_features, "data/preprocessed/temp_features.csv"
+    feature_arr, _, mean_std, _ = generate_sliding_windows(
+        window_size, stride, num_features, "data/preprocessed/adversarial_test/temp_features.csv"
     )
 
     print(f"[✓] Janelas criadas: {len(feature_arr)}")

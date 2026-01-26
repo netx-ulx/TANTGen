@@ -12,9 +12,6 @@ src/Kitsune/example
 src/Kitsune/Feature_Extraction/build
 src/Kitsune/Feature_Extraction/AfterImage.cpython*
 
-src/Feature_Extraction/CIC_IDS_divide_BM.ipynb
-src/Feature_Extraction/CIC_IDS_divide_BM2.ipynb
-
 src/TANTGen/transformer_iat_logs/lightning_logs
 src/TANTGen/transformer_nids_logs/lightning_logs
 src/TANTGen/TANTGen_logs/lightning_logs

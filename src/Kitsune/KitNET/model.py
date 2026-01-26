@@ -56,7 +56,7 @@ if __name__ == "__main__":
                        help="true labels file path (.npy), only for execute mode!", default=None)
     
 
-    parse.add_argument('-mf', '--model_file_path', type=str, default='./src/Kitsune/models/model.pkl',
+    parse.add_argument('-mf', '--model_file_path', type=str, default='src/Kitsune/models/model.pkl',
                        help="for train mode, model is saved into 'mf'; for execute mode, model is loaded from 'mf'")
 
     parse.add_argument('-m', '--maxAE', type=int, default=10,

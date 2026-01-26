@@ -30,5 +30,5 @@ if __name__ == "__main__":
     original_pcap = "data/original/Kitsune/Mirai Botnet/Mirai.pcap"
     modified_IAT = np.load("data/adversarial/modified_iats.npy").flatten()
 
-    output_pcap = "data/adversarial/Mirai_rebuilt.pcap"
+    output_pcap = "data/adversarial/modified_output.pcap"
     rebuild_pcap(original_pcap, modified_IAT, output_pcap)

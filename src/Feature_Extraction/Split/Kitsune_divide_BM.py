@@ -1,3 +1,8 @@
+# -------------------------------------------------------
+# Separate benign and malicious packets from a pcap file 
+# based on labels in a CSV file.
+# -------------------------------------------------------
+
 import pandas as pd
 
 import argparse
@@ -39,7 +44,7 @@ if __name__ == "__main__":
     parse.add_argument('-i', '--pcap_file', type=str, required=True, help="raw traffic (.pcap) path")
     parse.add_argument('-c', '--labels_file', type=str, required=True, help="labels (.csv) path")
     parse.add_argument('-m', '--output_malicious_file', type=str, required=True, help="output malicious pcap file path")
-    parse.add_argument('-b', '--output_benign_file', type=str, required=False, help="output benign pcap file path")
+    parse.add_argument('-b', '--output_benign_file', type=str, required=True, help="output benign pcap file path")
     arg = parse.parse_args()
     pcap_file = arg.pcap_file
     labels_file = arg.labels_file
