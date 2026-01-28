@@ -166,6 +166,7 @@ class TANTGen(TANTGen_pretrain):
         
         pred = self.forward(X, y_input_shifted)
 
+        # === Loss 1: difference ===
         loss_diff = self.loss_func_diff(pred, y)
         
         # === Un-normalize ===
@@ -182,10 +183,11 @@ class TANTGen(TANTGen_pretrain):
 
         X_mod = self._reconstruct_packets_with_predicted_iat(X, pred_un)
 
+        # === Loss 3: evasion ===
         # get logits from external IDS (not trainable)
         logits_ids = self.nids(X_mod)
+        #print(logits_ids)
         target_benign = torch.zeros(logits_ids.shape, device=self.device)
-
         loss_evasion = self.loss_func_evasion(logits_ids, target_benign)
 
         # total loss
@@ -218,13 +220,6 @@ def get_args():
         type=int,
         default=int(config_finetune["batch_size"]),
         help="Batch size for training",
-    )
-
-    parser.add_argument(
-        "--pretrained",
-        type=bool,
-        default=True,
-        help="Use pretrained model",
     )
 
     parser.add_argument(
@@ -334,7 +329,7 @@ def main():
         config_general["save_path_pretrain"], config_general["model_name_pretrain"], sliding_window_size
     )
 
-    if args.pretrained:
+    if os.path.isfile(pretrained_ckpt_path):
 
         model = TANTGen(
             mean_std=mean_std,
@@ -425,14 +420,13 @@ def main():
             trainer.test(model, test_loader)
         else:
             print("Loading checkpoint")
-            testmodel = TANTGen(
+            testmodel = TANTGen.load_from_checkpoint(
                 mean_std=mean_std,
                 epochs=args.epochs,
                 batch_size=args.batch_size,
+                checkpoint_path=cpath,
+                strict=True,
             )
-
-            ckpt = torch.load(pretrained_ckpt_path, map_location="cpu")
-            model.load_state_dict(ckpt["state_dict"], strict=False)
             testmodel.eval()
 
             trainer.test(testmodel, dataloaders=test_loader)

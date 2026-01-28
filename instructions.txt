@@ -17,6 +17,10 @@ python src/Feature_Extraction/Split/Kitsune_divide_BM.py -i data/original/Kitsun
 0.1 Split Dataset into Train and Test for NIDS Training and Adversarial Traffic Generation
 python src/Feature_Extraction/Split/Kitsune_split_dataset.py -a Mirai -b data/original/Kitsune/Benign/Mirai_benign.pcap -m data/original/Kitsune/Malicious/Mirai_malicious.pcap -l data/original/Kitsune/Mirai\ Botnet/mirai_labels.csv
 
+0.3 Extract features for TANTGen training
+python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/surrogate_train/Mirai_all.pcap -o data/preprocessed/adversarial_train/surrogate_train/Mirai_all_features.csv
+python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/Mirai_malicious.pcap -o data/preprocessed/adversarial_train/Mirai_malicious_features.csv
+
 1. TANTGen Train (models) (feature extraction + adversarial traffic generation)
 python -m src.TANTGen.TANTGen_pretrain
 

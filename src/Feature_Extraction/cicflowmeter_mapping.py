@@ -98,7 +98,7 @@ def map_features(input_csv, output_csv):
 
     # Save converted CSV
     df.to_csv(output_csv, index=False)
-    print(f"Dataset convertido guardado em: {output_csv}")
+    print(f"[✓] Converted dataset saved to: {output_csv}")
 
 if __name__ == "__main__":
 

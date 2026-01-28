@@ -43,19 +43,23 @@ class TANTGen_NIDS(pl.LightningModule):
         pretrained_ckpt_path = "{}/{}{}.ckpt".format(
             config_general["save_path_pretrain"], config_general["model_name_pretrain"] ,config_general["sliding_window_size"]
         )
-        self.save_hyperparameters(ignore=["base_model_kwargs","pretrained_ckpt_path"])
+        self.save_hyperparameters(ignore=["pretrained_ckpt_path"])
 
         self.lr = float(config_general["learning_rate"])
         self.weight_decay = float(config_general["weight_decay"])
         self.dropout = float(config_general["dropout"])
 
         # --- Obter o modelo base ---
-        base_model_kwargs = {} # TODO remover!!!
-        self.base = TANTGen_pretrain.load_from_checkpoint(
-            checkpoint_path=pretrained_ckpt_path,
-            mean_std=None,
-            strict=False,
-        )
+        # se pretrained_ckpt_path existir, carregar pesos de lá
+        #
+        if not os.path.isfile(pretrained_ckpt_path):
+            self.base = TANTGen_pretrain(mean_std=None)
+        else:
+            self.base = TANTGen_pretrain.load_from_checkpoint(
+                checkpoint_path=pretrained_ckpt_path,
+                mean_std=None,
+                strict=False,
+            )
 
         # --- Remover ou ignorar a cabeça de output do pretreino e criar uma cabeça para classificação ---
         # Cria uma cabeça simples: LayerNorm -> Linear -> GELU -> Linear (logits)

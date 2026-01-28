@@ -115,67 +115,6 @@ def generate_sliding_windows_NIDS(
 
     return feature_arr, target_arr, df
 
-
-# if __name__ == "__main__":
-#     # Generate sliding windows
-#     (
-#         full_feature_arr,
-#         full_target_arr,
-#         mean_std,
-#         global_df,
-#     ) = generate_sliding_windows(
-#         SLIDING_WINDOW_SIZE,
-#         STRIDE,
-#         NUM_FEATURES,
-#         path="data/preprocessed/adversarial_train/pretrain/benign.csv"
-#     )
-
-
-#     print(global_df.head())
-#     print(global_df.shape)
-#     print(global_df.tail())
-
-#     # Get stats on the global df on the size and IAT
-#     print(global_df["Packet Size"].describe())
-
-#     print(global_df["IAT"].describe())
-
-#     # Plot relative timestamp vs IAT
-#     plt.figure()
-#     plt.plot(global_df["Timestamp"], global_df["IAT"])
-#     plt.xlabel("Measurement window (sec))")
-#     plt.ylabel("IAT (s)")
-#     plt.title("Original IAT values over time")
-#     plt.savefig("iat_vs_relative_timestamp.pdf", dpi=300)
-
-#     # Plot timestamp vs packet size
-#     plt.figure()
-#     plt.plot(global_df["Timestamp"], global_df["Packet Size"])
-#     plt.xlabel("Measurement window (sec))")
-#     plt.ylabel("Packet size (bytes)")
-#     plt.title("Original packet size over time ")
-#     plt.savefig("packet_size_vs_timestamp.pdf", dpi=300)
-
-
-#     # Plot the distribution of the IAT with seaborn ECDF
-#     # for random 10 sets of 0.1% of the data
-
-#     # Get the stats on the IAT (mean, std, 90%ile, 99%ile, 99.9%ile)
-#     print("Mean IAT: ", mean_std["mean_iat"])
-#     print("Std IAT: ", mean_std["std_iat"])
-#     print("90%ile IAT: ", np.quantile(full_target_arr, 0.90))
-#     print("99%ile IAT: ", np.quantile(full_target_arr, 0.99))
-#     print("99.9%ile IAT: ", np.quantile(full_target_arr, 0.999))
-
-#     # Get range of IAT values
-#     print("Min IAT: ", np.min(full_target_arr))
-#     print("Max IAT: ", np.max(full_target_arr))
-
-#     # Get median of IAT
-#     print("Median IAT: ", np.median(full_target_arr))
-
-#     # exit()
-
 if __name__ == "__main__":
     # Generate sliding windows
 
