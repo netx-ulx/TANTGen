@@ -11,10 +11,14 @@ data/preprocessed
 src/Kitsune/example
 src/Kitsune/Feature_Extraction/build
 src/Kitsune/Feature_Extraction/AfterImage.cpython*
+src/Kitsune/Feature_Extraction/AfterImage.c
 
-src/TANTGen/transformer_iat_logs/lightning_logs
-src/TANTGen/transformer_nids_logs/lightning_logs
-src/TANTGen/TANTGen_logs/lightning_logs
+src/TANTGen/transformer_iat_logs
+src/TANTGen/transformer_nids_logs
+src/TANTGen/TANTGen_logs
+src/TANTGen/plots
+
+src/Attack\ Results/create_results_plot.ipynb
 
 # Others
 others
@@ -22,8 +26,4 @@ others
 venv
 
 *.pth
-
-src/TANTGen/transformer_iat_logs
-src/TANTGen/transformer_nids_logs
-src/TANTGen/TANTGen_logs
-src/TANTGen/plots
+*.pkl

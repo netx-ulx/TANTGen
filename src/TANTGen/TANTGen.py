@@ -107,21 +107,26 @@ class TANTGen(TANTGen_pretrain):
 
         self.constraint_limit = config_finetune["constraint_limit"]
 
-    # def forward(self, src, tgt, tgt_mask=None):
-    #     # used for the forward pass of the model
+    def forward(self, src): #, tgt):
+        # used for the forward pass of the model
 
-    #     # Cast to doubletensor
-    #     scaled_input = src.double()
+        # # Create target mask for decoder (prevent positions from attending to subsequent positions)
+        # tgt_mask = torch.triu(
+        #     torch.ones(tgt.size(1), tgt.size(1)) * float("-inf"), diagonal=1
+        # ).to(self.device)
 
-    #     final_input = self.feature_transform1(scaled_input)
-    #     final_input = self.positional_encoding(final_input)
-    #     memory = self.encoder(final_input)
+        # Cast to doubletensor
+        scaled_input = src.float()
 
-    #     tgt = self.tgt_embedding(tgt)
-    #     tgt = self.positional_encoding(tgt)
-    #     dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
+        final_input = self.feature_transform1(scaled_input)
+        final_input = self.positional_encoding(final_input)
+        memory = self.encoder(final_input)
 
-    #     return self.output_head(dec)
+        # tgt = self.tgt_embedding(tgt)
+        # tgt = self.positional_encoding(tgt)
+        # dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
+
+        return self.output_head(memory)
 
     def _reconstruct_packets_with_predicted_iat(self, X, pred_iat):
         """
@@ -163,8 +168,9 @@ class TANTGen(TANTGen_pretrain):
         y_input_shifted = y.clone()
         y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
         y_input_shifted[:, 0, :] = 0
-        
-        pred = self.forward(X, y_input_shifted)
+
+        #y_input = torch.zeros_like(y) # nem está a ser usado
+        pred = self.forward(X) #, y_input_shifted)
 
         # === Loss 1: difference ===
         loss_diff = self.loss_func_diff(pred, y)
@@ -392,28 +398,28 @@ def main():
         print(time)
         trainer.save_checkpoint(cpath)
 
-    if args.save_model:
-        torch.save(model.state_dict(), "src/TANTGen/models/TANTGen.pth")
+        if args.save_model:
+            torch.save(model.state_dict(), "src/TANTGen/models/TANTGen.pth")
 
-    if args.make_epoch_plot:
-        log_dir = "{}/lightning_logs/version_0".format(args.save_path)
-        y_key = "Avg loss per epoch"
+        if args.make_epoch_plot:
+            log_dir = "{}/lightning_logs/version_0".format(args.save_path)
+            y_key = "Avg loss per epoch"
 
-        event_accumulator = EventAccumulator(log_dir)
-        event_accumulator.Reload()
+            event_accumulator = EventAccumulator(log_dir)
+            event_accumulator.Reload()
 
-        steps = {x.step for x in event_accumulator.Scalars("epoch")}
-        epoch_vals = list({x.value for x in event_accumulator.Scalars("epoch")})
-        epoch_vals.pop()
+            steps = {x.step for x in event_accumulator.Scalars("epoch")}
+            epoch_vals = list({x.value for x in event_accumulator.Scalars("epoch")})
+            epoch_vals.pop()
 
-        x = list(range(len(steps)))
-        y = [x.value for x in event_accumulator.Scalars(y_key) if x.step in steps]
+            x = list(range(len(steps)))
+            y = [x.value for x in event_accumulator.Scalars(y_key) if x.step in steps]
 
-        fig, ax = plt.subplots()
-        ax.plot(epoch_vals, y)
-        ax.set_xlabel("epoch")
-        ax.set_ylabel(y_key)
-        fig.savefig("src/TANTGen/plots/lossplot_perepoch_TANTGen.png")
+            fig, ax = plt.subplots()
+            ax.plot(epoch_vals, y)
+            ax.set_xlabel("epoch")
+            ax.set_ylabel(y_key)
+            fig.savefig("src/TANTGen/plots/lossplot_perepoch_TANTGen.png")
 
     if args.test:
         if args.train:

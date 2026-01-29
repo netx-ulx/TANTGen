@@ -598,28 +598,28 @@ def main():
         print(time)
         trainer.save_checkpoint(cpath)
 
-    if args.save_model:
-        torch.save(model.state_dict(), "src/TANTGen/models/TANTGen_pretrain.pth")
+        if args.save_model:
+            torch.save(model.state_dict(), "src/TANTGen/models/TANTGen_pretrain.pth")
 
-    if args.make_epoch_plot:
-        log_dir = "{}/lightning_logs/version_0".format(args.save_path)
-        y_key = "Avg loss per epoch"
+        if args.make_epoch_plot:
+            log_dir = "{}/lightning_logs/version_0".format(args.save_path)
+            y_key = "Avg loss per epoch"
 
-        event_accumulator = EventAccumulator(log_dir)
-        event_accumulator.Reload()
+            event_accumulator = EventAccumulator(log_dir)
+            event_accumulator.Reload()
 
-        steps = {x.step for x in event_accumulator.Scalars("epoch")}
-        epoch_vals = list({x.value for x in event_accumulator.Scalars("epoch")})
-        epoch_vals.pop()
+            steps = {x.step for x in event_accumulator.Scalars("epoch")}
+            epoch_vals = list({x.value for x in event_accumulator.Scalars("epoch")})
+            epoch_vals.pop()
 
-        x = list(range(len(steps)))
-        y = [x.value for x in event_accumulator.Scalars(y_key) if x.step in steps]
+            x = list(range(len(steps)))
+            y = [x.value for x in event_accumulator.Scalars(y_key) if x.step in steps]
 
-        fig, ax = plt.subplots()
-        ax.plot(epoch_vals, y)
-        ax.set_xlabel("epoch")
-        ax.set_ylabel(y_key)
-        fig.savefig("src/TANTGen/plots/lossplot_perepoch_pretrain.png")
+            fig, ax = plt.subplots()
+            ax.plot(epoch_vals, y)
+            ax.set_xlabel("epoch")
+            ax.set_ylabel(y_key)
+            fig.savefig("src/TANTGen/plots/lossplot_perepoch_pretrain.png")
 
     if args.test:
         if args.train:

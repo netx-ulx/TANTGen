@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -16,26 +17,37 @@ def read_dataset(path):
     df = df[[#'Timestamp', 
             'Packet Size', \
             #'Proto', \
-            'Source IP', 'Destination IP', \
+            #'Source IP', 'Destination IP', \
             #'TCP Source Port', 'TCP Destination Port', \
-            'Payload Length', 'Payload Entropy', \
+            #'Payload Length', 'Payload Entropy', \
             # 'IP Type', \
             'IAT']]
 
     #df = convert_to_relative_timestamp(df)
-    df = ipaddress_to_number(df)
-    df = standardize_ips(df)
+    #df = ipaddress_to_number(df)
+    #df = standardize_ips(df)
     df = standardize_column(df, "Packet Size")
-    df = standardize_column(df, "Payload Length")
-    df = standardize_column(df, "Payload Entropy")
+    #df = standardize_column(df, "Payload Length")
+    #df = standardize_column(df, "Payload Entropy")
 
-    mean_iat = df["IAT"].mean()
-    std_iat = df["IAT"].std()
-    df["IAT"] = df["IAT"].apply(
-        lambda x: (x - mean_iat) / std_iat
-    )
+    if os.path.exists("src/TANTGen/models/mean_std_iat.json"):
+        print("Using existing IAT mean and std for standardization")
+        mean_std = pd.read_json("src/TANTGen/models/mean_std_iat.json")
+        mean_iat = mean_std["mean_iat"][0]
+        std_iat = mean_std["std_iat"][0]
+        df["IAT"] = df["IAT"].apply(
+            lambda x: (x - mean_iat) / std_iat
+        )
+        mean_std = {"mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+    else:
+        mean_iat = df["IAT"].mean()
+        std_iat = df["IAT"].std()
+        df["IAT"] = df["IAT"].apply(
+            lambda x: (x - mean_iat) / std_iat
+            )
 
-    mean_std = {"mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+        mean_std = {"mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+        pd.DataFrame(mean_std, index=[0]).to_json("src/TANTGen/models/mean_std_iat.json")
 
     return df, mean_std
 

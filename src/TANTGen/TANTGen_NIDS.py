@@ -464,7 +464,7 @@ def main():
             print("Loading checkpoint")
             testmodel = TANTGen_NIDS.load_from_checkpoint(
                 freeze_base=True,
-                unfreeze_last_n_layers=1,
+                unfreeze_last_n_layers=0,
                 checkpoint_path=cpath,
                 strict=True,
             )

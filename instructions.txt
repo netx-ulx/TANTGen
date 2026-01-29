@@ -14,42 +14,17 @@ python src/Feature_Extraction/Split/Kitsune_divide_BM.py -i data/original/Kitsun
 python src/Feature_Extraction/Split/Kitsune_divide_BM.py -i data/original/Kitsune/SYN\ DoS/SYN_DoS_pcap.pcap -c data/original/Kitsune/SYN\ DoS/SYN_DoS_labels.csv -m data/original/Kitsune/SYN\ DoS/SYN_DoS_malicious.pcap -b data/original/Kitsune/SYN\ DoS/SYN_DoS_benign.pcap
 python src/Feature_Extraction/Split/Kitsune_divide_BM.py -i data/original/Kitsune/Video\ Injection/Video_Injection_pcap.pcapng -c data/original/Kitsune/Video\ Injection/Video_Injection_labels.csv -m data/original/Kitsune/Video\ Injection/Video_Injection_malicious.pcap -b data/original/Kitsune/Video\ Injection/Video_Injection_benign.pcap
 
-0.1 Split Dataset into Train and Test for NIDS Training and Adversarial Traffic Generation
-python src/Feature_Extraction/Split/Kitsune_split_dataset.py -a Mirai -b data/original/Kitsune/Benign/Mirai_benign.pcap -m data/original/Kitsune/Malicious/Mirai_malicious.pcap -l data/original/Kitsune/Mirai\ Botnet/mirai_labels.csv
-
-0.3 Extract features for TANTGen training
-python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/surrogate_train/Mirai_all.pcap -o data/preprocessed/adversarial_train/surrogate_train/Mirai_all_features.csv
-python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/Mirai_malicious.pcap -o data/preprocessed/adversarial_train/Mirai_malicious_features.csv
-
-1. TANTGen Train (models) (feature extraction + adversarial traffic generation)
-python -m src.TANTGen.TANTGen_pretrain
-
-python -m src.TANTGen.TANTGen_NIDS
-
-python -m src.TANTGen.TANTGen
 
 2. NIDS Train
 
 2.1. Compiling cython file in AfterImage as follows:
 cd src/Kitsune/Feature_Extraction && python setup.py build_ext --inplace && cd ../../../
 
-2.2. Extracting features from raw packets (a csv and npy file will be generated):
-python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/target_train/Mirai_benign.pcap -o data/preprocessed/target_train/Mirai_benign.npy
-
-2.3. Training KitNET models (a model.pkl file will be generated):
-python src/Kitsune/KitNET/model.py -M train -tf data/preprocessed/target_train/Mirai_benign.npy -mf src/Kitsune/models/Mirai_model.pkl
-
-3. Apply Changes to PCAP
-python -m src.apply_TANTGen_to_pcap
-
-3.1 Merge PCAPs
-mergecap -a -w <adversarial.pcap> <benign.pcap> <malicious.pcap>
+...
 
 3. Execute Attack
 python src/Kitsune/Feature_Extraction/extractor.py -i <adversarial.pcap> -o <path_to_test_features.npy>
-# python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/adversarial_test/Mirai_all.pcap -o data/preprocessed/adversarial_test/Mirai_all_features.npy
 python src/Kitsune/KitNET/model.py -M exec -mf <path_to_model.pkl> -tf <path_to_test_features.npy> -rf <path_to_resulting_rmse.pkl> -an <attack_name> -yt <path_to_true_labels.csv>
-# python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/Mirai_model.pkl -tf data/preprocessed/adversarial_test/Mirai_all_features.npy -an Mirai_Botnet_original -yt data/preprocessed/adversarial_test/Mirai_labels.csv
 
 python src/NIDS/test_models_final.py -i <path_to_test_features.csv> -a <attack_name> -yt <path_to_true_labels.csv>
 # python src/NIDS/test_models_final.py -i data/preprocessed/target_train/CIC_IDS_target_train.csv -a All -yt data/preprocessed/target_train/CIC_IDS_target_train.csv 

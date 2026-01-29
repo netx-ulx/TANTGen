@@ -2,13 +2,8 @@ from scapy.all import TCP, UDP, IP, IPv6, ARP
 import pandas as pd
 import math
 import argparse
-from scapy.utils import RawPcapReader
-from scapy.layers.l2 import Ether
+from scapy.utils import PcapReader
 from tqdm import tqdm
-
-def fast_read_pcap(filename):
-    for pkt_data, _ in RawPcapReader(filename):
-        yield Ether(pkt_data)
 
 def entropy(data):
     if not data:
@@ -20,12 +15,13 @@ def entropy(data):
     return -sum(p * math.log2(p) for p in probs)
 
 def get_basic_features(pcap_path):
-    packets = fast_read_pcap(pcap_path)
+    print(f"[i] Extracting features from: {pcap_path}")
+    pcap_reader = PcapReader(pcap_path)
     print(f"[✓] PCAP file '{pcap_path}' loaded successfully.")
     rows = []
     last_ts = None
     direction_helper = {}
-    for pkt in tqdm(packets, desc="Processing packets"):
+    for pkt in tqdm(pcap_reader, desc="Processing packets"):
     #for pkt in packets:
         timestamp = pkt.time
         framelen = len(pkt)

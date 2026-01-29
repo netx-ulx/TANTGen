@@ -1,5 +1,5 @@
 {
-    "attack_name": "Mirai_Botnet_original",
+    "attack_name": "Mirai_original",
     "model": "Kitsune",
     "threshold": 0.5071611113809764,
     "num_packets": 217080,

@@ -20,7 +20,7 @@ window_stride: 64
 #--------------------
 # Dataset parameters
 #--------------------
-num_features: 6
+num_features: 2 #6
 output_size: 1
 
 #--------------------

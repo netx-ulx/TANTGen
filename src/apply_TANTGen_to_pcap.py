@@ -1,15 +1,20 @@
 import torch
 import numpy as np
+import pandas as pd
 import yaml
 from scapy.all import *
 from src.Feature_Extraction.dataloader import get_basic_features
 from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.TANTGen import TANTGen
 from src.TANTGen.TANTGen_pretrain import TANTGen_pretrain
-import numpy as np
 import subprocess
 from pathlib import Path
 from scapy.all import PcapReader, PcapWriter
+from src.TANTGen.utils import (
+    PacketDataset
+)
+from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 
 # TODO não está a funcionar no servidor porque o mergecap não está instalado
 
@@ -28,8 +33,9 @@ def rebuild_pcap(original_benign_pcap, original_malicious_pcap, modified_IAT, ou
 
     # read first packet to get initial timestamp
     first_pkt = original_pcap_reader.read_packet()
+    last_timestamp = first_pkt.time + float(modified_IAT[0])
+    first_pkt.time = last_timestamp
     writer.write(first_pkt)
-    last_timestamp = first_pkt.time
 
     for i, pkt in enumerate(original_pcap_reader):
         # print(f"[{i}] Processing original packet {i}...")
@@ -44,18 +50,19 @@ def rebuild_pcap(original_benign_pcap, original_malicious_pcap, modified_IAT, ou
     original_pcap_reader.close()
     writer.close()
 
+    # TODO uncomment when mergecap is available
     # merge benign and malicious pcaps into one
-    cmd = [
-        "mergecap",
-        "-a",
-        "-w", output_pcap,
-        original_benign_pcap,
-        "temp_malicious.pcap"
-    ]
-    subprocess.run(cmd, check=True)
+    # cmd = [
+    #     "mergecap",
+    #     "-a",
+    #     "-w", output_pcap,
+    #     original_benign_pcap,
+    #     "temp_malicious.pcap"
+    # ]
+    # subprocess.run(cmd, check=True)
 
-    # remove temporary malicious pcap
-    Path(config_folders["Final_Adversarial_Folder"] + "temp_malicious.pcap").unlink()
+    # # remove temporary malicious pcap
+    # Path(config_folders["Final_Adversarial_Folder"] + "temp_malicious.pcap").unlink()
 
 # =========================================================
 # MAIN PIPELINE
@@ -97,9 +104,9 @@ def process_pcap_with_TANTGen(
     # 3. Load trained TANTGen model
     # =====================================================
     model = TANTGen.load_from_checkpoint(
-        checkpoint_path,
+        checkpoint_path=checkpoint_path,
         mean_std=mean_std,
-        strict=False
+        strict=True
     )
     model.eval()
 
@@ -111,14 +118,14 @@ def process_pcap_with_TANTGen(
     print("[*] Modifying IATs...")
     modified_iats = []
     y_in = torch.zeros((1, window_size, output_size), dtype=torch.float32)
-    y_in[:, 0, :] = start_token
+    #y_in[:, 0, :] = start_token
 
     for window in feature_arr:
 
         X = torch.tensor(window).unsqueeze(0).float()
 
         with torch.no_grad():
-            pred = model(X, y_in)                     # [1, T, 1]
+            pred = model(X) #, y_in)                     # [1, T, 1]
 
         pred = pred.squeeze(0).detach().cpu().numpy()
         modified_iats.extend(pred)
@@ -126,7 +133,7 @@ def process_pcap_with_TANTGen(
     modified_iats = np.array(modified_iats).reshape(-1, 1)
     modified_iats = modified_iats * mean_std["std_iat"] + mean_std["mean_iat"]
     modified_iats = modified_iats.flatten()
-    print(modified_iats)
+    # print(modified_iats)
 
     print("[✓] Modified IATs obtained.")
 
