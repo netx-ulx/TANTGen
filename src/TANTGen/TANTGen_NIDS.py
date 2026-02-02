@@ -255,6 +255,13 @@ class TANTGen_NIDS(pl.LightningModule):
         self.log("test_confusion_FN", cm[1,0])
         self.log("test_confusion_TP", cm[1,1])
 
+        # Attack Success Rate (ASR)
+        print("Calculating Attack Success Rate (ASR)...")
+        total_attacks = np.sum(y_true)
+        asr = cm[1,0] / total_attacks if total_attacks > 0 else 0.0
+
+        self.log("Attack Success Rate", asr)
+
         self.test_step_outputs = []
         self.test_step_predictions = []
         self.test_step_original = []

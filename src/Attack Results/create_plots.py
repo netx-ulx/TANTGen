@@ -41,19 +41,6 @@ for folder in os.listdir("src/Attack Results"):
         plt.savefig(f"src/Attack Results/plots/{folder}/attack_success_rate.png", dpi=300)
         plt.show()
 
-        # AUC scores plot
-
-        auc_scores = [r["metrics"]["auc"] for r in results]
-
-        plt.figure()
-        plt.bar(attack_names, auc_scores)
-        plt.ylabel("AUC")
-        plt.title("ROC-AUC por ataque")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.savefig(f"src/Attack Results/plots/{folder}/auc_scores.png", dpi=300)
-        plt.show()
-
         # Confusion Matrices plot
 
         n = len(results)

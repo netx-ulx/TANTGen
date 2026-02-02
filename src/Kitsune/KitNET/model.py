@@ -53,7 +53,7 @@ if __name__ == "__main__":
     parse.add_argument('-an', '--attack_name', type=str, 
                        help="name of the attack being tested", default=None)
     parse.add_argument('-yt', '--y_true_file_path', type=str, 
-                       help="true labels file path (.npy), only for execute mode!", default=None)
+                       help="true labels file path (.csv), only for execute mode!", default=None)
     
 
     parse.add_argument('-mf', '--model_file_path', type=str, default='src/Kitsune/models/model.pkl',
@@ -153,22 +153,22 @@ if __name__ == "__main__":
 
             # !!!📌 Nota importante: Em NIDS, Accuracy sozinha é enganadora (datasets são muito desbalanceados).
 
-            fpr, tpr, thresholds = roc_curve(y_true, rmse)
-            roc_auc = auc(fpr, tpr)
+            #fpr, tpr, thresholds = roc_curve(y_true, rmse)
+            #roc_auc = auc(fpr, tpr)
 
-            print("AUC:", roc_auc)
+            #print("AUC:", roc_auc)
 
             os.makedirs(f"src/Attack Results/plots/Kitsune", exist_ok=True)
 
-            plt.figure()
-            plt.plot(fpr, tpr, label=f'ROC curve (AUC = {roc_auc:.4f})')
-            plt.plot([0,1], [0,1], linestyle='--')
-            plt.xlabel('False Positive Rate')
-            plt.ylabel('True Positive Rate')
-            plt.title('ROC Curve - Kitsune')
-            plt.legend()
-            plt.savefig(f"src/Attack Results/plots/Kitsune/ROC_{arg.attack_name}.png", dpi=300)
-            plt.show()
+            # plt.figure()
+            # plt.plot(fpr, tpr, label=f'ROC curve (AUC = {roc_auc:.4f})')
+            # plt.plot([0,1], [0,1], linestyle='--')
+            # plt.xlabel('False Positive Rate')
+            # plt.ylabel('True Positive Rate')
+            # plt.title('ROC Curve - Kitsune')
+            # plt.legend()
+            # plt.savefig(f"src/Attack Results/plots/Kitsune/ROC_{arg.attack_name}.png", dpi=300)
+            # plt.show()
 
             attack_success_rate = fn / (fn + tp + 1e-8)
             print("Attack Success Rate:", attack_success_rate)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
                         "precision": float(precision),
                         "recall": float(recall),
                         "f1_score": float(f1),
-                        "auc": float(roc_auc),
+                        #"auc": float(roc_auc),
                         "attack_success_rate": float(attack_success_rate)
                     }
                 }

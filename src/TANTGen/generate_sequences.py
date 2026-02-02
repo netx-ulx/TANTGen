@@ -26,29 +26,51 @@ def read_dataset(path):
     #df = convert_to_relative_timestamp(df)
     #df = ipaddress_to_number(df)
     #df = standardize_ips(df)
-    df = standardize_column(df, "Packet Size")
+    #df = standardize_column(df, "Packet Size")
     #df = standardize_column(df, "Payload Length")
     #df = standardize_column(df, "Payload Entropy")
 
-    if os.path.exists("src/TANTGen/models/mean_std_iat.json"):
+    if os.path.exists("src/TANTGen/models/mean_std.json"):
+        mean = df["Packet Size"].mean()
+        std = df["Packet Size"].std()
+        print(f"Current Packet Size mean: {mean}")
+        print(f"Current Packet Size std: {std}")
+        print("Using existing Packet Size mean and std for standardization")
+        mean_std = pd.read_json("src/TANTGen/models/mean_std.json")
+        mean_packet_size = mean_std["mean_packet_size"][0]
+        std_packet_size = mean_std["std_packet_size"][0]
+        df["Packet Size"] = df["Packet Size"].apply(
+            lambda x: (x - mean_packet_size) / std_packet_size
+        )
+        mean = df["IAT"].mean()
+        std = df["IAT"].std()
+        print(f"Current IAT mean: {mean}")
+        print(f"Current IAT std: {std}")
         print("Using existing IAT mean and std for standardization")
-        mean_std = pd.read_json("src/TANTGen/models/mean_std_iat.json")
         mean_iat = mean_std["mean_iat"][0]
         std_iat = mean_std["std_iat"][0]
         df["IAT"] = df["IAT"].apply(
             lambda x: (x - mean_iat) / std_iat
         )
-        mean_std = {"mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+        mean_std = {"mean_packet_size": float(mean_packet_size), "std_packet_size": float(std_packet_size),\
+                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)}
     else:
+        mean_packet_size = df["Packet Size"].mean()
+        std_packet_size = df["Packet Size"].std()
+        df["Packet Size"] = df["Packet Size"].apply(
+            lambda x: (x - mean_packet_size) / std_packet_size
+            )
+        
         mean_iat = df["IAT"].mean()
         std_iat = df["IAT"].std()
         df["IAT"] = df["IAT"].apply(
             lambda x: (x - mean_iat) / std_iat
             )
 
-        mean_std = {"mean_iat": float(mean_iat), "std_iat": float(std_iat)}
-        pd.DataFrame(mean_std, index=[0]).to_json("src/TANTGen/models/mean_std_iat.json")
-
+        mean_std = {"mean_packet_size": float(mean_packet_size), "std_packet_size": float(std_packet_size), \
+                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+        pd.DataFrame(mean_std, index=[0]).to_json("src/TANTGen/models/mean_std.json")
+        
     return df, mean_std
 
 def create_windows(

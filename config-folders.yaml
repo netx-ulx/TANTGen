@@ -1,4 +1,5 @@
-
+Original_Malicious_Folder: data/original/Kitsune/Malicious/
+Original_Benign_Folder: data/original/Kitsune/Benign/
 Adversarial_Test_Folder: data/preprocessed/adversarial_test/
 Adversarial_Train_Folder: data/preprocessed/adversarial_train/
 Surrogate_Train_Folder: data/preprocessed/adversarial_train/surrogate_train/
