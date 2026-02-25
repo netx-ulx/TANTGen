@@ -5,13 +5,14 @@ loss_fun_diff: huber
 loss_fun_evasion: bce
 # loss_fun_constraints: mse
 
-lambda_diff: 0.1
+lambda_diff: 0.01
 lambda_evasion: 1.0
-lambda_constraints: 0.01
+lambda_constraints: 0.1
+lambda_diversity: 0.1
 
-constraint_limit: 0.0001
+constraint_limit: 0.1 # 10e-5
 
-epochs: 15
+epochs: 100
 batch_size: 64
 
 #--------------------

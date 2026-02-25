@@ -2,6 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 from src.TANTGen.utils import (
     convert_to_relative_timestamp,
     ipaddress_to_number,
@@ -10,18 +11,24 @@ from src.TANTGen.utils import (
     standardize_ips
 )
 
-def read_dataset(path):
+def read_dataset(path, mean_std_path):
     df = pd.read_csv(path)
     print("Dataset read from: ", path)
 
-    df = df[[#'Timestamp', 
+    kitsune_columns = [col for col in df.columns if 'kitsune_feat_' in col]
+
+    df['IAT_bucket'] = pd.cut(df['IAT'], bins=[-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf], labels=[0, 1, 2, 3, 4, 5])
+
+    df = df[kitsune_columns + [#'Timestamp', 
+            'IAT_bucket', \
             'Packet Size', \
             #'Proto', \
             #'Source IP', 'Destination IP', \
             #'TCP Source Port', 'TCP Destination Port', \
             #'Payload Length', 'Payload Entropy', \
-            # 'IP Type', \
-            'IAT']]
+            #'IP Type', \
+            'IAT', \
+            ]]
 
     #df = convert_to_relative_timestamp(df)
     #df = ipaddress_to_number(df)
@@ -30,13 +37,13 @@ def read_dataset(path):
     #df = standardize_column(df, "Payload Length")
     #df = standardize_column(df, "Payload Entropy")
 
-    if os.path.exists("src/TANTGen/models/mean_std.json"):
+    if os.path.exists(mean_std_path):
         mean = df["Packet Size"].mean()
         std = df["Packet Size"].std()
         print(f"Current Packet Size mean: {mean}")
         print(f"Current Packet Size std: {std}")
         print("Using existing Packet Size mean and std for standardization")
-        mean_std = pd.read_json("src/TANTGen/models/mean_std.json")
+        mean_std = pd.read_json(mean_std_path)
         mean_packet_size = mean_std["mean_packet_size"][0]
         std_packet_size = mean_std["std_packet_size"][0]
         df["Packet Size"] = df["Packet Size"].apply(
@@ -69,7 +76,7 @@ def read_dataset(path):
 
         mean_std = {"mean_packet_size": float(mean_packet_size), "std_packet_size": float(std_packet_size), \
                     "mean_iat": float(mean_iat), "std_iat": float(std_iat)}
-        pd.DataFrame(mean_std, index=[0]).to_json("src/TANTGen/models/mean_std.json")
+        pd.DataFrame(mean_std, index=[0]).to_json(mean_std_path)
         
     return df, mean_std
 
@@ -104,10 +111,11 @@ def generate_sliding_windows(
     window_size,
     stride,
     num_features,
-    path
+    path,
+    mean_std_path
 ):
 
-    df, mean_std = read_dataset(path)
+    df, mean_std = read_dataset(path, mean_std_path)
 
     #label_df = df.copy()
     #print(label_df.head(), label_df.shape)
@@ -131,10 +139,11 @@ def generate_sliding_windows_NIDS(
     stride,
     num_features,
     features_path,
-    labels_path
+    labels_path,
+    mean_std_path
 ):
 
-    df, _ = read_dataset(features_path)
+    df, _ = read_dataset(features_path, mean_std_path)
 
     label_df = pd.read_csv(labels_path)
     label_df = label_df[['x']].rename(columns={'x': 'Label'})
@@ -149,46 +158,46 @@ def generate_sliding_windows_NIDS(
 
     return feature_arr, target_arr, df
 
-if __name__ == "__main__":
-    # Generate sliding windows
+# if __name__ == "__main__":
+#     # Generate sliding windows
 
-    # Params for the sliding window on the packet data
-    SLIDING_WINDOW_SIZE = 1024
-    NUM_FEATURES = 5
-    STRIDE = 16
+#     # Params for the sliding window on the packet data
+#     SLIDING_WINDOW_SIZE = 1024
+#     NUM_FEATURES = 5
+#     STRIDE = 16
 
-    (
-        full_feature_arr,
-        full_target_arr,
-        global_df,
-    ) = generate_sliding_windows_NIDS(
-        SLIDING_WINDOW_SIZE,
-        STRIDE,
-        NUM_FEATURES
-    )
+#     (
+#         full_feature_arr,
+#         full_target_arr,
+#         global_df,
+#     ) = generate_sliding_windows_NIDS(
+#         SLIDING_WINDOW_SIZE,
+#         STRIDE,
+#         NUM_FEATURES
+#     )
 
 
-    print(global_df.head())
-    print(global_df.shape)
-    print(global_df.tail())
+#     print(global_df.head())
+#     print(global_df.shape)
+#     print(global_df.tail())
 
-    # Get stats on the global df on the size and IAT
-    print(global_df["Packet Size"].describe())
+#     # Get stats on the global df on the size and IAT
+#     print(global_df["Packet Size"].describe())
 
-    print(global_df["IAT"].describe())
+#     print(global_df["IAT"].describe())
 
-    # Plot relative timestamp vs IAT
-    plt.figure()
-    plt.plot(global_df["Timestamp"], global_df["IAT"])
-    plt.xlabel("Measurement window (sec))")
-    plt.ylabel("IAT (s)")
-    plt.title("Original IAT values over time")
-    plt.savefig("iat_vs_relative_timestamp.pdf", dpi=300)
+#     # Plot relative timestamp vs IAT
+#     plt.figure()
+#     plt.plot(global_df["Timestamp"], global_df["IAT"])
+#     plt.xlabel("Measurement window (sec))")
+#     plt.ylabel("IAT (s)")
+#     plt.title("Original IAT values over time")
+#     plt.savefig("iat_vs_relative_timestamp.pdf", dpi=300)
 
-    # Plot timestamp vs packet size
-    plt.figure()
-    plt.plot(global_df["Timestamp"], global_df["Packet Size"])
-    plt.xlabel("Measurement window (sec))")
-    plt.ylabel("Packet size (bytes)")
-    plt.title("Original packet size over time ")
-    plt.savefig("packet_size_vs_timestamp.pdf", dpi=300)
+#     # Plot timestamp vs packet size
+#     plt.figure()
+#     plt.plot(global_df["Timestamp"], global_df["Packet Size"])
+#     plt.xlabel("Measurement window (sec))")
+#     plt.ylabel("Packet size (bytes)")
+#     plt.title("Original packet size over time ")
+#     plt.savefig("packet_size_vs_timestamp.pdf", dpi=300)

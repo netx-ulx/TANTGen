@@ -88,7 +88,7 @@ class TANTGen_NIDS(pl.LightningModule):
                         p.requires_grad = True
 
         # Loss
-        self.loss_fn = nn.BCEWithLogitsLoss()
+        self.loss_fn = nn.BCEWithLogitsLoss() # TODO: MSE ?
         # TODO: com balanceamento de classes, se necessário
         # pos_weight = torch.tensor([num_benign / num_malicious])
         # self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
@@ -122,6 +122,24 @@ class TANTGen_NIDS(pl.LightningModule):
         # pooled = memory.mean(dim=1)
 
         return self.classifier_head(memory).squeeze(1)
+
+    def forward_for_explain(self, src):
+        """
+        Forward simplificado para interpretabilidade.
+        Retorna 1 logit por amostra (B,)
+        """
+        x = src.float()
+
+        x = self.base.feature_transform1(x)
+        x = self.base.positional_encoding(x)
+
+        memory = self.base.encoder(x)          # (B, seq, d)
+        logits = self.classifier_head(memory)  # (B, seq, 1)
+
+        logits = logits.squeeze(-1)             # (B, seq)
+        logits = logits.mean(dim=1)             # (B,)
+
+        return logits
 
     def configure_optimizers(self):
         # Apenas parâmetros com requires_grad=True serão otimizados
@@ -372,6 +390,7 @@ def main():
         num_features,
         args.dataset_path,
         args.dataset_labels_path,
+        "src/TANTGen/models/mean_std.json" # TODO
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
@@ -478,6 +497,67 @@ def main():
             testmodel.eval()
 
             trainer.test(testmodel, dataloaders=test_loader)
+
+    # --- EXPLAINABILITY WITH INTEGRATED GRADIENTS ---
+    from captum.attr import IntegratedGradients
+
+    model.eval()
+    model.cuda()
+
+    ig = IntegratedGradients(model.forward_for_explain)
+
+    # usa UM exemplo apenas
+    X, y = next(iter(test_loader))
+    X = X[:1].cuda()        # B = 1
+    X.requires_grad = True
+
+    baseline = torch.zeros_like(X)
+
+    attr = ig.attribute(
+        inputs=X,
+        baselines=baseline,
+        n_steps=8,          # 🔥 MUITO importante
+        internal_batch_size=1
+    )
+
+    importance_time = attr.abs().mean(dim=2)  # (B, seq_len)
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(importance_time[0].detach().cpu().numpy())
+    plt.xlabel("Packet index (time)")
+    plt.ylabel("Attribution")
+    plt.title("Temporal importance")
+    plt.tight_layout()
+    plt.savefig(f"a.png", dpi=300)
+    plt.show()
+
+    importance_feat = attr.abs().mean(dim=1)  # (B, num_features)
+
+    plt.figure(figsize=(8, 4))
+    plt.bar(
+        range(importance_feat.shape[1]),
+        importance_feat[0].detach().cpu().numpy()
+    )
+    plt.xlabel("Feature index")
+    plt.ylabel("Attribution")
+    plt.title("Feature importance")
+    plt.tight_layout()
+    plt.savefig(f"b.png", dpi=300)
+    plt.show()
+
+    plt.figure(figsize=(10, 5))
+    plt.imshow(
+        attr[0].abs().detach().cpu().numpy().T,
+        aspect="auto",
+        cmap="hot"
+    )
+    plt.xlabel("Packet index (time)")
+    plt.ylabel("Feature index")
+    plt.colorbar(label="Attribution")
+    plt.title("Attribution heatmap (time × feature)")
+    plt.tight_layout()
+    plt.savefig(f"c.png", dpi=300)
+    plt.show()
 
 
 

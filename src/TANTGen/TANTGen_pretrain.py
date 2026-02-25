@@ -527,6 +527,7 @@ def main():
         window_stride,
         num_features,
         args.dataset_path,
+        "src/TANTGen/models/mean_std.json" # TODO
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
