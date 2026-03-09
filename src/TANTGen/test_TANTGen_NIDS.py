@@ -3,27 +3,37 @@ from src.TANTGen.generate_sequences import generate_sliding_windows_NIDS
 from src.TANTGen.utils import PacketDataset
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import torch
+from src.Feature_Extraction.dataloader import get_basic_features
 
 sliding_window_size = 64
 window_stride = 64
 num_features = 2
 batch_size = 64
-#dataset_path = "data/preprocessed/adversarial_test/Mirai_all_features.csv"
-# dataset_path = "data/adversarial/Mirai_adversarial_features.csv"
-# dataset_labels_path = "data/preprocessed/adversarial_test/Mirai_labels.csv"
-dataset_path = "data/adversarial/temp_malicious.csv"
-#dataset_path = "data/preprocessed/adversarial_train/Mirai_malicious_features.csv"
+dataset_path = "data/preprocessed/adversarial_test/Mirai_malicious.pcap"
+dataset_features_path = "data/preprocessed/adversarial_test/Mirai_malicious_features.csv"
+# dataset_features_path = "data/adversarial/Mirai_adversarial_features.csv"
+#dataset_labels_path = "data/preprocessed/adversarial_test/Mirai_labels.csv"
+
+#dataset_path = "data/preprocessed/adversarial_test/Active_Wiretap_malicious.pcap"
+dataset_features_path = "data/preprocessed/adversarial_test/Active_Wiretap_malicious_features.csv"
 dataset_labels_path = "data/adversarial/temp_malicious_labels.csv"
+
+# dataset_path = "data/adversarial/temp_malicious.pcap"
+# dataset_features_path = "data/adversarial/temp_features.csv"
+# dataset_labels_path = "data/adversarial/temp_malicious_labels.csv"
+
+# df = get_basic_features(dataset_path)
+# df.to_csv(dataset_features_path, index=False)
 
 feature_arr, target_arr, _ = generate_sliding_windows_NIDS(
     sliding_window_size,
     window_stride,
     num_features,
-    dataset_path,
+    dataset_features_path,
     dataset_labels_path,
+    "src/TANTGen/models/mean_std.json" # TODO
 )
 
 test_dataset = PacketDataset(feature_arr, target_arr)

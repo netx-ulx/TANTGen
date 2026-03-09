@@ -88,10 +88,7 @@ class TANTGen_NIDS(pl.LightningModule):
                         p.requires_grad = True
 
         # Loss
-        self.loss_fn = nn.BCEWithLogitsLoss() # TODO: MSE ?
-        # TODO: com balanceamento de classes, se necessário
-        # pos_weight = torch.tensor([num_benign / num_malicious])
-        # self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        self.loss_fn = nn.BCEWithLogitsLoss()
 
         self.training_step_outputs = []
         self.training_step_predictions = []
@@ -121,7 +118,13 @@ class TANTGen_NIDS(pl.LightningModule):
         memory = self.base.encoder(x)
         # pooled = memory.mean(dim=1)
 
-        return self.classifier_head(memory).squeeze(1)
+        #return self.classifier_head(memory).squeeze(1)
+
+        pooled = memory.mean(dim=1)        # (B, d)
+
+        logits = self.classifier_head(pooled)  # (B, 1)
+
+        return logits.squeeze(-1)          # (B,)
 
     def forward_for_explain(self, src):
         """
@@ -134,11 +137,15 @@ class TANTGen_NIDS(pl.LightningModule):
         x = self.base.positional_encoding(x)
 
         memory = self.base.encoder(x)          # (B, seq, d)
-        logits = self.classifier_head(memory)  # (B, seq, 1)
+        # logits = self.classifier_head(memory)  # (B, seq, 1)
 
-        logits = logits.squeeze(-1)             # (B, seq)
-        logits = logits.mean(dim=1)             # (B,)
+        # logits = logits.squeeze(-1)             # (B, seq)
+        # logits = logits.mean(dim=1)             # (B,)
 
+        # return logits
+
+        pooled = memory.mean(dim=1)        # (B, d)
+        logits = self.classifier_head(pooled).squeeze(-1)
         return logits
 
     def configure_optimizers(self):
@@ -393,26 +400,36 @@ def main():
         "src/TANTGen/models/mean_std.json" # TODO
     )
 
+    window_labels = [
+        int(np.any(np.array(w) == 1))
+        for w in target_arr
+    ]
+
+    # window_labels = [
+    #     1 if np.count_nonzero(np.array(w) == 1) > 5 else 0
+    #     for w in target_arr
+    # ]
+
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
-        feature_arr, target_arr, test_size=0.05, shuffle=True, random_state=42
-    ) # TODO ver melhor shuffle
+        feature_arr, window_labels, test_size=0.05, random_state=42, stratify=window_labels
+    )
 
     train_vectors, val_vectors, train_labels, val_labels = train_test_split(
-        full_train_vectors, full_train_labels, test_size=0.1, shuffle=True, random_state=42
-    ) # TODO ver melhor shuffle
+        full_train_vectors, full_train_labels, test_size=0.1, random_state=42, stratify=full_train_labels
+    )
 
     train_dataset = PacketDataset(train_vectors, train_labels)
     val_dataset = PacketDataset(val_vectors, val_labels)
     test_dataset = PacketDataset(test_vectors, test_labels)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+        train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+        val_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+        test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
 
     model = TANTGen_NIDS(
@@ -516,7 +533,7 @@ def main():
     attr = ig.attribute(
         inputs=X,
         baselines=baseline,
-        n_steps=8,          # 🔥 MUITO importante
+        n_steps=8,
         internal_batch_size=1
     )
 

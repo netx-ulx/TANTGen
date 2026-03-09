@@ -121,6 +121,7 @@ def process_pcap_with_TANTGen(
 
         with torch.no_grad():
             pred = model(X) #, y_in)                     # [1, T, 1]
+            pred = torch.nn.functional.softplus(pred)
 
         pred = pred.squeeze(0).detach().cpu().numpy()
         modified_iats.extend(pred)
@@ -128,7 +129,7 @@ def process_pcap_with_TANTGen(
     modified_iats = np.array(modified_iats).reshape(-1, 1)
     #modified_iats = modified_iats * mean_std["std_iat"] + mean_std["mean_iat"]
     modified_iats = modified_iats.flatten()
-    print(modified_iats[100:120])
+    print(modified_iats)
 
     print("[✓] Modified IATs obtained.")
 

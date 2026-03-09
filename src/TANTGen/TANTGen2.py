@@ -120,7 +120,7 @@ class TANTGen(TANTGen_pretrain):
         # dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
         out = self.output_head(memory)
 
-        return torch.nn.functional.softplus(out, beta=0.5) #torch.sigmoid(out) * self.constraint_limit
+        return out #torch.nn.functional.softplus(out, beta=0.5) #torch.sigmoid(out) * self.constraint_limit
 
     def _reconstruct_packets_with_predicted_iat(self, X, pred_iat, iat_bucket):
         """
@@ -141,6 +141,9 @@ class TANTGen(TANTGen_pretrain):
         if pred_iat.dim() == 3:
             pred_iat = pred_iat.squeeze(-1)
 
+        if iat_bucket.dim() == 3:
+            iat_bucket = iat_bucket.squeeze(-1)
+
         assert pred_iat.shape[:2] == X.shape[:2], \
             "pred_iat must match batch and time dimensions"
 
@@ -150,20 +153,12 @@ class TANTGen(TANTGen_pretrain):
         # Replace last feature (IAT)
         X_mod[:, :, -1] = pred_iat
 
-
-        iat_bucket_np = iat_bucket.astype(int)
-        iat_bucket_np = iat_bucket_np.reshape(X_mod.shape[0], X_mod.shape[1])
-        iat_bucket_torch = torch.tensor(
-            iat_bucket_np,
-            device=X_mod.device,
-            dtype=X_mod.dtype
-        )
-        X_mod[:, :, 0] = iat_bucket_torch
+        X_mod[:, :, 0] = iat_bucket.float()
 
         return X_mod
 
 
-    def _step(self, batch):
+    def _step(self, batch, train=False):
         X, y = batch
 
         X = X.float()
@@ -175,9 +170,9 @@ class TANTGen(TANTGen_pretrain):
 
         #y_input = torch.zeros_like(y) # nem está a ser usado
         pred = self.forward(X) #, y_input_shifted)
-        # print(pred)
+        pred = torch.nn.functional.softplus(pred)
         torch.set_printoptions(precision=10)
-        print(pred)
+        #print(pred)
         # print("Predicted IAT:", pred)
         # pred is the perturbation to add, unnormalized
 
@@ -188,16 +183,19 @@ class TANTGen(TANTGen_pretrain):
         # === Loss 2: evasion ===
         y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
         y_un_mod = y_un + pred
-        iat_bucket = pd.cut(
-            y_un_mod.detach().cpu().numpy().reshape(-1),
-            bins=[-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
-            labels=[0, 1, 2, 3, 4, 5]
+        bins = torch.tensor(
+            [-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
+            device=y_un_mod.device
         )
+
+        iat_bucket = torch.bucketize(y_un_mod, bins)
         y_mod = y + (pred / self.mean_std["std_iat"])
         X_mod = self._reconstruct_packets_with_predicted_iat(X, y_mod, iat_bucket)
 
         # get logits from external IDS (not trainable)
         logits_ids = self.nids(X_mod)
+        print("logits mean:", logits_ids.mean().item())
+        print("logits std:", logits_ids.std().item())
         #print(logits_ids)
 
         # target_benign = torch.zeros(logits_ids.shape, device=self.device)
@@ -209,17 +207,30 @@ class TANTGen(TANTGen_pretrain):
         
         # === Loss 3: constraints (hinge) ===
 
-        budget = self.constraint_limit * 200
+        budget = self.constraint_limit * 10
         # loss_budget = torch.relu(
         #     pred.abs().sum(dim=1) - budget
         # ).mean()
         # print("Budget loss:", loss_budget.item())
 
-        eps = 1e-3 * y_un.mean()
-        w = 1.0 / (y_un + eps)
-        w = w / w.mean(dim=1, keepdim=True)
-        #print(w)
-        loss_budget = torch.relu((w * pred).sum(dim=1) - budget).mean()
+        # eps = 1e-3 * y_un.mean()
+        # w = 1.0 / (y_un + eps)
+        # w = w / w.mean(dim=1, keepdim=True)
+        # if train:
+        #     print("bbbbb")
+        #     print(w[0][:20])
+        # loss_budget = torch.relu((pred).sum(dim=1) - budget).mean()
+        # loss_budget = torch.relu((w * pred).sum(dim=1) - budget).mean()
+        # relative_delta = pred / (y_un + eps)
+        # loss_budget = torch.relu(relative_delta.sum(dim=1) - budget).mean()
+
+        # loss_budget = torch.log1p(torch.exp(pred.sum(dim=1) - budget)).mean()
+
+        # loss_budget = (w * pred).sum(dim=1)
+        # loss_budget = torch.log1p(torch.exp(loss_budget - budget)).mean()
+
+        budget_used = pred.sum(dim=1)
+        loss_budget = (((budget_used - budget)/budget)**2).mean()
         print("Budget loss:", loss_budget.item())
 
         #loss_diff = torch.mean(torch.abs(w * pred))
@@ -248,6 +259,8 @@ class TANTGen(TANTGen_pretrain):
         )
 
         # print("Total loss:", loss.item())
+        # if train:
+        #     exit(0)
 
         return loss, pred, y
 

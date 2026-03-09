@@ -301,7 +301,7 @@ class TANTGen_pretrain(pl.LightningModule):
     def training_step(self, train_batch, train_idx):
         self.lr_update()
 
-        loss, prediction, y = self._step(train_batch)
+        loss, prediction, y = self._step(train_batch, train=True)
 
         self.log("Train loss", loss, sync_dist=True)
         self.training_step_outputs.append(loss)

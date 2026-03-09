@@ -8,7 +8,8 @@ from src.TANTGen.utils import (
     ipaddress_to_number,
     make_windows_features,
     standardize_column,
-    standardize_ips
+    standardize_ips,
+    protocol_to_number
 )
 
 def read_dataset(path, mean_std_path):
@@ -25,10 +26,13 @@ def read_dataset(path, mean_std_path):
             #'Proto', \
             #'Source IP', 'Destination IP', \
             #'TCP Source Port', 'TCP Destination Port', \
-            #'Payload Length', 'Payload Entropy', \
+            #'Payload Length', 
+            #'Payload Entropy', \
             #'IP Type', \
             'IAT', \
             ]]
+
+    #df = protocol_to_number(df)
 
     #df = convert_to_relative_timestamp(df)
     #df = ipaddress_to_number(df)
@@ -38,6 +42,7 @@ def read_dataset(path, mean_std_path):
     #df = standardize_column(df, "Payload Entropy")
 
     if os.path.exists(mean_std_path):
+        # Packet Size
         mean = df["Packet Size"].mean()
         std = df["Packet Size"].std()
         print(f"Current Packet Size mean: {mean}")
@@ -49,6 +54,8 @@ def read_dataset(path, mean_std_path):
         df["Packet Size"] = df["Packet Size"].apply(
             lambda x: (x - mean_packet_size) / std_packet_size
         )
+
+        # IAT
         mean = df["IAT"].mean()
         std = df["IAT"].std()
         print(f"Current IAT mean: {mean}")
@@ -59,23 +66,48 @@ def read_dataset(path, mean_std_path):
         df["IAT"] = df["IAT"].apply(
             lambda x: (x - mean_iat) / std_iat
         )
+
+        # Payload Length
+        # mean = df["Payload Length"].mean()
+        # std = df["Payload Length"].std()
+        # print(f"Current Payload Length mean: {mean}")
+        # print(f"Current Payload Length std: {std}")
+        # print("Using existing Payload Length mean and std for standardization")
+        # mean_payload_length = mean_std["mean_payload_length"][0]
+        # std_payload_length = mean_std["std_payload_length"][0]
+        # df["Payload Length"] = df["Payload Length"].apply(
+        #    lambda x: (x - mean_payload_length) / std_payload_length
+        # )
+
+
         mean_std = {"mean_packet_size": float(mean_packet_size), "std_packet_size": float(std_packet_size),\
-                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)} #, \
+                    # "mean_payload_length": float(mean_payload_length), "std_payload_length": float(std_payload_length)}
     else:
+        # Packet Size
         mean_packet_size = df["Packet Size"].mean()
         std_packet_size = df["Packet Size"].std()
         df["Packet Size"] = df["Packet Size"].apply(
             lambda x: (x - mean_packet_size) / std_packet_size
             )
         
+        # IAT
         mean_iat = df["IAT"].mean()
         std_iat = df["IAT"].std()
         df["IAT"] = df["IAT"].apply(
             lambda x: (x - mean_iat) / std_iat
             )
+        
+        # Payload Length
+        # mean_payload_length = df["Payload Length"].mean()
+        # std_payload_length = df["Payload Length"].std()
+        # df["Payload Length"] = df["Payload Length"].apply(
+        #     lambda x: (x - mean_payload_length) / std_payload_length
+        #     )
 
         mean_std = {"mean_packet_size": float(mean_packet_size), "std_packet_size": float(std_packet_size), \
-                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)} #, \
+                    # "mean_payload_length": float(mean_payload_length), "std_payload_length": float(std_payload_length)}
         pd.DataFrame(mean_std, index=[0]).to_json(mean_std_path)
         
     return df, mean_std
@@ -157,6 +189,25 @@ def generate_sliding_windows_NIDS(
     )
 
     return feature_arr, target_arr, df
+
+def generate_sliding_windows_NIDS2(
+    window_size,
+    stride,
+    num_features,
+    features_path,
+    mean_std_path
+):
+
+    df, _ = read_dataset(features_path, mean_std_path)
+
+    input_array = df.values
+    feature_arr = list(
+        make_windows_features(
+            input_array, window_size, num_features, stride
+        )
+    )
+
+    return feature_arr, df
 
 # if __name__ == "__main__":
 #     # Generate sliding windows

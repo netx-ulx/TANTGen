@@ -20,6 +20,17 @@ class PacketDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
 
+class PacketDatasetAnomaly(torch.utils.data.Dataset):
+    def __init__(self, encodings):
+        self.encodings = encodings
+
+    def __getitem__(self, idx):
+        feature = self.encodings[idx]
+        return feature
+
+    def __len__(self):
+        return len(self.encodings)
+
 
 # Dataset helper for PyTorch with features only
 class PacketDatasetFinetune(torch.utils.data.Dataset):
@@ -74,6 +85,13 @@ def standardize_ips(df):
         lambda x: get_last_digit(x)
     )
     df = standardize_column(df, "Destination IP")
+    return df
+
+def protocol_to_number(df): # TODO nao sei se isto é necessário
+    # TCP = 17; UDP = 6; ICMP = 1; -1 for missing
+    protocol_mapping = {-1: 0, 1: 1, 2:2, 6: 3, 17: 4}
+    df['Proto'] = df['Proto'].map(protocol_mapping)
+    df['Proto'] = df['Proto'].fillna(0).astype(int)  # Fill missing values with 0 and convert to int
     return df
 
 # -----------------------------------------------------------------------
@@ -165,3 +183,12 @@ def get_last_digit(ip):
     return ip % 10
 
 # -----------------------------------------------------------------------
+
+def iat_log_bucket(iat, num_bins=16, min_iat=1e-6, max_iat=10.0):
+    iat = torch.clamp(iat, min=min_iat, max=max_iat)
+    log_iat = torch.log10(iat)
+    log_min = torch.log10(torch.tensor(min_iat))
+    log_max = torch.log10(torch.tensor(max_iat))
+
+    bin_idx = ((log_iat - log_min) / (log_max - log_min) * num_bins).long()
+    return torch.clamp(bin_idx, 0, num_bins - 1)

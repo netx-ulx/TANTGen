@@ -2,6 +2,7 @@ import argparse
 import os
 import time as t
 from datetime import datetime
+import pandas as pd
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -72,8 +73,10 @@ class TANTGen(TANTGen_pretrain):
                 default_loss_diff = nn.SmoothL1Loss()
             if config_finetune["loss_function_diff"] == "kldiv":
                 default_loss_diff = nn.KLDivLoss()
+            if config_finetune["loss_function_diff"] == "mse":
+                default_loss_diff = nn.MSELoss()
         else:
-            default_loss_diff = nn.MSELoss()
+            default_loss_diff = nn.SmoothL1Loss()
         self.loss_func_diff = default_loss_diff
 
         if "loss_function_evasion" in config_finetune.keys():
@@ -89,17 +92,6 @@ class TANTGen(TANTGen_pretrain):
             #default_loss_evasion = nn.CrossEntropyLoss()
             default_loss_evasion = nn.BCEWithLogitsLoss()
         self.loss_func_evasion = default_loss_evasion
-
-        if "loss_function_constraints" in config_finetune.keys():
-            if config_finetune["loss_function_constraints"] == "huber":
-                default_loss_constraints = nn.SmoothL1Loss()
-            if config_finetune["loss_function_constraints"] == "smoothl1":
-                default_loss_constraints = nn.SmoothL1Loss()
-            if config_finetune["loss_function_constraints"] == "kldiv":
-                default_loss_constraints = nn.KLDivLoss()
-        else:
-            default_loss_constraints = nn.CrossEntropyLoss()
-        self.loss_func_constraints = default_loss_constraints
 
         self.lambda_diff = config_finetune["lambda_diff"]
         self.lambda_evasion = config_finetune["lambda_evasion"]
@@ -128,7 +120,7 @@ class TANTGen(TANTGen_pretrain):
 
         return self.output_head(memory)
 
-    def _reconstruct_packets_with_predicted_iat(self, X, pred_iat):
+    def _reconstruct_packets_with_predicted_iat(self, X, pred_iat, iat_bucket):
         """
         Reconstruct packet windows by replacing the IAT feature
         (last feature) with the predicted IAT values.
@@ -156,6 +148,15 @@ class TANTGen(TANTGen_pretrain):
         # Replace last feature (IAT)
         X_mod[:, :, -1] = pred_iat
 
+        iat_bucket_np = iat_bucket.astype(int)
+        iat_bucket_np = iat_bucket_np.reshape(X_mod.shape[0], X_mod.shape[1])
+        iat_bucket_torch = torch.tensor(
+            iat_bucket_np,
+            device=X_mod.device,
+            dtype=X_mod.dtype
+        )
+        X_mod[:, :, 0] = iat_bucket_torch
+
         return X_mod
 
 
@@ -165,36 +166,48 @@ class TANTGen(TANTGen_pretrain):
         X = X.float()
         y = y.float()
 
-        y_input_shifted = y.clone()
-        y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
-        y_input_shifted[:, 0, :] = 0
+        # y_input_shifted = y.clone()
+        # y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
+        # y_input_shifted[:, 0, :] = 0
 
         #y_input = torch.zeros_like(y) # nem está a ser usado
         pred = self.forward(X) #, y_input_shifted)
 
         # === Loss 1: difference ===
         loss_diff = self.loss_func_diff(pred, y)
-        
-        # === Un-normalize ===
+        # print("Difference loss:", loss_diff.item())
+
+        # === Loss 2: evasion ===
         pred_un = pred * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-        y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+        iat_bucket = pd.cut(
+            pred_un.detach().cpu().numpy().reshape(-1),
+            bins=[-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
+            labels=[0, 1, 2, 3, 4, 5]
+        )
+        X_mod = self._reconstruct_packets_with_predicted_iat(X, pred, iat_bucket)
 
-        # === Loss 2: constraints (hinge) ===
-        if self.constraint_limit is not None:
-            # hinge = torch.relu(torch.abs(pred_un - y_un) - self.constraint_limit)
-            # loss_constraint = hinge.mean()
-            loss_constraint = self.loss_func_constraints(pred_un, y_un)
-        else:
-            loss_constraint = torch.tensor(0.0, device=self.device)
-
-        X_mod = self._reconstruct_packets_with_predicted_iat(X, pred_un)
-
-        # === Loss 3: evasion ===
         # get logits from external IDS (not trainable)
         logits_ids = self.nids(X_mod)
-        #print(logits_ids)
-        target_benign = torch.zeros(logits_ids.shape, device=self.device)
-        loss_evasion = self.loss_func_evasion(logits_ids, target_benign)
+        # print("Logits IDS:", logits_ids)
+
+        # target_benign = torch.zeros(logits_ids.shape, device=self.device)
+        # loss_evasion = self.loss_func_evasion(logits_ids, target_benign)
+
+        margin = -1.0
+        loss_evasion = torch.relu(logits_ids - margin).mean()
+        # print("Evasion loss:", loss_evasion.item())
+        
+        # === Loss 3: constraints (hinge) ===
+        # === Un-normalize ===
+        y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+
+        loss_constraint = torch.relu(
+            pred_un - y_un - self.constraint_limit
+        ).mean() + torch.relu(
+            y_un - pred_un
+        ).mean()
+        # print("Constraint loss:", loss_constraint.item())
+        # or loss_constraint = torch.mean((pred_un - y_un)**2)
 
         # total loss
         loss = (
@@ -307,6 +320,7 @@ def main():
         window_stride,
         num_features,
         args.dataset_path,
+        "src/TANTGen/models/mean_std.json" # TODO
     )
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(

@@ -10,7 +10,17 @@ lambda_evasion: 1.0
 lambda_constraints: 0.1
 lambda_diversity: 0.1
 
-constraint_limit: 0.1 # 10e-5
+rate_limit: 10
+
+constraint_limit: 0.025 # 10e-5
+# 0.03 dá ASR de 99.9595% (basta 5 epochs);
+# 0.025 dá ASR de 96.95% (15 epochs); 
+# 0.02 já não funciona quase nada dá ASR de 14.8878% (17 epochs);
+# 0.015 já não funciona quase nada dá ASR de 12.3% (14 epochs);
+# 0.01 já não funciona quase nada dá ASR de 11.8% (18 epochs)
+
+# 0.023 tem loss 2.92 no teste do Surrogate NIDS
+# 0.024 tem loss 2.92 no teste do Surrogate NIDS
 
 epochs: 100
 batch_size: 64
