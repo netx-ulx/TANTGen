@@ -43,71 +43,36 @@ def read_dataset(path, mean_std_path):
 
     if os.path.exists(mean_std_path):
         # Packet Size
-        mean = df["Packet Size"].mean()
-        std = df["Packet Size"].std()
-        print(f"Current Packet Size mean: {mean}")
-        print(f"Current Packet Size std: {std}")
         print("Using existing Packet Size mean and std for standardization")
         mean_std = pd.read_json(mean_std_path)
         mean_packet_size = mean_std["mean_packet_size"][0]
         std_packet_size = mean_std["std_packet_size"][0]
-        df["Packet Size"] = df["Packet Size"].apply(
-            lambda x: (x - mean_packet_size) / std_packet_size
-        )
+        df["Packet Size"] = (df["Packet Size"] - mean_packet_size) / std_packet_size
 
         # IAT
-        mean = df["IAT"].mean()
-        std = df["IAT"].std()
-        print(f"Current IAT mean: {mean}")
-        print(f"Current IAT std: {std}")
         print("Using existing IAT mean and std for standardization")
         mean_iat = mean_std["mean_iat"][0]
         std_iat = mean_std["std_iat"][0]
-        df["IAT"] = df["IAT"].apply(
-            lambda x: (x - mean_iat) / std_iat
-        )
-
-        # Payload Length
-        # mean = df["Payload Length"].mean()
-        # std = df["Payload Length"].std()
-        # print(f"Current Payload Length mean: {mean}")
-        # print(f"Current Payload Length std: {std}")
-        # print("Using existing Payload Length mean and std for standardization")
-        # mean_payload_length = mean_std["mean_payload_length"][0]
-        # std_payload_length = mean_std["std_payload_length"][0]
-        # df["Payload Length"] = df["Payload Length"].apply(
-        #    lambda x: (x - mean_payload_length) / std_payload_length
-        # )
+        df["IAT"] = (df["IAT"] - mean_iat) / std_iat
 
 
         mean_std = {"mean_packet_size": float(mean_packet_size), "std_packet_size": float(std_packet_size),\
-                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)} #, \
-                    # "mean_payload_length": float(mean_payload_length), "std_payload_length": float(std_payload_length)}
+                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+                
     else:
         # Packet Size
         mean_packet_size = df["Packet Size"].mean()
         std_packet_size = df["Packet Size"].std()
-        df["Packet Size"] = df["Packet Size"].apply(
-            lambda x: (x - mean_packet_size) / std_packet_size
-            )
+        df["Packet Size"] = (df["Packet Size"] - mean_packet_size) / std_packet_size
         
         # IAT
         mean_iat = df["IAT"].mean()
         std_iat = df["IAT"].std()
-        df["IAT"] = df["IAT"].apply(
-            lambda x: (x - mean_iat) / std_iat
-            )
-        
-        # Payload Length
-        # mean_payload_length = df["Payload Length"].mean()
-        # std_payload_length = df["Payload Length"].std()
-        # df["Payload Length"] = df["Payload Length"].apply(
-        #     lambda x: (x - mean_payload_length) / std_payload_length
-        #     )
+        df["IAT"] = (df["IAT"] - mean_iat) / std_iat
 
         mean_std = {"mean_packet_size": float(mean_packet_size), "std_packet_size": float(std_packet_size), \
-                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)} #, \
-                    # "mean_payload_length": float(mean_payload_length), "std_payload_length": float(std_payload_length)}
+                    "mean_iat": float(mean_iat), "std_iat": float(std_iat)}
+                    
         pd.DataFrame(mean_std, index=[0]).to_json(mean_std_path)
         
     return df, mean_std
@@ -126,12 +91,12 @@ def create_windows(
     target_array = np.array([[float(value)] for value in label_df.values])
     feature_arr = list(
         make_windows_features(
-            input_array, window_size, num_features, stride
+            input_array, window_size, stride
         )
     )
     target_arr = list(
         make_windows_features(
-            target_array, window_size, num_features, stride
+            target_array, window_size, stride
         )
     )
 
@@ -156,6 +121,57 @@ def generate_sliding_windows(
     label_df = df["IAT"].copy()
 
     feature_arr, target_arr = create_windows(
+        df,
+        label_df,
+        window_size,
+        stride,
+        num_features
+    )
+
+    return feature_arr, target_arr, mean_std, df
+
+
+def create_windows_2(
+    df, 
+    label_df,
+    window_size,
+    stride,
+    num_features
+):
+
+    # Create sliding window features
+    input_array = df.values
+    #input_array = np.hstack(df.apply(lambda row: row.to_numpy(), axis=1).values.flatten())
+    target_array = label_df.values #np.array([[float(value)] for value in label_df.values])
+    feature_arr = list(
+        make_windows_features(
+            input_array, window_size, stride
+        )
+    )
+    target_arr = list(
+        make_windows_features(
+            target_array, window_size, stride
+        )
+    )
+
+    print(len(feature_arr), len(target_arr))
+
+    return feature_arr, target_arr
+
+
+def generate_sliding_windows_2(
+    window_size,
+    stride,
+    num_features,
+    path,
+    mean_std_path
+):
+
+    df, mean_std = read_dataset(path, mean_std_path)
+
+    label_df = df[["Packet Size", "IAT"]].copy()
+
+    feature_arr, target_arr = create_windows_2(
         df,
         label_df,
         window_size,
@@ -203,7 +219,7 @@ def generate_sliding_windows_NIDS2(
     input_array = df.values
     feature_arr = list(
         make_windows_features(
-            input_array, window_size, num_features, stride
+            input_array, window_size, stride
         )
     )
 

@@ -134,7 +134,7 @@ def ipaddress_to_number(df):
 #         yield from input_array[index_matrix]
 
 
-def make_windows_features(input_array, window_length, num_features, stride):
+def make_windows_features(input_array, window_length, stride):
     """Yield windows with a given stride."""
     # Adjust window and batch size for multiple features.
     #_windowsize = num_features * window_length

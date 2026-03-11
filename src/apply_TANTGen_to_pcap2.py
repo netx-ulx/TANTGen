@@ -121,7 +121,6 @@ def process_pcap_with_TANTGen(
 
         with torch.no_grad():
             pred = model(X) #, y_in)                     # [1, T, 1]
-            pred = torch.nn.functional.softplus(pred)
 
         pred = pred.squeeze(0).detach().cpu().numpy()
         modified_iats.extend(pred)

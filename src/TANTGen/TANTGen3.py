@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn
 from torch.utils.data import DataLoader
-from src.TANTGen.generate_sequences import generate_sliding_windows
+from src.TANTGen.generate_sequences import generate_sliding_windows_2
 from src.TANTGen.utils import (
     PacketDataset
 )
@@ -63,51 +63,13 @@ class TANTGen(TANTGen_pretrain):
             for p in self.nids.parameters():
                 p.requires_grad = False
 
-
-        # TODO Confirmar se estes tipos de loss fazem sentido
-
-        if "loss_function_diff" in config_finetune.keys():
-            if config_finetune["loss_function_diff"] == "huber":
-                default_loss_diff = nn.SmoothL1Loss()
-            if config_finetune["loss_function_diff"] == "smoothl1":
-                default_loss_diff = nn.SmoothL1Loss()
-            if config_finetune["loss_function_diff"] == "kldiv":
-                default_loss_diff = nn.KLDivLoss()
-            if config_finetune["loss_function_diff"] == "mse":
-                default_loss_diff = nn.MSELoss()
-        else:
-            default_loss_diff = nn.SmoothL1Loss()
-        self.loss_func_diff = default_loss_diff
-
-        if "loss_function_evasion" in config_finetune.keys():
-            if config_finetune["loss_function_evasion"] == "huber":
-                default_loss_evasion = nn.SmoothL1Loss()
-            if config_finetune["loss_function_evasion"] == "smoothl1":
-                default_loss_evasion = nn.SmoothL1Loss()
-            if config_finetune["loss_function_evasion"] == "kldiv":
-                default_loss_evasion = nn.KLDivLoss()
-            if config_finetune["loss_function_evasion"] == "bce":
-                default_loss_evasion = nn.BCEWithLogitsLoss()
-        else:
-            #default_loss_evasion = nn.CrossEntropyLoss()
-            default_loss_evasion = nn.BCEWithLogitsLoss()
-        self.loss_func_evasion = default_loss_evasion
-
-        self.lambda_diff = config_finetune["lambda_diff"]
         self.lambda_evasion = config_finetune["lambda_evasion"]
         self.lambda_constraints = config_finetune["lambda_constraints"]
-        self.lambda_diversity = config_finetune["lambda_diversity"]
 
         self.constraint_limit = config_finetune["constraint_limit"]
-        self.rate_limit = config_finetune["rate_limit"]
 
     def forward(self, src): #, tgt):
         # used for the forward pass of the model
-
-        # # Create target mask for decoder (prevent positions from attending to subsequent positions)
-        # tgt_mask = torch.triu(
-        #     torch.ones(tgt.size(1), tgt.size(1)) * float("-inf"), diagonal=1
-        # ).to(self.device)
 
         # Cast to doubletensor
         scaled_input = src.float()
@@ -116,14 +78,11 @@ class TANTGen(TANTGen_pretrain):
         final_input = self.positional_encoding(final_input)
         memory = self.encoder(final_input)
 
-        # tgt = self.tgt_embedding(tgt)
-        # tgt = self.positional_encoding(tgt)
-        # dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
         out = self.output_head(memory)
 
-        return out #torch.nn.functional.softplus(out, beta=0.5) #torch.sigmoid(out) * self.constraint_limit
+        return torch.nn.functional.softplus(out, beta=0.5)
 
-    def _reconstruct_packets_with_predicted_iat(self, X, pred_iat, iat_bucket):
+    def _reconstruct_packets_with_predicted_iat(self, X, iat_bucket, packet_size, pred_iat):
         """
         Reconstruct packet windows by replacing the IAT feature
         (last feature) with the predicted IAT values.
@@ -131,30 +90,33 @@ class TANTGen(TANTGen_pretrain):
         Args:
             X: Tensor [B, T, F] original traffic window
             pred_iat: Tensor [B, T] or [B, T, 1] predicted IAT
-
+            packet_size: Tensor [B, T] or [B, T, 1] packet sizes
+            iat_bucket: Tensor [B, T] or [B, T, 1] IAT buckets
         Returns:
             X_mod: Tensor [B, T, F] modified traffic
         """
 
         # Safety checks
         assert X.dim() == 3, "X must be [B, T, F]"
-        
-        if pred_iat.dim() == 3:
-            pred_iat = pred_iat.squeeze(-1)
 
         if iat_bucket.dim() == 3:
             iat_bucket = iat_bucket.squeeze(-1)
 
-        assert pred_iat.shape[:2] == X.shape[:2], \
-            "pred_iat must match batch and time dimensions"
+        if packet_size.dim() == 3:
+            packet_size = packet_size.squeeze(-1)
+        
+        if pred_iat.dim() == 3:
+            pred_iat = pred_iat.squeeze(-1)
 
         # Clone to avoid in-place ops
         X_mod = X.clone()
 
-        # Replace last feature (IAT)
-        X_mod[:, :, -1] = pred_iat
-
+        # Replace features
         X_mod[:, :, 0] = iat_bucket.float()
+
+        X_mod[:, :, 1] = packet_size.float()
+
+        X_mod[:, :, -1] = pred_iat
 
         return X_mod
 
@@ -165,92 +127,62 @@ class TANTGen(TANTGen_pretrain):
         X = X.float()
         y = y.float()
 
-        # y_input_shifted = y.clone()
-        # y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
-        # y_input_shifted[:, 0, :] = 0
-
-        #y_input = torch.zeros_like(y) # nem está a ser usado
         pred = self.forward(X) #, y_input_shifted)
-        pred = torch.nn.functional.softplus(pred)
         torch.set_printoptions(precision=10)
-        #print(pred)
-        # print("Predicted IAT:", pred)
-        # pred is the perturbation to add, unnormalized
 
-        # === Loss 1: difference ===
-        # loss_diff = torch.mean(torch.abs(w * pred))
-        # print("Difference loss:", loss_diff.item())
-
-        # === Loss 2: evasion ===
-        y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-        y_un_mod = y_un + pred
+        # === Loss 1: evasion ===
+        y_iat_un = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+        y_iat_un_mod = y_iat_un + pred[:, :, -1]
         bins = torch.tensor(
             [-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
-            device=y_un_mod.device
+            device=y_iat_un_mod.device
         )
 
-        iat_bucket = torch.bucketize(y_un_mod, bins)
-        y_mod = y + (pred / self.mean_std["std_iat"])
-        X_mod = self._reconstruct_packets_with_predicted_iat(X, y_mod, iat_bucket)
+        y_packet_size_un = y[:, :, 0] * self.mean_std["std_packet_size"] + self.mean_std["mean_packet_size"]
+        #y_packet_size_un_mod = torch.round(y_packet_size_un + pred[:, :, 0])
+        y_packet_size_un_mod_cont = y_packet_size_un + pred[:, :, 0]
+        y_packet_size_un_mod = (
+            y_packet_size_un_mod_cont
+            + (torch.round(y_packet_size_un_mod_cont) - y_packet_size_un_mod_cont).detach()
+        )
+
+        y_packet_size_un_mod = torch.clamp(y_packet_size_un_mod, min=0, max=1500) # Assuming max packet size of 1500 bytes
+        print(torch.round(pred[:, :, 0]))
+        y_packet_size_mod = (y_packet_size_un_mod - self.mean_std["mean_packet_size"]) / self.mean_std["std_packet_size"]
+
+        iat_bucket = torch.bucketize(y_iat_un_mod, bins)
+        y_iat_mod = y[:, :, -1] + (pred[:, :, -1] / self.mean_std["std_iat"])
+
+        X_mod = self._reconstruct_packets_with_predicted_iat(X, iat_bucket, y_packet_size_mod, y_iat_mod)
 
         # get logits from external IDS (not trainable)
         logits_ids = self.nids(X_mod)
-        print("logits mean:", logits_ids.mean().item())
-        print("logits std:", logits_ids.std().item())
-        #print(logits_ids)
-
-        # target_benign = torch.zeros(logits_ids.shape, device=self.device)
-        # loss_evasion = self.loss_func_evasion(logits_ids, target_benign)
+        # print("logits mean:", logits_ids.mean().item())
+        # print("logits std:", logits_ids.std().item())
+        # print(logits_ids)
 
         margin = -1.0
         loss_evasion = torch.relu(logits_ids - margin).mean()
         print("Evasion loss:", loss_evasion.item())
         
-        # === Loss 3: constraints (hinge) ===
+        # === Loss 2: constraints (hinge) ===
 
-        budget = self.rate_limit * y_un.sum(dim=1, keepdim=True) # budget per window, e.g. 10% increase in total IAT
+        budget = self.constraint_limit * 10
 
-        # eps = 1e-3 * y_un.mean()
-        # w = 1.0 / (y_un + eps)
-        # w = w / w.mean(dim=1, keepdim=True)
-        # if train:
-        #     print("bbbbb")
-        #     print(w[0][:20])
-        # loss_budget = torch.relu((pred).sum(dim=1) - budget).mean()
-        # loss_budget = torch.relu((w * pred).sum(dim=1) - budget).mean()
-        # relative_delta = pred / (y_un + eps)
-        # loss_budget = torch.relu(relative_delta.sum(dim=1) - budget).mean()
-
-        budget_used = pred.sum(dim=1)
+        budget_used = pred[:, :, -1].sum(dim=1)
         loss_budget = (((budget_used - budget)/budget)**2).mean()
         print("Budget loss:", loss_budget.item())
 
-        #loss_diff = torch.mean(torch.abs(w * pred))
-
-        # === Loss 4: diversity  ===
-        # loss_diversity = - torch.var(pred, dim=1).mean() * 1e4
-
-        # print(
-        #     pred.mean(dim=1).mean().item(),
-        #     pred.std(dim=1).mean().item(),
-        #     loss_diversity.item()
-        # )
-
-        # p = pred / (pred.sum(dim=1, keepdim=True) + 1e-8)
-        # entropy = -(p * torch.log(p + 1e-8)).sum(dim=1)
-        # loss_diversity = -entropy.mean()
-        # print("Diversity loss:", loss_diversity.item())
+        loss_packet_size = pred[:, :, 0].sum() / (pred[:, :, 0].numel() * self.mean_std["std_packet_size"])
+        print("Packet size loss:", loss_packet_size.item())
 
         # total loss
         loss = (
-            # self.lambda_diff * loss_diff +
             self.lambda_evasion * loss_evasion
-            #+ self.lambda_constraints * loss_constraint
-            #+ self.lambda_diversity * loss_diversity
             + self.lambda_constraints * loss_budget
+            + self.lambda_constraints * loss_packet_size
         )
 
-        # print("Total loss:", loss.item())
         # if train:
         #     exit(0)
 
@@ -353,7 +285,7 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
+    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_2(
         sliding_window_size,
         window_stride,
         num_features,

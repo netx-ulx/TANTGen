@@ -99,6 +99,7 @@ class TANTGen(TANTGen_pretrain):
         self.lambda_diversity = config_finetune["lambda_diversity"]
 
         self.constraint_limit = config_finetune["constraint_limit"]
+        self.rate_limit = config_finetune["rate_limit"]
 
     def forward(self, src): #, tgt):
         # used for the forward pass of the model
@@ -120,7 +121,7 @@ class TANTGen(TANTGen_pretrain):
         # dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
         out = self.output_head(memory)
 
-        return out #torch.nn.functional.softplus(out, beta=0.5) #torch.sigmoid(out) * self.constraint_limit
+        return torch.nn.functional.softplus(out, beta=0.5) #out #torch.sigmoid(out) * self.constraint_limit
 
     def _reconstruct_packets_with_predicted_iat(self, X, pred_iat, iat_bucket):
         """
@@ -170,7 +171,7 @@ class TANTGen(TANTGen_pretrain):
 
         #y_input = torch.zeros_like(y) # nem está a ser usado
         pred = self.forward(X) #, y_input_shifted)
-        pred = torch.nn.functional.softplus(pred)
+        #pred = torch.nn.functional.softplus(pred)
         torch.set_printoptions(precision=10)
         #print(pred)
         # print("Predicted IAT:", pred)
@@ -208,6 +209,8 @@ class TANTGen(TANTGen_pretrain):
         # === Loss 3: constraints (hinge) ===
 
         budget = self.constraint_limit * 10
+        #budget = self.rate_limit * y_un.sum(dim=1, keepdim=True) # budget per window, e.g. 10% increase in total IAT
+
         # loss_budget = torch.relu(
         #     pred.abs().sum(dim=1) - budget
         # ).mean()
