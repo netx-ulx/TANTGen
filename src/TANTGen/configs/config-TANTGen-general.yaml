@@ -21,7 +21,7 @@ window_stride: 10
 # Dataset parameters
 #--------------------
 num_features: 3 #6
-output_size: 1
+output_size: 2
 
 #--------------------
 # Save parameters
