@@ -7,7 +7,7 @@ loss_fun_evasion: bce
 
 lambda_diff: 0.01
 lambda_evasion: 1.0
-lambda_constraints: 0.1
+lambda_constraints: 1.0
 lambda_diversity: 0.1
 
 rate_limit: 10
@@ -22,7 +22,7 @@ constraint_limit: 0.025 # 10e-5
 # 0.023 tem loss 2.92 no teste do Surrogate NIDS
 # 0.024 tem loss 2.92 no teste do Surrogate NIDS
 
-epochs: 100
+epochs: 15
 batch_size: 64
 
 #--------------------

@@ -16,12 +16,10 @@ def read_dataset(path, mean_std_path):
     df = pd.read_csv(path)
     print("Dataset read from: ", path)
 
-    kitsune_columns = [col for col in df.columns if 'kitsune_feat_' in col]
+    #df['IAT_bucket'] = pd.cut(df['IAT'], bins=[-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf], labels=[0, 1, 2, 3, 4, 5])
 
-    df['IAT_bucket'] = pd.cut(df['IAT'], bins=[-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf], labels=[0, 1, 2, 3, 4, 5])
-
-    df = df[kitsune_columns + [#'Timestamp', 
-            'IAT_bucket', \
+    df = df[[#'Timestamp', 
+            #'IAT_bucket', \
             'Packet Size', \
             #'Proto', \
             #'Source IP', 'Destination IP', \
@@ -53,6 +51,7 @@ def read_dataset(path, mean_std_path):
         print("Using existing IAT mean and std for standardization")
         mean_iat = mean_std["mean_iat"][0]
         std_iat = mean_std["std_iat"][0]
+        df["IAT"] = np.log1p(df["IAT"])
         df["IAT"] = (df["IAT"] - mean_iat) / std_iat
 
 
@@ -66,6 +65,7 @@ def read_dataset(path, mean_std_path):
         df["Packet Size"] = (df["Packet Size"] - mean_packet_size) / std_packet_size
         
         # IAT
+        df["IAT"] = np.log1p(df["IAT"])
         mean_iat = df["IAT"].mean()
         std_iat = df["IAT"].std()
         df["IAT"] = (df["IAT"] - mean_iat) / std_iat

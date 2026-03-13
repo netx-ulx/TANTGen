@@ -15,7 +15,7 @@ protocol = {
     "???": 0
 }
 
-def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
+def separate(pcap_file, labels_file, malicious_pcap, benign_pcap, output_label_file):
 
     df = pd.read_csv(labels_file)
 
@@ -38,7 +38,7 @@ def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
         malicious_df[' Protocol'],
     ))
 
-    print(f"Total malicious flows to filter: {len(malicious_flows)}")
+    labels = []
 
     for i, pkt in enumerate(reader):
         if pkt.haslayer(IP):
@@ -63,12 +63,15 @@ def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
             if flow in malicious_flows or reverse_flow in malicious_flows:
                 writer_mal.write(pkt)
                 malicious_count += 1
+                labels += [1]
             else:
                 writer_ben.write(pkt)
                 benign_count += 1
+                labels += [0]
         else:
             writer_ben.write(pkt)
             benign_count += 1
+            labels += [0]
 
         if i % 100000 == 0:
             print(f"Processed {i} packets")
@@ -77,6 +80,10 @@ def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
     writer_mal.close()
     writer_ben.close()
 
+    df_labels = pd.DataFrame({'x': labels})
+
+    df_labels.to_csv(output_label_file, index=False)
+
     print(f"File generated: {malicious_pcap} with {malicious_count} packets")
     print(f"File generated: {benign_pcap} with {benign_count} packets")
 
@@ -84,14 +91,11 @@ if __name__ == "__main__":
 
     parse = argparse.ArgumentParser()
 
-    parse.add_argument('-i', '--pcap_file', type=str, required=False, help="raw traffic (.pcap) path", default="data/original/CIC-IDS-2017/PCAPs/Wednesday-workingHours.pcap")
-    parse.add_argument('-l', '--labels_file', type=str, required=False, help="labels (.csv) path", default="data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Wednesday-workingHours.pcap_ISCX.csv")
-    parse.add_argument('-m', '--output_malicious_file', type=str, required=False, help="output malicious pcap file path", default="data/original/CIC-IDS-2017/PCAPs/wednesday_malicious.pcap")
-    parse.add_argument('-b', '--output_benign_file', type=str, required=False, help="output benign pcap file path", default="data/original/CIC-IDS-2017/PCAPs/wednesday_benign.pcap")
+    parse.add_argument('-i', '--pcap_file', type=str, required=True, help="raw traffic (.pcap) path")
+    parse.add_argument('-l', '--labels_file', type=str, required=True, help="labels (.csv) path")
+    parse.add_argument('-m', '--output_malicious_file', type=str, required=True, help="output malicious pcap file path")
+    parse.add_argument('-b', '--output_benign_file', type=str, required=True, help="output benign pcap file path")
+    parse.add_argument('-ol', '--output_label', type=str, required=True, help="output label file path")
     arg = parse.parse_args()
-    pcap_file = arg.pcap_file
-    labels_file = arg.labels_file
-    output_malicious_file = arg.output_malicious_file
-    output_benign_file = arg.output_benign_file
 
-    separate(pcap_file, labels_file, output_malicious_file, output_benign_file)
+    separate(arg.pcap_file, arg.labels_file, arg.output_malicious_file, arg.output_benign_file, arg.output_label)

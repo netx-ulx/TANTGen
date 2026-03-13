@@ -24,69 +24,68 @@ def split_dataset(attack_name,
                   train_nids_ratio, train_surrogate_b_ratio,
                   train_adversarial_ratio, train_surrogate_m_ratio
                   ):
-    # extrair timestamps
+
     cmd = [
         TSHARK, "-r", benign_pcap,
         "-T", "fields",
-        "-e", "frame.time_epoch"
+        "-e", "frame.number"
     ]
-    timestamps = pd.Series(
-        subprocess.check_output(cmd).decode().splitlines(),
-        dtype=float
-    )
 
-    t_benign_0 = timestamps.min()
-    t_benign_i1 = timestamps.quantile(train_nids_ratio)
-    t_benign_i2 = timestamps.quantile(train_nids_ratio + train_surrogate_b_ratio)
-    t_benign_end = timestamps.max() + 1  # to include the last packet
+    n_benign = len(subprocess.check_output(cmd).decode().splitlines())
+
+    b_i1 = int(n_benign * train_nids_ratio)
+    b_i2 = int(n_benign * (train_nids_ratio + train_surrogate_b_ratio))
 
     cmd = [
         TSHARK, "-r", malicious_pcap,
         "-T", "fields",
-        "-e", "frame.time_epoch"
+        "-e", "frame.number"
     ]
-    timestamps = pd.Series(
-        subprocess.check_output(cmd).decode().splitlines(),
-        dtype=float
-    )
+    
+    n_malicious = len(subprocess.check_output(cmd).decode().splitlines())
 
-    t_malicious_0 = timestamps.min()
-    t_malicious_i1 = timestamps.quantile(train_adversarial_ratio)
-    t_malicious_i2 = timestamps.quantile(train_adversarial_ratio + train_surrogate_m_ratio)
-    t_malicious_end = timestamps.max() + 1  # to include the last packet
+    m_i1 = int(n_malicious * train_adversarial_ratio)
+    m_i2 = int(n_malicious * (train_adversarial_ratio + train_surrogate_m_ratio))
 
     def cut_pcap(input_pcap, output_pcap, t_start, t_end):
         cmd = [
             TSHARK,
             "-r", input_pcap,
-            "-Y", f"frame.time_epoch >= {t_start} && frame.time_epoch < {t_end}",
+            "-Y", f"frame.number >= {t_start} && frame.number <= {t_end}",
             "-w", output_pcap
         ]
         subprocess.run(cmd, check=True)
 
-    benign_file_name = Path(benign_pcap).name
-    malicious_file_name = Path(malicious_pcap).name
-
-    cut_pcap(benign_pcap, OUTPUT_FOLDER_NIDS + benign_file_name, t_benign_0, t_benign_i1)
-    cut_pcap(benign_pcap, OUTPUT_FOLDER_SURROGATE + benign_file_name, t_benign_i1, t_benign_i2)
-    cut_pcap(benign_pcap, OUTPUT_FOLDER_TEST + benign_file_name, t_benign_i2, t_benign_end)
-    cut_pcap(malicious_pcap, OUTPUT_FOLDER_ADVERSARIAL + malicious_file_name, t_malicious_0, t_malicious_i1)
-    cut_pcap(malicious_pcap, OUTPUT_FOLDER_SURROGATE + malicious_file_name, t_malicious_i1, t_malicious_i2)
-    cut_pcap(malicious_pcap, OUTPUT_FOLDER_TEST + malicious_file_name, t_malicious_i2, t_malicious_end)
+    cut_pcap(benign_pcap, OUTPUT_FOLDER_NIDS + attack_name + "_benign.pcap", 1, b_i1)
+    cut_pcap(benign_pcap, OUTPUT_FOLDER_SURROGATE + attack_name + "_benign.pcap", b_i1+1, b_i2)
+    cut_pcap(benign_pcap, OUTPUT_FOLDER_TEST + attack_name + "_benign.pcap", b_i2+1, n_benign)
+    cut_pcap(malicious_pcap, OUTPUT_FOLDER_ADVERSARIAL + attack_name + "_malicious.pcap", 1, m_i1)
+    cut_pcap(malicious_pcap, OUTPUT_FOLDER_SURROGATE + attack_name + "_malicious.pcap", m_i1+1, m_i2)
+    cut_pcap(malicious_pcap, OUTPUT_FOLDER_TEST + attack_name + "_malicious.pcap", m_i2+1, n_malicious)
 
     # merge surrogate files
     cmd = [
         "mergecap",
         "-a",
         "-w", OUTPUT_FOLDER_SURROGATE + attack_name + "_all.pcap",
-        OUTPUT_FOLDER_SURROGATE + benign_file_name,
-        OUTPUT_FOLDER_SURROGATE + malicious_file_name
+        OUTPUT_FOLDER_SURROGATE + attack_name + "_benign.pcap",
+        OUTPUT_FOLDER_SURROGATE + attack_name + "_malicious.pcap"
     ]
     subprocess.run(cmd, check=True)
 
     # remove individual surrogate files
-    Path(OUTPUT_FOLDER_SURROGATE + benign_file_name).unlink()
-    Path(OUTPUT_FOLDER_SURROGATE + malicious_file_name).unlink()
+    Path(OUTPUT_FOLDER_SURROGATE + attack_name + "_benign.pcap").unlink()
+    Path(OUTPUT_FOLDER_SURROGATE + attack_name + "_malicious.pcap").unlink()
+
+    # merge test files
+    cmd = [
+        "mergecap",
+        "-a",
+        "-w", OUTPUT_FOLDER_TEST + attack_name + "_all.pcap",
+        OUTPUT_FOLDER_TEST + attack_name + "_benign.pcap",
+        OUTPUT_FOLDER_TEST + attack_name + "_malicious.pcap"
+    ]
+    subprocess.run(cmd, check=True)
 
     # ======================================================
     # create splitted labels file
@@ -94,22 +93,11 @@ def split_dataset(attack_name,
 
     labels = pd.read_csv(labels_file)
 
-    n_benign = len(labels[labels.x == 0])
-    n_malicious = len(labels[labels.x == 1])
+    labels_train_sur_benign = labels[labels.x == 0].iloc[b_i1:b_i2]
+    labels_test_final_benign = labels[labels.x == 0].iloc[b_i2:]
 
-    # Benign indices
-    idx_benign_train_sur_init = int(train_nids_ratio * n_benign)
-    idx_benign_train_sur_end = int((train_nids_ratio + train_surrogate_b_ratio) * n_benign)
-
-    labels_train_sur_benign = labels[labels.x == 0].iloc[idx_benign_train_sur_init:idx_benign_train_sur_end]
-    labels_test_final_benign = labels[labels.x == 0].iloc[idx_benign_train_sur_end:]
-
-    # Malicious indices
-    idx_malicious_train_sur_init = int(train_adversarial_ratio * n_malicious)
-    idx_malicious_train_sur_end = int((train_adversarial_ratio + train_surrogate_m_ratio) * n_malicious)
-
-    labels_train_sur_malicious = labels[labels.x == 1].iloc[idx_malicious_train_sur_init:idx_malicious_train_sur_end]
-    labels_test_final_malicious = labels[labels.x == 1].iloc[idx_malicious_train_sur_end:]
+    labels_train_sur_malicious = labels[labels.x == 1].iloc[m_i1:m_i2]
+    labels_test_final_malicious = labels[labels.x == 1].iloc[m_i2:]
 
     # Concatenate and sort
     labels_train_sur = pd.concat([labels_train_sur_benign, labels_train_sur_malicious])
@@ -117,7 +105,7 @@ def split_dataset(attack_name,
     labels_test_final = pd.concat([labels_test_final_benign, labels_test_final_malicious])
     labels_test_final = labels_test_final.sort_index()
 
-    # Save to CSV
+    # # Save to CSV
     labels_train_sur.to_csv(OUTPUT_FOLDER_SURROGATE + attack_name + "_labels.csv", index=False)
     labels_test_final.to_csv(OUTPUT_FOLDER_TEST + attack_name + "_labels.csv", index=False)
 

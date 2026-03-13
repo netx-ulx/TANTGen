@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from scapy.all import *
+from src.Feature_Extraction.dataloader import get_basic_features
 from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.TANTGen2 import TANTGen
 from scapy.all import PcapReader, PcapWriter, TCP, UDP, IP
@@ -99,9 +100,9 @@ def process_pcap_with_TANTGen(
     # =====================================================
     # 1. Extracting features from malicious PCAP
     # =====================================================
-    # df = get_basic_features(malicious_pcap_path)
-    # df.to_csv(config_folders["Adversarial_Test_Folder"] + "temp_features.csv", index=False)
-    df = pd.read_csv(config_folders["Adversarial_Test_Folder"] + "temp_features.csv")
+    df = get_basic_features(malicious_pcap_path)
+    df.to_csv(config_folders["Adversarial_Test_Folder"] + "temp_features.csv", index=False)
+    # df = pd.read_csv(config_folders["Adversarial_Test_Folder"] + "temp_features.csv")
 
     print(f"[✓] Features extracted: {df.shape}")
 

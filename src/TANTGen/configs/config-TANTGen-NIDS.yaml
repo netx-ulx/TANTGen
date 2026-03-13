@@ -2,7 +2,7 @@
 # Pretrain model parameters
 #---------------------------
 loss_function: huber
-epochs: 30 #|TODO verify
+epochs: 100 #|TODO verify
 batch_size: 64
 
 #--------------------

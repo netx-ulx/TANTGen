@@ -14,13 +14,13 @@ linear_size: 120
 # --------------------------
 # Sliding window parameters
 # --------------------------
-sliding_window_size: 10
-window_stride: 10
+sliding_window_size: 64
+window_stride: 64
 
 #--------------------
 # Dataset parameters
 #--------------------
-num_features: 3 #6
+num_features: 2 #6
 output_size: 2
 
 #--------------------
