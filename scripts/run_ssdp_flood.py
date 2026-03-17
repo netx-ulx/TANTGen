@@ -1,4 +1,4 @@
-from scripts.utils import run_pipeline
+from scripts.utils import run_kitsune_pipeline
 
 attack_name = "SSDP_Flood"
 
@@ -14,7 +14,7 @@ train_adversarial_ratio = 0.6 # 60% train adversarial
 train_surrogate_m_ratio = 0.2 # 20% train surrogate
 test_adversarial_m_ratio = 0.2 # 20% test adversarial
 
-run_pipeline(attack_name, pcap_file, labels_file,
+run_kitsune_pipeline(attack_name, pcap_file, labels_file,
              train_nids_ratio, train_surrogate_b_ratio,
              train_adversarial_ratio, train_surrogate_m_ratio)
 
@@ -35,7 +35,8 @@ run_pipeline(attack_name, pcap_file, labels_file,
 # python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/SSDP_Flood_malicious.pcap -o data/preprocessed/adversarial_train/SSDP_Flood_malicious_features.csv
 # python -m src.TANTGen.TANTGen --dataset_path data/preprocessed/adversarial_train/SSDP_Flood_malicious_features.csv
 
-# python -m src.apply_TANTGen_to_pcap -ib data/preprocessed/adversarial_test/SSDP_Flood_benign.pcap -im data/preprocessed/adversarial_test/SSDP_Flood_malicious.pcap -o data/adversarial/SSDP_Flood_adversarial.pcap
+# python -m src.apply_TANTGen_to_pcap -i data/preprocessed/adversarial_test/SSDP_Flood_malicious.pcap -o data/adversarial/SSDP_Flood_adversarial.pcap
+# mergecap -w data/adversarial/SSDP_Flood_adversarial.pcap data/preprocessed/adversarial_test/SSDP_Flood_benign.pcap data/adversarial/SSDP_Flood_adversarial.pcap
 
 # python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/adversarial_test/SSDP_Flood_all.pcap -o data/preprocessed/adversarial_test/SSDP_Flood_all_features.npy
 # python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/SSDP_Flood_model.pkl -tf data/preprocessed/adversarial_test/SSDP_Flood_all_features.npy -an SSDP_Flood_original -yt data/preprocessed/adversarial_test/SSDP_Flood_labels.csv

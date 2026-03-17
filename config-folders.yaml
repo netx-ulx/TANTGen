@@ -5,4 +5,6 @@ Adversarial_Train_Folder: data/preprocessed/adversarial_train/
 Surrogate_Train_Folder: data/preprocessed/adversarial_train/surrogate_train/
 Target_Train_Folder: data/preprocessed/target_train/
 Kitsune_Models_Folder: src/Kitsune/models/
+CICIDS2017_Models_Folder: src/NIDS/models/
 Final_Adversarial_Folder: data/adversarial/
+Results_Folder: results/

@@ -83,17 +83,21 @@ mapping = {
     "idle_min": "Idle Min",
 }
 
-def map_features(input_csv, output_csv):
+def map_features(benign_csv, malicious_csv, output_csv):
 
     # Columns in the expected order
-    expected_cols = list(mapping.values())
+    expected_cols = list(mapping.values()) + ["Label"]
 
     # Read input CSV
-    df = pd.read_csv(input_csv)
+    df_benign = pd.read_csv(benign_csv)
+    df_benign["Label"] = 0
+    df_malicious = pd.read_csv(malicious_csv)
+    df_malicious["Label"] = 1
+    df = pd.concat([df_benign, df_malicious], ignore_index=True)
     df["fwd_header_len1"] = df["fwd_header_len"]
     df = df.rename(columns=mapping)
 
-    # Reorder columns
+    # Filter and reorder columns
     df = df[expected_cols]
 
     # Save converted CSV
@@ -104,8 +108,9 @@ if __name__ == "__main__":
 
     parse = argparse.ArgumentParser()
 
-    parse.add_argument('-i', '--input_path', type=str, required=True, help="input csv file path")
+    parse.add_argument('-b', '--benign_file', type=str, required=True, help="benign csv file path")
+    parse.add_argument('-m', '--malicious_file', type=str, required=True, help="malicious csv file path")
     parse.add_argument('-o', '--output_path', type=str, required=True, help="output csv file path")
     arg = parse.parse_args()
 
-    map_features(arg.input_path, arg.output_path)
+    map_features(arg.benign_file, arg.malicious_file, arg.output_path)

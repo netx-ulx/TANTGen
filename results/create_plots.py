@@ -4,15 +4,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import math
+import yaml
 
-for folder in os.listdir("src/Attack Results"):
-    if os.path.isdir(os.path.join("src/Attack Results", folder)) and folder != "plots":
+with open("config-folders.yaml") as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
+
+for folder in os.listdir(config["Results_Folder"]):
+    if os.path.isdir(os.path.join(config["Results_Folder"], folder)) and folder != "plots":
         results = []
-        for file in glob.glob(f"src/Attack Results/{folder}/results_*.json"):
+        for file in glob.glob(f"{config['Results_Folder']}{folder}/results_*.json"):
             with open(file) as f:
                 results.append(json.load(f))
 
-        os.makedirs(f"src/Attack Results/plots/{folder}", exist_ok=True)
+        os.makedirs(f"{config['Results_Folder']}plots/{folder}", exist_ok=True)
 
         # F1-score plot
 
@@ -25,7 +29,7 @@ for folder in os.listdir("src/Attack Results"):
         plt.title("Kitsune - F1-score por ataque")
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig(f"src/Attack Results/plots/{folder}/f1_scores.png", dpi=300)
+        plt.savefig(f"{config['Results_Folder']}plots/{folder}/f1_scores.png", dpi=300)
         plt.show()
 
         # Attack Success Rate plot
@@ -38,7 +42,7 @@ for folder in os.listdir("src/Attack Results"):
         plt.title("Kitsune - Attack Success Rate por ataque")
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig(f"src/Attack Results/plots/{folder}/attack_success_rate.png", dpi=300)
+        plt.savefig(f"{config['Results_Folder']}plots/{folder}/attack_success_rate.png", dpi=300)
         plt.show()
 
         # Confusion Matrices plot
@@ -84,5 +88,5 @@ for folder in os.listdir("src/Attack Results"):
         fig.suptitle("Confusion Matrices - Kitsune", fontsize=18)
         fig.tight_layout(rect=[0, 0, 1, 0.95])
 
-        fig.savefig(f"src/Attack Results/plots/{folder}/confusion_matrices.png", dpi=300, bbox_inches="tight")
+        fig.savefig(f"{config['Results_Folder']}plots/{folder}/confusion_matrices.png", dpi=300, bbox_inches="tight")
         plt.show()

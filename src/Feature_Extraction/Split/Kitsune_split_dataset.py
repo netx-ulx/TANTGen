@@ -66,7 +66,6 @@ def split_dataset(attack_name,
     # merge surrogate files
     cmd = [
         "mergecap",
-        "-a",
         "-w", OUTPUT_FOLDER_SURROGATE + attack_name + "_all.pcap",
         OUTPUT_FOLDER_SURROGATE + attack_name + "_benign.pcap",
         OUTPUT_FOLDER_SURROGATE + attack_name + "_malicious.pcap"
@@ -80,7 +79,6 @@ def split_dataset(attack_name,
     # merge test files
     cmd = [
         "mergecap",
-        "-a",
         "-w", OUTPUT_FOLDER_TEST + attack_name + "_all.pcap",
         OUTPUT_FOLDER_TEST + attack_name + "_benign.pcap",
         OUTPUT_FOLDER_TEST + attack_name + "_malicious.pcap"

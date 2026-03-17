@@ -1,0 +1,19 @@
+{
+    "attack_name": "SSDP_Flood_original",
+    "model": "Kitsune",
+    "threshold": 0.5707482690128459,
+    "num_packets": 551688,
+    "confusion_matrix": {
+        "TP": 287917,
+        "FP": 896,
+        "FN": 4,
+        "TN": 262871
+    },
+    "metrics": {
+        "accuracy": 0.9983686431461261,
+        "precision": 0.9968976465740808,
+        "recall": 0.9999861073002664,
+        "f1_score": 0.9984394885683868,
+        "attack_success_rate": 1.3892699733607e-05
+    }
+}

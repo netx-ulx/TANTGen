@@ -22,7 +22,7 @@ constraint_limit: 0.025 # 10e-5
 # 0.023 tem loss 2.92 no teste do Surrogate NIDS
 # 0.024 tem loss 2.92 no teste do Surrogate NIDS
 
-epochs: 15
+epochs: 50
 batch_size: 64
 
 #--------------------

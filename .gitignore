@@ -8,22 +8,19 @@ data/preprocessed
 
 # src
 
-src/Kitsune/example
 src/Kitsune/Feature_Extraction/build
-src/Kitsune/Feature_Extraction/AfterImage.cpython*
-src/Kitsune/Feature_Extraction/AfterImage.c
+src/Kitsune/Feature_Extraction/AfterImage*
 
 src/TANTGen/transformer_iat_logs
 src/TANTGen/transformer_nids_logs
 src/TANTGen/TANTGen_logs
 src/TANTGen/plots
 
-src/Attack\ Results/create_results_plot.ipynb
+results/create_results_plot.ipynb
 
 # Others
-others
-
 venv
 
 *.pth
 *.pkl
+*.joblib

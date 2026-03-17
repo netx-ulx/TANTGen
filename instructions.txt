@@ -1,3 +1,8 @@
+-1. ??? TODO
+git clone https://github.com/datthinh1801/cicflowmeter.git
+cd cicflowmeter
+python3 setup.py install
+
 0. Separate Benign Malicious
 # CIC_IDS_2017
 python src/Feature_Extraction/Split/CIC_IDS_divide_BM.py -i data/original/CIC-IDS-2017/PCAPs/Wednesday-workingHours.pcap -l data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Wednesday-workingHours.pcap_ISCX.csv -m data/original/CIC-IDS-2017/PCAPs/Malicious/wednesday_malicious.pcap -b data/original/CIC-IDS-2017/PCAPs/Benign/wednesday_benign.pcap # Attack type: DoS/DDoS
@@ -32,5 +37,5 @@ python src/NIDS/test_models_final.py -i <path_to_test_features.csv> -a <attack_n
 # python src/NIDS/test_models_final.py -i data/preprocessed/target_train/CIC_IDS_target_train.csv -a All -yt data/preprocessed/target_train/CIC_IDS_target_train.csv 
 
 4. Create Plots
-python src/Attack\ Results/create_plots.py
-# plots will be saved in src/Attack Results/plots/<nids_folder>
+python results/create_plots.py
+# plots will be saved in results/plots/<nids_folder>

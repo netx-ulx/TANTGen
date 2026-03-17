@@ -184,7 +184,6 @@ class TANTGen_NIDS(pl.LightningModule):
 
     def on_train_epoch_end(self):
         loss = [x.detach().cpu().item() for x in self.training_step_outputs]
-        # y_pred = np.concatenate(self.training_step_predictions)
         self.log(
             "Avg loss per epoch",
             np.mean(np.array(loss)),
@@ -194,45 +193,14 @@ class TANTGen_NIDS(pl.LightningModule):
         print(f"Avg train loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Train Loss = {np.sum(loss):.4f}")
 
-        # # escolher threshold 0.5 para binário
-        # th = 0.5
-        # yhat = (y_pred > th).astype(int)
-        # p, r, f1, _ = precision_recall_fscore_support(y_true, yhat, average="binary", zero_division=0)
-        # try:
-        #     auc = roc_auc_score(y_true, y_pred)
-        # except:
-        #     auc = float("nan")
-        # self.log("train_precision", p)
-        # self.log("train_recall", r)
-        # self.log("train_f1", f1)
-        # self.log("train_auc", auc)
-
         self.training_step_outputs = []
         self.training_step_predictions = []
 
     def on_validation_epoch_end(self):
         print()
         loss = [x.detach().cpu().item() for x in self.validation_step_outputs]
-        # y_pred = np.concatenate(self.validation_step_predictions)
         print(f"Avg val loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Validation Loss = {np.sum(loss):.4f}")
-
-        # th = 0.5
-        # yhat = (y_pred > th).astype(int)
-        # p, r, f1, _ = precision_recall_fscore_support(y_true, yhat, average="binary", zero_division=0)
-        # try:
-        #     auc = roc_auc_score(y_true, y_pred)
-        # except:
-        #     auc = float("nan")
-        # cm = confusion_matrix(y_true, yhat, labels=[0,1])
-        # self.log("val_precision", p)
-        # self.log("val_recall", r)
-        # self.log("val_f1", f1)
-        # self.log("val_auc", auc)
-        # self.log("val_confusion_TN", cm[0,0])
-        # self.log("val_confusion_FP", cm[0,1]) # TODO verificar se é isto
-        # self.log("val_confusion_FN", cm[1,0])
-        # self.log("val_confusion_TP", cm[1,1])
 
         self.validation_step_outputs = []
         self.validation_step_predictions = []
@@ -240,33 +208,8 @@ class TANTGen_NIDS(pl.LightningModule):
     def on_test_epoch_end(self):
         print()
         loss = [x.detach().cpu().item() for x in self.test_step_outputs]
-        # y_pred = np.concatenate(self.test_step_predictions)
         print(f"Avg test loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Test Loss = {np.sum(loss):.4f}")
-
-        # th = 0.5
-        # yhat = (y_pred > th).astype(int)
-        # p, r, f1, _ = precision_recall_fscore_support(y_true, yhat, average="binary", zero_division=0)
-        # try:
-        #     auc = roc_auc_score(y_true, y_pred)
-        # except:
-        #     auc = float("nan")
-        # cm = confusion_matrix(y_true, yhat, labels=[0,1])
-        # self.log("test_precision", p)
-        # self.log("test_recall", r)
-        # self.log("test_f1", f1)
-        # self.log("test_auc", auc)
-        # self.log("test_confusion_TN", cm[0,0])
-        # self.log("test_confusion_FP", cm[0,1]) # TODO verificar se é isto
-        # self.log("test_confusion_FN", cm[1,0])
-        # self.log("test_confusion_TP", cm[1,1])
-
-        # # Attack Success Rate (ASR)
-        # print("Calculating Attack Success Rate (ASR)...")
-        # total_attacks = np.sum(y_true)
-        # asr = cm[1,0] / total_attacks if total_attacks > 0 else 0.0
-
-        # self.log("Attack Success Rate", asr)
 
         self.test_step_outputs = []
         self.test_step_predictions = []
@@ -507,7 +450,7 @@ def main():
     plt.ylabel("Attribution")
     plt.title("Temporal importance")
     plt.tight_layout()
-    plt.savefig(f"a.png", dpi=300)
+    plt.savefig(f"src/TANTGen/plots/a.png", dpi=300)
     plt.show()
 
     importance_feat = attr.abs().mean(dim=1)  # (B, num_features)
@@ -521,7 +464,7 @@ def main():
     plt.ylabel("Attribution")
     plt.title("Feature importance")
     plt.tight_layout()
-    plt.savefig(f"b.png", dpi=300)
+    plt.savefig(f"src/TANTGen/plots/b.png", dpi=300)
     plt.show()
 
     plt.figure(figsize=(10, 5))
@@ -535,7 +478,7 @@ def main():
     plt.colorbar(label="Attribution")
     plt.title("Attribution heatmap (time × feature)")
     plt.tight_layout()
-    plt.savefig(f"c.png", dpi=300)
+    plt.savefig(f"src/TANTGen/plots/c.png", dpi=300)
     plt.show()
 
 

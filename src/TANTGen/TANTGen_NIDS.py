@@ -545,7 +545,7 @@ def main():
     plt.ylabel("Attribution")
     plt.title("Temporal importance")
     plt.tight_layout()
-    plt.savefig(f"a.png", dpi=300)
+    plt.savefig(f"src/TANTGen/plots/a.png", dpi=300)
     plt.show()
 
     importance_feat = attr.abs().mean(dim=1)  # (B, num_features)
@@ -559,7 +559,7 @@ def main():
     plt.ylabel("Attribution")
     plt.title("Feature importance")
     plt.tight_layout()
-    plt.savefig(f"b.png", dpi=300)
+    plt.savefig(f"src/TANTGen/plots/b.png", dpi=300)
     plt.show()
 
     plt.figure(figsize=(10, 5))
@@ -573,7 +573,7 @@ def main():
     plt.colorbar(label="Attribution")
     plt.title("Attribution heatmap (time × feature)")
     plt.tight_layout()
-    plt.savefig(f"c.png", dpi=300)
+    plt.savefig(f"src/TANTGen/plots/c.png", dpi=300)
     plt.show()
 
 

@@ -9,6 +9,10 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import roc_curve, auc
 import json
 import pandas as pd
+import yaml
+
+with open("config-folders.yaml") as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
 def RunKN(K,Feature):
     RMSEs = []
@@ -158,7 +162,7 @@ if __name__ == "__main__":
 
             #print("AUC:", roc_auc)
 
-            os.makedirs(f"src/Attack Results/plots/Kitsune", exist_ok=True)
+            os.makedirs(f"{config['Results_Folder']}plots/Kitsune", exist_ok=True)
 
             # plt.figure()
             # plt.plot(fpr, tpr, label=f'ROC curve (AUC = {roc_auc:.4f})')
@@ -167,7 +171,7 @@ if __name__ == "__main__":
             # plt.ylabel('True Positive Rate')
             # plt.title('ROC Curve - Kitsune')
             # plt.legend()
-            # plt.savefig(f"src/Attack Results/plots/Kitsune/ROC_{arg.attack_name}.png", dpi=300)
+            # plt.savefig(f"{config['Results_Folder']}plots/Kitsune/ROC_{arg.attack_name}.png", dpi=300)
             # plt.show()
 
             attack_success_rate = fn / (fn + tp + 1e-8)
@@ -195,8 +199,8 @@ if __name__ == "__main__":
                     }
                 }
 
-                os.makedirs(f"src/Attack Results/Kitsune", exist_ok=True)
-                with open(f"src/Attack Results/Kitsune/results_{arg.attack_name}.json", "w") as f:
+                os.makedirs(f"{config['Results_Folder']}Kitsune", exist_ok=True)
+                with open(f"{config['Results_Folder']}Kitsune/results_{arg.attack_name}.json", "w") as f:
                     json.dump(results, f, indent=4)
 
                 print("Saved results for Kitsune and attack:", arg.attack_name)

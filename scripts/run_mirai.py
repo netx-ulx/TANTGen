@@ -1,16 +1,9 @@
-import yaml
-
-from scripts.utils import split_datasets, train_kitsune_nids, pretrain_tantgen, train_surrogate_nids, train_tantgen, generate_adversarial_examples, evaluate_original_examples, evaluate_adversarial_examples
-
-with open("config-folders.yaml") as f:
-    config = yaml.load(f, Loader=yaml.FullLoader)
+from scripts.utils import run_kitsune_pipeline
 
 attack_name = "Mirai"
 
 pcap_file = "data/original/Kitsune/Mirai Botnet/Mirai.pcap"
 labels_file = "data/original/Kitsune/Mirai Botnet/mirai_labels.csv"
-output_malicious_file = "data/original/Kitsune/Malicious/Mirai_malicious.pcap"
-output_benign_file = "data/original/Kitsune/Benign/Mirai_benign.pcap"
 
 # Split dataset into training adversarial, training surrogate, training target NIDS, and test sets
 train_nids_ratio = 0.6  # 60% train NIDS
@@ -21,62 +14,31 @@ train_adversarial_ratio = 0.6 # 60% train adversarial
 train_surrogate_m_ratio = 0.1 # 10% train surrogate
 test_adversarial_m_ratio = 0.3 # 30% test adversarial
 
+run_kitsune_pipeline(attack_name, pcap_file, labels_file,
+             train_nids_ratio, train_surrogate_b_ratio,
+             train_adversarial_ratio, train_surrogate_m_ratio)
+
+# =========================================================
+#   Commands:
+# =========================================================
+
 # python src/Feature_Extraction/Split/Kitsune_divide_BM.py -i data/original/Kitsune/Mirai\ Botnet/Mirai.pcap -c data/original/Kitsune/Mirai\ Botnet/mirai_labels.csv -m data/original/Kitsune/Mirai\ Botnet/Mirai_malicious.pcap -b data/original/Kitsune/Mirai\ Botnet/Mirai_benign.pcap
 # python src/Feature_Extraction/Split/Kitsune_split_dataset.py -a Mirai -b data/original/Kitsune/Benign/Mirai_benign.pcap -m data/original/Kitsune/Malicious/Mirai_malicious.pcap -l data/original/Kitsune/Mirai\ Botnet/mirai_labels.csv --train_nids_ratio 0.6 --train_surrogate_b_ratio 0.2 --train_adversarial_ratio 0.6 --train_surrogate_m_ratio 0.1
-split_datasets(attack_name, pcap_file, labels_file,
-               output_benign_file, output_malicious_file,
-               train_nids_ratio, train_surrogate_b_ratio,
-               train_adversarial_ratio, train_surrogate_m_ratio)
-
-target_train_pcap = config["Target_Train_Folder"] + "Mirai_benign.pcap"
-target_train_npy = config["Target_Train_Folder"] + "Mirai_benign.npy"
-mirai_model_pkl = config["Kitsune_Models_Folder"] + "Mirai_model.pkl"
 
 # python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/target_train/Mirai_benign.pcap -o data/preprocessed/target_train/Mirai_benign.npy
 # python src/Kitsune/KitNET/model.py -M train -tf data/preprocessed/target_train/Mirai_benign.npy -mf src/Kitsune/models/Mirai_model.pkl
-train_kitsune_nids(target_train_pcap, target_train_npy, mirai_model_pkl)
-
-# TODO dataset
-# python extract features TODO
-# python -m src.TANTGen.TANTGen_pretrain
-pretrain_tantgen()
-
-surrogate_train_pcap = config["Surrogate_Train_Folder"] + "Mirai_all.pcap"
-surrogate_train_features = config["Surrogate_Train_Folder"] + "Mirai_all_features.csv"
-surrogate_train_labels = config["Surrogate_Train_Folder"] + "Mirai_labels.csv"
 
 # python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/surrogate_train/Mirai_all.pcap -o data/preprocessed/adversarial_train/surrogate_train/Mirai_all_features.csv
 # python -m src.TANTGen.TANTGen_NIDS --dataset_path data/preprocessed/adversarial_train/surrogate_train/Mirai_all_features.csv --dataset_labels_path data/preprocessed/adversarial_train/surrogate_train/Mirai_labels.csv
-train_surrogate_nids(surrogate_train_pcap, surrogate_train_features, surrogate_train_labels)
-
-adversarial_train_pcap = config["Adversarial_Train_Folder"] + "Mirai_malicious.pcap"
-adversarial_train_features = config["Adversarial_Train_Folder"] + "Mirai_malicious_features.csv"
 
 # python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/Mirai_malicious.pcap -o data/preprocessed/adversarial_train/Mirai_malicious_features.csv
 # python -m src.TANTGen.TANTGen --dataset_path data/preprocessed/adversarial_train/Mirai_malicious_features.csv
-train_tantgen(adversarial_train_pcap, adversarial_train_features)
 
-adversarial_test_benign_pcap = config["Adversarial_Test_Folder"] + "Mirai_benign.pcap"
-adversarial_test_malicious_pcap = config["Adversarial_Test_Folder"] + "Mirai_malicious.pcap"
-adversarial_test_pcap = config["Final_Adversarial_Folder"] + "Mirai_adversarial.pcap"
-
-# python -m src.apply_TANTGen_to_pcap -ib data/preprocessed/adversarial_test/Mirai_benign.pcap -im data/preprocessed/adversarial_test/Mirai_malicious.pcap -o data/adversarial/Mirai_adversarial.pcap
-generate_adversarial_examples(adversarial_test_benign_pcap, adversarial_test_malicious_pcap, adversarial_test_pcap)
-
-original_test_pcap = config["Adversarial_Test_Folder"] + "Mirai_all.pcap"
-original_test_npy = config["Adversarial_Test_Folder"] + "Mirai_all_features.npy"
-original_test_labels = config["Adversarial_Test_Folder"] + "Mirai_labels.csv"
+# python -m src.apply_TANTGen_to_pcap -i data/preprocessed/adversarial_test/Mirai_malicious.pcap -o data/adversarial/Mirai_adversarial.pcap
+# mergecap -w data/adversarial/Mirai_adversarial.pcap data/preprocessed/adversarial_test/Mirai_benign.pcap data/adversarial/Mirai_adversarial.pcap
 
 # python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/adversarial_test/Mirai_all.pcap -o data/preprocessed/adversarial_test/Mirai_all_features.npy
 # python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/Mirai_model.pkl -tf data/preprocessed/adversarial_test/Mirai_all_features.npy -an Mirai_original -yt data/preprocessed/adversarial_test/Mirai_labels.csv
-evaluate_original_examples(attack_name, mirai_model_pkl,
-                           original_test_pcap, original_test_npy,
-                           original_test_labels)
-
-adversarial_test_npy = config["Final_Adversarial_Folder"] + "Mirai_adversarial_features.npy"
 
 # python src/Kitsune/Feature_Extraction/extractor.py -i data/adversarial/Mirai_adversarial.pcap -o data/adversarial/Mirai_adversarial_features.npy
 # python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/Mirai_model.pkl -tf data/adversarial/Mirai_adversarial_features.npy -an Mirai_adversarial -yt data/preprocessed/adversarial_test/Mirai_labels.csv
-evaluate_adversarial_examples(attack_name, mirai_model_pkl,
-                              adversarial_test_pcap, adversarial_test_npy,
-                              original_test_labels)
