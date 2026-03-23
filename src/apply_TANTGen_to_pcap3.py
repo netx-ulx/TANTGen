@@ -7,6 +7,7 @@ from src.Feature_Extraction.dataloader import get_basic_features
 from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.TANTGen2 import TANTGen
 from scapy.all import PcapReader, PcapWriter, TCP, UDP, IP
+import os
 
 with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -18,27 +19,38 @@ with open("config-folders.yaml") as f:
 # Rebuild PCAP 
 # =========================================================
 
+def adjust_packet_size(pkt, pad_size):
+    """
+    Adjust packet size by modifying TCP payload safely.
+    """
+
+    # Only handle TCP
+    if pkt.haslayer(IP) and pkt.haslayer(TCP):
+        payload = b""
+        if pkt.haslayer(Raw):
+            payload = pkt[Raw].load
+
+        pad_size = min(pad_size, 1500 - len(payload)) # Ensure we don't exceed MTU
+        pkt[Raw].load = payload + os.urandom(pad_size)
+
+        # Remove fields so Scapy recalculates
+        del pkt[IP].len
+        del pkt[IP].chksum
+        del pkt[TCP].chksum
+
+    return pkt
+
 def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, output_pcap):
     original_pcap_reader = PcapReader(original_malicious_pcap)
-    writer = PcapWriter(config_folders["Final_Adversarial_Folder"] + output_pcap, sync=True)
+    writer = PcapWriter(output_pcap, sync=True)
 
     # read first packet to get initial timestamp
     first_pkt = original_pcap_reader.read_packet()
     last_timestamp = first_pkt.time
     last_timestamp_mod = last_timestamp + float(modified_IAT[0])
+    first_pkt = adjust_packet_size(first_pkt, modified_packet_size[0])
+
     first_pkt.time = last_timestamp_mod
-    # pad_size = modified_packet_size[0] if modified_packet_size[0] + len(first_pkt) < 1500 else 1500 - len(first_pkt)
-    # first_pkt = first_pkt / Raw(load=b'\x00' * pad_size)
-    # if IP in first_pkt:
-    #     del first_pkt[IP].len
-    #     del first_pkt[IP].chksum
-
-    # if TCP in first_pkt:
-    #     del first_pkt[TCP].chksum
-
-    # if UDP in first_pkt:
-    #     del first_pkt[UDP].len
-    #     del first_pkt[UDP].chksum
     writer.write(first_pkt)
 
     for i, pkt in enumerate(original_pcap_reader):
@@ -47,18 +59,9 @@ def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, ou
 
         last_timestamp_mod = last_timestamp_mod + (pkt.time - last_timestamp) + float(modified_IAT[i+1])
         last_timestamp = pkt.time
+        pkt = adjust_packet_size(pkt, modified_packet_size[i+1])
 
         pkt.time = last_timestamp_mod
-        # pad_size = modified_packet_size[i+1] if modified_packet_size[i+1] + len(pkt) < 1500 else 1500 - len(pkt)
-        # pkt = pkt / Raw(load=b'\x00' * pad_size)
-        # if IP in pkt:
-        #     del pkt[IP].len
-        #     del pkt[IP].chksum
-        # if TCP in pkt:
-        #     del pkt[TCP].chksum
-        # if UDP in pkt:
-        #     del pkt[UDP].len
-        #     del pkt[UDP].chksum
         writer.write(pkt)
 
     original_pcap_reader.close()

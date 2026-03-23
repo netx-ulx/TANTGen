@@ -21,7 +21,7 @@ with open("config-folders.yaml") as f:
 # =========================================================
 def rebuild_pcap(original_malicious_pcap, modified_IAT, output_pcap):
     original_pcap_reader = PcapReader(original_malicious_pcap)
-    writer = PcapWriter(config_folders["Final_Adversarial_Folder"] + output_pcap, sync=True)
+    writer = PcapWriter(output_pcap, sync=True)
 
     # read first packet to get initial timestamp
     first_pkt = original_pcap_reader.read_packet()

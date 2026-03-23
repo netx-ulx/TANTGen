@@ -49,9 +49,10 @@ def read_dataset(path, mean_std_path):
 
         # IAT
         print("Using existing IAT mean and std for standardization")
+        df["IAT"] = df["IAT"].clip(lower=0)
+        df["IAT"] = np.log1p(df["IAT"])
         mean_iat = mean_std["mean_iat"][0]
         std_iat = mean_std["std_iat"][0]
-        df["IAT"] = np.log1p(df["IAT"])
         df["IAT"] = (df["IAT"] - mean_iat) / std_iat
 
 
@@ -65,6 +66,7 @@ def read_dataset(path, mean_std_path):
         df["Packet Size"] = (df["Packet Size"] - mean_packet_size) / std_packet_size
         
         # IAT
+        df["IAT"] = df["IAT"].clip(lower=0)
         df["IAT"] = np.log1p(df["IAT"])
         mean_iat = df["IAT"].mean()
         std_iat = df["IAT"].std()

@@ -159,7 +159,7 @@ class TANTGen(TANTGen_pretrain):
 
         # get logits from external IDS
         logits_ids = self.nids(X_mod)
-        print(logits_ids)
+        #print(logits_ids)
 
         margin = -1.0
         loss_evasion = torch.relu(logits_ids - margin).mean()
@@ -184,7 +184,7 @@ class TANTGen(TANTGen_pretrain):
 
         # total loss
         loss = (
-            self.lambda_evasion * 2 * loss_evasion
+            self.lambda_evasion * loss_evasion
             + self.lambda_constraints * loss_budget
             # + self.lambda_constraints * loss_packet_size
         )

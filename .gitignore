@@ -7,6 +7,7 @@ data/original
 data/preprocessed
 
 # src
+src/Feature_Extraction/cicflowmeter
 
 src/Kitsune/Feature_Extraction/build
 src/Kitsune/Feature_Extraction/AfterImage*

@@ -6,7 +6,7 @@ loss_fun_evasion: bce
 # loss_fun_constraints: mse
 
 lambda_diff: 0.01
-lambda_evasion: 1.0
+lambda_evasion: 2.0
 lambda_constraints: 1.0
 lambda_diversity: 0.1
 

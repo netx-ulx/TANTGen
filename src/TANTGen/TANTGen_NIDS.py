@@ -390,6 +390,10 @@ def main():
         print("ERROR: NO CUDA DEVICE FOUND")
         NUM_GPUS = 0
 
+    # delete mean_std.json if it exists (TODO: remove this after the file is created)
+    if os.path.isfile("src/TANTGen/models/mean_std.json"):
+        os.remove("src/TANTGen/models/mean_std.json")
+
     ## Get the data
     feature_arr, target_arr, _ = generate_sliding_windows_NIDS(
         sliding_window_size,

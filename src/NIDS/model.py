@@ -199,24 +199,24 @@ def create_results(attack_name, model_name, dataset_type, y_true, y_pred, y_scor
 
     attack_success_rate = fn / (fn + tp + 1e-8)
 
-    os.makedirs(f"{config['Results_Folder']}/plots/{model_name}", exist_ok=True)
+    # os.makedirs(f"{config['Results_Folder']}/plots/{model_name}", exist_ok=True)
     # --- ROC plot ---
-    plt.figure()
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
-    plt.plot([0,1], [0,1], linestyle="--")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title(f"ROC - {model_name} - {attack_name}_{dataset_type}")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f"{config['Results_Folder']}plots/{model_name}/ROC_{attack_name}_{dataset_type}.png", dpi=300)
-    plt.close()
+    # plt.figure()
+    # plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
+    # plt.plot([0,1], [0,1], linestyle="--")
+    # plt.xlabel("False Positive Rate")
+    # plt.ylabel("True Positive Rate")
+    # plt.title(f"ROC - {model_name} - {attack_name}_{dataset_type}")
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.savefig(f"{config['Results_Folder']}plots/{model_name}/ROC_{attack_name}_{dataset_type}.png", dpi=300)
+    # plt.close()
 
     # --- save results ---
     results = {
         "attack_name": attack_name + "_" + dataset_type,
         "model": model_name,
-        "num_packets": int(len(y_true)),
+        "num_flows": int(len(y_true)),
         "confusion_matrix": {
             "TP": int(tp),
             "FP": int(fp),
