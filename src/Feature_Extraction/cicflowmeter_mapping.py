@@ -83,7 +83,7 @@ mapping = {
     "idle_min": "Idle Min",
 }
 
-def map_features(benign_csv, malicious_csv, output_csv):
+def map_features(benign_csv, malicious_csv, output_csv, balance=False):
 
     # Columns in the expected order
     expected_cols = list(mapping.values()) + ["Label"]
@@ -100,6 +100,16 @@ def map_features(benign_csv, malicious_csv, output_csv):
     # Filter and reorder columns
     df = df[expected_cols]
 
+    # Balance dataset by undersampling majority class
+    if balance:
+        class_counts = df["Label"].value_counts()
+        min_count = class_counts.min()
+        df = (
+            df.groupby("Label", group_keys=False)
+            .sample(n=min_count, random_state=42)
+            .reset_index(drop=True)
+        )
+
     # Save converted CSV
     df.to_csv(output_csv, index=False)
     print(f"[✓] Converted dataset saved to: {output_csv}")
@@ -111,6 +121,7 @@ if __name__ == "__main__":
     parse.add_argument('-b', '--benign_file', type=str, required=True, help="benign csv file path")
     parse.add_argument('-m', '--malicious_file', type=str, required=True, help="malicious csv file path")
     parse.add_argument('-o', '--output_path', type=str, required=True, help="output csv file path")
+    parse.add_argument('-ba', '--balance', action='store_true', help="balance dataset by undersampling majority class")
     arg = parse.parse_args()
 
-    map_features(arg.benign_file, arg.malicious_file, arg.output_path)
+    map_features(arg.benign_file, arg.malicious_file, arg.output_path, arg.balance)

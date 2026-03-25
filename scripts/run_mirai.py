@@ -34,11 +34,11 @@ run_kitsune_pipeline(attack_name, pcap_file, labels_file,
 # python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/Mirai_malicious.pcap -o data/preprocessed/adversarial_train/Mirai_malicious_features.csv
 # python -m src.TANTGen.TANTGen --dataset_path data/preprocessed/adversarial_train/Mirai_malicious_features.csv
 
-# python -m src.apply_TANTGen_to_pcap -i data/preprocessed/adversarial_test/Mirai_malicious.pcap -o data/adversarial/Mirai_adversarial.pcap
-# mergecap -w data/adversarial/Mirai_adversarial.pcap data/preprocessed/adversarial_test/Mirai_benign.pcap data/adversarial/Mirai_adversarial.pcap
+# python -m src.TANTGen.apply_TANTGen_to_pcap -i data/preprocessed/adversarial_test/Mirai_malicious.pcap -o data/adversarial/Mirai_adversarial.pcap
+# mergecap -w data/adversarial/Mirai_adversarial_all.pcap data/preprocessed/adversarial_test/Mirai_benign.pcap data/adversarial/Mirai_adversarial.pcap
 
 # python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/adversarial_test/Mirai_all.pcap -o data/preprocessed/adversarial_test/Mirai_all_features.npy
 # python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/Mirai_model.pkl -tf data/preprocessed/adversarial_test/Mirai_all_features.npy -an Mirai_original -yt data/preprocessed/adversarial_test/Mirai_labels.csv
 
-# python src/Kitsune/Feature_Extraction/extractor.py -i data/adversarial/Mirai_adversarial.pcap -o data/adversarial/Mirai_adversarial_features.npy
+# python src/Kitsune/Feature_Extraction/extractor.py -i data/adversarial/Mirai_adversarial_all.pcap -o data/adversarial/Mirai_adversarial_features.npy
 # python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/Mirai_model.pkl -tf data/adversarial/Mirai_adversarial_features.npy -an Mirai_adversarial -yt data/preprocessed/adversarial_test/Mirai_labels.csv

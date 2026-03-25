@@ -6,6 +6,8 @@ import torch
 from torch import nn
 import math
 
+from scapy.all import TCP, IP
+
 # Dataset helper for PyTorch
 class PacketDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels):
@@ -192,3 +194,61 @@ def iat_log_bucket(iat, num_bins=16, min_iat=1e-6, max_iat=10.0):
 
     bin_idx = ((log_iat - log_min) / (log_max - log_min) * num_bins).long()
     return torch.clamp(bin_idx, 0, num_bins - 1)
+
+
+def is_safe_to_modify(pkt):
+    if pkt.haslayer(IP) and pkt.haslayer(TCP):
+        return True
+
+    # if pkt.haslayer(IP) and pkt.haslayer(TCP):
+
+    #     dport = pkt[TCP].dport
+    #     sport = pkt[TCP].sport
+
+    #     # avoid sensitive ports
+    #     sensitive_ports = {
+    #         22,    # SSH -
+    #         25,    # SMTP
+    #         53,    # DNS
+    #         80,    # HTTP (TODO: opcional)
+    #         110,   # POP3
+    #         139,   # NetBIOS
+    #         143,   # IMAP
+    #         389,   # LDAP -
+    #         443,   # TLS
+    #         445,   # SMB -
+    #         1521,  # Oracle -
+    #         3306,  # MySQL
+    #         3389   # RDP
+    #     }
+
+    #     if dport not in sensitive_ports and sport not in sensitive_ports:
+    #         return True
+
+    #     # Again, too restrictive
+    #     # tcp = pkt[TCP]
+
+    #     # control_flags = 0x02 | 0x01 | 0x04  # SYN, FIN, RST
+
+    #     # if not tcp.flags & control_flags:
+    #     #     return True
+        
+    # return False
+
+# Secure solution but may be too restrictive
+# def is_safe_to_modify(pkt):
+#     # Only modify TCP packets with payload that are likely to be application data, avoiding control packets and sensitive protocols
+#     if pkt.haslayer(IP) and pkt.haslayer(TCP) and pkt.haslayer(Raw):
+
+#         tcp = pkt[TCP]
+#         payload = pkt[Raw].load
+
+#         # Packets with PSH flag set and payload >= 20 bytes are more likely to be application data, so we can modify them safely
+#         if (tcp.flags & 0x08) and len(payload) >= 20:
+
+#             non_printable_ratio = sum(1 for b in payload if b < 32 or b > 126) / len(payload)
+
+#             if non_printable_ratio < 0.3:  # Adjust threshold as needed
+#                 return True
+
+#     return False

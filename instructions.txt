@@ -39,3 +39,7 @@ python src/NIDS/test_models_final.py -i <path_to_test_features.csv> -a <attack_n
 4. Create Plots
 python results/create_plots.py
 # plots will be saved in results/plots/<nids_folder>
+
+
+# ver erros e warnings nos pacotes
+tshark -r PortScan_adversarial.pcap -q -z expert 

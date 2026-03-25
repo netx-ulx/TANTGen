@@ -35,11 +35,11 @@ run_kitsune_pipeline(attack_name, pcap_file, labels_file,
 # python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/ARP_MitM_malicious.pcap -o data/preprocessed/adversarial_train/ARP_MitM_malicious_features.csv
 # python -m src.TANTGen.TANTGen --dataset_path data/preprocessed/adversarial_train/ARP_MitM_malicious_features.csv
 
-# python -m src.apply_TANTGen_to_pcap -i data/preprocessed/adversarial_test/ARP_MitM_malicious.pcap -o data/adversarial/ARP_MitM_adversarial.pcap
-# mergecap -w data/adversarial/ARP_MitM_adversarial.pcap data/preprocessed/adversarial_test/ARP_MitM_benign.pcap data/adversarial/ARP_MitM_adversarial.pcap
+# python -m src.TANTGen.apply_TANTGen_to_pcap -i data/preprocessed/adversarial_test/ARP_MitM_malicious.pcap -o data/adversarial/ARP_MitM_adversarial.pcap
+# mergecap -w data/adversarial/ARP_MitM_adversarial_all.pcap data/preprocessed/adversarial_test/ARP_MitM_benign.pcap data/adversarial/ARP_MitM_adversarial.pcap
 
 # python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/adversarial_test/ARP_MitM_all.pcap -o data/preprocessed/adversarial_test/ARP_MitM_all_features.npy
 # python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/ARP_MitM_model.pkl -tf data/preprocessed/adversarial_test/ARP_MitM_all_features.npy -an ARP_MitM_original -yt data/preprocessed/adversarial_test/ARP_MitM_labels.csv
 
-# python src/Kitsune/Feature_Extraction/extractor.py -i data/adversarial/ARP_MitM_adversarial.pcap -o data/adversarial/ARP_MitM_adversarial_features.npy
+# python src/Kitsune/Feature_Extraction/extractor.py -i data/adversarial/ARP_MitM_adversarial_all.pcap -o data/adversarial/ARP_MitM_adversarial_features.npy
 # python src/Kitsune/KitNET/model.py -M exec -mf src/Kitsune/models/ARP_MitM_model.pkl -tf data/adversarial/ARP_MitM_adversarial_features.npy -an ARP_MitM_adversarial -yt data/preprocessed/adversarial_test/ARP_MitM_labels.csv

@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn
 from torch.utils.data import DataLoader
-from src.TANTGen.generate_sequences import generate_sliding_windows
+from src.TANTGen.generate_sequences import generate_sliding_windows_2
 from src.TANTGen.utils import (
     PacketDataset
 )
@@ -23,6 +23,9 @@ from src.TANTGen.TANTGen_pretrain import TANTGen_pretrain
 from src.TANTGen.TANTGen_NIDS import TANTGen_NIDS
 
 torch.manual_seed(0)
+
+CHANGE_PACKET_SIZE = False
+CHANGE_IAT = True
 
 # Hyper parameters from config file
 with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
@@ -63,37 +66,6 @@ class TANTGen(TANTGen_pretrain):
             for p in self.nids.parameters():
                 p.requires_grad = False
 
-
-        # TODO Confirmar se estes tipos de loss fazem sentido
-
-        if "loss_function_diff" in config_finetune.keys():
-            if config_finetune["loss_function_diff"] == "huber":
-                default_loss_diff = nn.SmoothL1Loss()
-            if config_finetune["loss_function_diff"] == "smoothl1":
-                default_loss_diff = nn.SmoothL1Loss()
-            if config_finetune["loss_function_diff"] == "kldiv":
-                default_loss_diff = nn.KLDivLoss()
-            if config_finetune["loss_function_diff"] == "mse":
-                default_loss_diff = nn.MSELoss()
-        else:
-            default_loss_diff = nn.SmoothL1Loss()
-        self.loss_func_diff = default_loss_diff
-
-        if "loss_function_evasion" in config_finetune.keys():
-            if config_finetune["loss_function_evasion"] == "huber":
-                default_loss_evasion = nn.SmoothL1Loss()
-            if config_finetune["loss_function_evasion"] == "smoothl1":
-                default_loss_evasion = nn.SmoothL1Loss()
-            if config_finetune["loss_function_evasion"] == "kldiv":
-                default_loss_evasion = nn.KLDivLoss()
-            if config_finetune["loss_function_evasion"] == "bce":
-                default_loss_evasion = nn.BCEWithLogitsLoss()
-        else:
-            #default_loss_evasion = nn.CrossEntropyLoss()
-            default_loss_evasion = nn.BCEWithLogitsLoss()
-        self.loss_func_evasion = default_loss_evasion
-
-        self.lambda_diff = config_finetune["lambda_diff"]
         self.lambda_evasion = config_finetune["lambda_evasion"]
         self.lambda_constraints = config_finetune["lambda_constraints"]
 
@@ -102,11 +74,6 @@ class TANTGen(TANTGen_pretrain):
     def forward(self, src): #, tgt):
         # used for the forward pass of the model
 
-        # # Create target mask for decoder (prevent positions from attending to subsequent positions)
-        # tgt_mask = torch.triu(
-        #     torch.ones(tgt.size(1), tgt.size(1)) * float("-inf"), diagonal=1
-        # ).to(self.device)
-
         # Cast to doubletensor
         scaled_input = src.float()
 
@@ -114,13 +81,15 @@ class TANTGen(TANTGen_pretrain):
         final_input = self.positional_encoding(final_input)
         memory = self.encoder(final_input)
 
+        out = self.output_head(memory)
+
         # tgt = self.tgt_embedding(tgt)
         # tgt = self.positional_encoding(tgt)
         # dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
 
-        return self.output_head(memory)
+        return torch.nn.functional.softplus(out, beta=0.5) # TODO também já experimentei out; torch.sigmoid(out) * self.constraint_limit
 
-    def _reconstruct_packets_with_predicted_iat(self, X, pred_iat, iat_bucket):
+    def _reconstruct_packets_with_predicted_iat(self, X, packet_size, pred_iat):
         """
         Reconstruct packet windows by replacing the IAT feature
         (last feature) with the predicted IAT values.
@@ -128,95 +97,312 @@ class TANTGen(TANTGen_pretrain):
         Args:
             X: Tensor [B, T, F] original traffic window
             pred_iat: Tensor [B, T] or [B, T, 1] predicted IAT
-
+            packet_size: Tensor [B, T] or [B, T, 1] packet sizes
         Returns:
             X_mod: Tensor [B, T, F] modified traffic
         """
 
         # Safety checks
         assert X.dim() == 3, "X must be [B, T, F]"
+
+        # if iat_bucket.dim() == 3:
+        #     iat_bucket = iat_bucket.squeeze(-1)
+
+        if packet_size.dim() == 3:
+            packet_size = packet_size.squeeze(-1)
         
         if pred_iat.dim() == 3:
             pred_iat = pred_iat.squeeze(-1)
 
-        assert pred_iat.shape[:2] == X.shape[:2], \
-            "pred_iat must match batch and time dimensions"
-
         # Clone to avoid in-place ops
         X_mod = X.clone()
 
-        # Replace last feature (IAT)
-        X_mod[:, :, -1] = pred_iat
+        # Replace features
+        # X_mod[:, :, 0] = iat_bucket.float()
 
-        iat_bucket_np = iat_bucket.astype(int)
-        iat_bucket_np = iat_bucket_np.reshape(X_mod.shape[0], X_mod.shape[1])
-        iat_bucket_torch = torch.tensor(
-            iat_bucket_np,
-            device=X_mod.device,
-            dtype=X_mod.dtype
-        )
-        X_mod[:, :, 0] = iat_bucket_torch
+        X_mod[:, :, 0] = packet_size.float()
+
+        X_mod[:, :, -1] = pred_iat
 
         return X_mod
 
+    # TANTGen.py
+    # def _step(self, batch):
+        # X, y = batch
 
-    def _step(self, batch):
+        # X = X.float()
+        # y = y.float()
+
+        # pred = self.forward(X)
+
+        # # === Loss 1: difference ===
+        # loss_diff = self.loss_func_diff(pred, y)
+
+        # # === Loss 2: evasion ===
+        # pred_un = pred * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+        # iat_bucket = ...
+        # X_mod = self._reconstruct_packets_with_predicted_iat(X, pred, iat_bucket)
+
+        # # get logits from external IDS (not trainable)
+        # logits_ids = self.nids(X_mod)
+
+        # margin = -1.0
+        # loss_evasion = torch.relu(logits_ids - margin).mean()
+        
+        # # === Loss 3: constraints (hinge) ===
+        # # === Un-normalize ===
+        # y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+
+        # loss_constraint = torch.relu(
+        #     pred_un - y_un - self.constraint_limit
+        # ).mean() + torch.relu(
+        #     y_un - pred_un
+        # ).mean()
+        # # or loss_constraint = torch.mean((pred_un - y_un)**2)
+
+        # # total loss
+        # loss = (
+        #     self.lambda_diff * loss_diff
+        #     + self.lambda_evasion * loss_evasion
+        #     + self.lambda_constraints * loss_constraint
+        # )
+
+        # return loss, pred, y
+
+    # TANTGen2.py
+    # def _step(self, batch, train=False):
+        # X, y = batch
+
+        # X = X.float()
+        # y = y.float()
+
+        # # y_input_shifted = y.clone()
+        # # y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
+        # # y_input_shifted[:, 0, :] = 0
+
+        # #y_input = torch.zeros_like(y) # nem está a ser usado
+        # pred = self.forward(X) #, y_input_shifted)
+        # #pred = torch.nn.functional.softplus(pred)
+        # torch.set_printoptions(precision=10)
+        # #print(pred)
+        # # print("Predicted IAT:", pred)
+        # # pred is the perturbation to add, unnormalized
+
+        # # === Loss 1: difference ===
+        # # loss_diff = torch.mean(torch.abs(w * pred))
+        # # print("Difference loss:", loss_diff.item())
+
+        # # === Loss 2: evasion ===
+        # y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+        # y_un_mod = y_un + pred
+        # bins = torch.tensor(
+        #     [-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
+        #     device=y_un_mod.device
+        # )
+
+        # iat_bucket = torch.bucketize(y_un_mod, bins)
+        # y_mod = y + (pred / self.mean_std["std_iat"])
+        # X_mod = self._reconstruct_packets_with_predicted_iat(X, y_mod, iat_bucket)
+
+        # # get logits from external IDS (not trainable)
+        # logits_ids = self.nids(X_mod)
+        # print("logits mean:", logits_ids.mean().item())
+        # print("logits std:", logits_ids.std().item())
+        # #print(logits_ids)
+
+        # # target_benign = torch.zeros(logits_ids.shape, device=self.device)
+        # # loss_evasion = self.loss_func_evasion(logits_ids, target_benign)
+
+        # margin = -1.0
+        # loss_evasion = torch.relu(logits_ids - margin).mean()
+        # print("Evasion loss:", loss_evasion.item())
+        
+        # # === Loss 3: constraints (hinge) ===
+
+        # budget = self.constraint_limit * config_general["sliding_window_size"]
+        # #budget = self.rate_limit * y_un.sum(dim=1, keepdim=True) # budget per window, e.g. 10% increase in total IAT
+
+        # # loss_budget = torch.relu(
+        # #     pred.abs().sum(dim=1) - budget
+        # # ).mean()
+        # # print("Budget loss:", loss_budget.item())
+
+        # # eps = 1e-3 * y_un.mean()
+        # # w = 1.0 / (y_un + eps)
+        # # w = w / w.mean(dim=1, keepdim=True)
+        # # if train:
+        # #     print("bbbbb")
+        # #     print(w[0][:20])
+        # # loss_budget = torch.relu((pred).sum(dim=1) - budget).mean()
+        # # loss_budget = torch.relu((w * pred).sum(dim=1) - budget).mean()
+        # # relative_delta = pred / (y_un + eps)
+        # # loss_budget = torch.relu(relative_delta.sum(dim=1) - budget).mean()
+
+        # # loss_budget = torch.log1p(torch.exp(pred.sum(dim=1) - budget)).mean()
+
+        # # loss_budget = (w * pred).sum(dim=1)
+        # # loss_budget = torch.log1p(torch.exp(loss_budget - budget)).mean()
+
+        # budget_used = pred.sum(dim=1)
+        # loss_budget = (((budget_used - budget)/budget)**2).mean()
+        # print("Budget loss:", loss_budget.item())
+
+        # #loss_diff = torch.mean(torch.abs(w * pred))
+
+        # # === Loss 4: diversity  ===
+        # # loss_diversity = - torch.var(pred, dim=1).mean() * 1e4
+
+        # # print(
+        # #     pred.mean(dim=1).mean().item(),
+        # #     pred.std(dim=1).mean().item(),
+        # #     loss_diversity.item()
+        # # )
+
+        # # p = pred / (pred.sum(dim=1, keepdim=True) + 1e-8)
+        # # entropy = -(p * torch.log(p + 1e-8)).sum(dim=1)
+        # # loss_diversity = -entropy.mean()
+        # # print("Diversity loss:", loss_diversity.item())
+
+        # # total loss
+        # loss = (
+        #     # self.lambda_diff * loss_diff +
+        #     self.lambda_evasion * loss_evasion
+        #     #+ self.lambda_constraints * loss_constraint
+        #     #+ self.lambda_diversity * loss_diversity
+        #     + self.lambda_constraints * loss_budget
+        # )
+
+        # return loss, pred, y
+
+    # TANTGen4.py 
+    # def _step(self, batch, train=False):
+        # X, y = batch
+
+        # X = X.float()
+        # y = y.float()
+
+        # pred = self.forward(X)
+        # torch.set_printoptions(precision=10)
+
+        # # === Loss 1: evasion ===
+        # y_packet_size_mod = y[:, :, 0]
+
+        # log1_iat = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+        # log1_iat_mod = torch.log1p(torch.exp(log1_iat) - 1 + pred[:, :, -1])
+        # y_iat_mod = (log1_iat_mod - self.mean_std["mean_iat"]) / self.mean_std["std_iat"]
+
+        # X_mod = self._reconstruct_packets_with_predicted_iat(X, y_packet_size_mod, y_iat_mod)
+
+        # # get logits from external IDS
+        # logits_ids = self.nids(X_mod)
+        # print(logits_ids)
+
+        # margin = -1.0
+        # loss_evasion = torch.relu(logits_ids - margin).mean()
+        # print("Evasion loss:", loss_evasion.item())
+        
+        # # === Loss 2: constraints (hinge) ===
+
+        # loss_budget = torch.norm(pred[:, :, -1], p=2)
+        # print("Budget loss:", loss_budget.item())
+
+        # attack_success = (logits_ids < 0).float().mean()
+        # target_success = 0.15
+        # self.lambda_evasion = torch.relu(target_success - attack_success) / target_success
+
+        # # total loss
+        # loss = (
+        #     self.lambda_evasion * loss_evasion
+        #     + self.lambda_constraints * loss_budget
+        #     # + self.lambda_constraints * loss_packet_size
+        # )
+
+        # return loss, pred, y
+
+
+    def _step(self, batch, train=False):
         X, y = batch
 
         X = X.float()
         y = y.float()
 
-        # y_input_shifted = y.clone()
-        # y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
-        # y_input_shifted[:, 0, :] = 0
+        pred = self.forward(X)
+        torch.set_printoptions(precision=10)
 
-        #y_input = torch.zeros_like(y) # nem está a ser usado
-        pred = self.forward(X) #, y_input_shifted)
+        # === Loss 1: evasion ===
+        # y_iat_un = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+        # y_iat_un_mod = y_iat_un + pred[:, :, -1]
+        # bins = torch.tensor(
+        #     [-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
+        #     device=y_iat_un_mod.device
+        # )
+        # iat_bucket = torch.bucketize(y_iat_un_mod, bins)
 
-        # === Loss 1: difference ===
-        loss_diff = self.loss_func_diff(pred, y)
-        # print("Difference loss:", loss_diff.item())
+        if CHANGE_PACKET_SIZE:
+            y_packet_size_un = y[:, :, 0] * self.mean_std["std_packet_size"] + self.mean_std["mean_packet_size"]
+            y_packet_size_un_mod_cont = y_packet_size_un + pred[:, :, 0] * 100
+            y_packet_size_un_mod = y_packet_size_un_mod_cont
+            # y_packet_size_un_mod = (
+            #     y_packet_size_un_mod_cont
+            #     + (torch.round(y_packet_size_un_mod_cont) - y_packet_size_un_mod_cont).detach()
+            # )
 
-        # === Loss 2: evasion ===
-        pred_un = pred * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-        iat_bucket = pd.cut(
-            pred_un.detach().cpu().numpy().reshape(-1),
-            bins=[-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
-            labels=[0, 1, 2, 3, 4, 5]
-        )
-        X_mod = self._reconstruct_packets_with_predicted_iat(X, pred, iat_bucket)
+            y_packet_size_un_mod = torch.clamp(y_packet_size_un_mod, min=0, max=1500) # Assuming max packet size of 1500 bytes
+            print(torch.round(pred[:, :, 0] * 100))
+            y_packet_size_mod = (y_packet_size_un_mod - self.mean_std["mean_packet_size"]) / self.mean_std["std_packet_size"]
 
-        # get logits from external IDS (not trainable)
+            #loss_packet_size = torch.mean(torch.abs(pred[:, :, 0])) * 0.1# L1 
+            loss_packet_size = torch.mean(pred[:, :, 0] ** 2) * 0.1 # L2
+            print("Packet size loss:", loss_packet_size.item())
+        else:
+            y_packet_size_mod = y[:, :, 0]
+            loss_packet_size = 0.0 #99999 * torch.mean(pred[:, :, 0]) # large penalty to force packet size changes to be zero
+
+        if CHANGE_IAT:
+            log1_iat = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+            log1_iat_mod = torch.log1p(torch.exp(log1_iat) - 1 + pred[:, :, -1])
+            y_iat_mod = (log1_iat_mod - self.mean_std["mean_iat"]) / self.mean_std["std_iat"]
+
+            loss_budget = torch.norm(pred[:, :, -1], p=2)
+            print("Budget loss:", loss_budget.item())
+        else:
+            y_iat_mod = y[:, :, -1]
+            loss_budget = 0.0 #99999 * torch.mean(pred[:, :, -1]) # large penalty to force iat changes to be zero
+
+        X_mod = self._reconstruct_packets_with_predicted_iat(X, y_packet_size_mod, y_iat_mod)
+
+        # get logits from external IDS
         logits_ids = self.nids(X_mod)
-        # print("Logits IDS:", logits_ids)
+        #print(logits_ids)
 
-        # target_benign = torch.zeros(logits_ids.shape, device=self.device)
-        # loss_evasion = self.loss_func_evasion(logits_ids, target_benign)
-
-        margin = -1.0
+        margin = 0.0 #-1.0
         loss_evasion = torch.relu(logits_ids - margin).mean()
-        # print("Evasion loss:", loss_evasion.item())
+        print("Evasion loss:", loss_evasion.item())
         
-        # === Loss 3: constraints (hinge) ===
-        # === Un-normalize ===
-        y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-
-        loss_constraint = torch.relu(
-            pred_un - y_un - self.constraint_limit
-        ).mean() + torch.relu(
-            y_un - pred_un
-        ).mean()
-        # print("Constraint loss:", loss_constraint.item())
-        # or loss_constraint = torch.mean((pred_un - y_un)**2)
+        # attack_success = (logits_ids < 0).float().mean()
+        # target_success = 0.9
+        # self.lambda_evasion = torch.relu(target_success - attack_success) / target_success
 
         # total loss
         loss = (
-            self.lambda_diff * loss_diff
-            + self.lambda_evasion * loss_evasion
-            + self.lambda_constraints * loss_constraint
+            self.lambda_evasion * loss_evasion
+            + self.lambda_constraints * loss_budget
+            + self.lambda_constraints * loss_packet_size
         )
 
+        # if train:
+        #     exit(0)
+
         return loss, pred, y
+
+    def transform_pred(self, pred):
+        if not CHANGE_IAT:
+            pred[:, :, -1] = 0.0 # force no change in IAT
+        if not CHANGE_PACKET_SIZE:
+            pred[:, :, 0] = 0.0 # force no change in packet size
+        else:
+            pred[:, :, 0]*100
+        return pred
 
 
 # Argument parser for the model and return
@@ -315,7 +501,7 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
+    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_2(
         sliding_window_size,
         window_stride,
         num_features,
@@ -336,13 +522,13 @@ def main():
     test_dataset = PacketDataset(test_vectors, test_labels)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+        train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+        val_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
+        test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4
     )
 
     pretrained_ckpt_path = "{}/{}{}.ckpt".format(

@@ -160,7 +160,7 @@ def generate_adversarial_examples(malicious_pcap_path, output_pcap):
     print("===============================================")
     print("Generating adversarial examples using TANTGen...")
     print("===============================================")
-    cmd = ["python", "-m", "src.apply_TANTGen_to_pcap",
+    cmd = ["python", "-m", "src.TANTGen.apply_TANTGen_to_pcap",
            "-i", malicious_pcap_path,
            "-o", output_pcap
            # "-m", model_path TODO
@@ -239,14 +239,15 @@ def run_kitsune_pipeline(attack_name, pcap_file, labels_file,
     adversarial_test_benign_pcap = config["Adversarial_Test_Folder"] + attack_name + "_benign.pcap"
     adversarial_test_malicious_pcap = config["Adversarial_Test_Folder"] + attack_name + "_malicious.pcap"
     adversarial_test_pcap = config["Final_Adversarial_Folder"] + attack_name + "_adversarial.pcap"
+    adversarial_test_all_pcap = config["Final_Adversarial_Folder"] + attack_name + "_adversarial_all.pcap"
 
-    # python -m src.apply_TANTGen_to_pcap -i <adversarial_test_malicious_pcap> -o <adversarial_test_pcap>
+    # python -m src.TANTGen.apply_TANTGen_to_pcap -i <adversarial_test_malicious_pcap> -o <adversarial_test_pcap>
     generate_adversarial_examples(adversarial_test_malicious_pcap, adversarial_test_pcap)
 
-    # mergecap -w <adversarial_test_pcap> <adversarial_test_benign_pcap> <adversarial_test_pcap>
+    # mergecap -w <adversarial_test_all_pcap> <adversarial_test_benign_pcap> <adversarial_test_pcap>
     cmd = [
         "mergecap",
-        "-w", adversarial_test_pcap,
+        "-w", adversarial_test_all_pcap,
         adversarial_test_benign_pcap,
         adversarial_test_pcap
     ]
@@ -264,8 +265,8 @@ def run_kitsune_pipeline(attack_name, pcap_file, labels_file,
 
     adversarial_test_npy = config["Final_Adversarial_Folder"] + attack_name + "_adversarial_features.npy"
 
-    # python src/Kitsune/Feature_Extraction/extractor.py -i <adversarial_test_pcap> -o <adversarial_test_npy>
+    # python src/Kitsune/Feature_Extraction/extractor.py -i <adversarial_test_all_pcap> -o <adversarial_test_npy>
     # python src/Kitsune/KitNET/model.py -M exec -mf <model_pkl> -tf <adversarial_test_npy> -an <attack_name>_adversarial -yt <original_test_labels>
     evaluate_examples_on_kitsune(attack_name + "_adversarial", model_pkl,
-                                adversarial_test_pcap, adversarial_test_npy,
+                                adversarial_test_all_pcap, adversarial_test_npy,
                                 original_test_labels)

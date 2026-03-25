@@ -1,12 +1,12 @@
 import torch
 import numpy as np
-import pandas as pd
 import yaml
 from scapy.all import *
 from src.Feature_Extraction.dataloader import get_basic_features
 from src.TANTGen.generate_sequences import generate_sliding_windows
-from src.TANTGen.TANTGen2 import TANTGen
-from scapy.all import PcapReader, PcapWriter, TCP, UDP, IP
+from src.TANTGen.TANTGen import TANTGen
+from src.TANTGen.utils import is_safe_to_modify
+from scapy.all import PcapReader, PcapWriter, TCP, UDP, IP, Ether
 import os
 
 with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
@@ -24,21 +24,25 @@ def adjust_packet_size(pkt, pad_size):
     Adjust packet size by modifying TCP payload safely.
     """
 
-    # Only handle TCP
-    if pkt.haslayer(IP) and pkt.haslayer(TCP):
-        payload = b""
-        if pkt.haslayer(Raw):
-            payload = pkt[Raw].load
+    if is_safe_to_modify(pkt):
+        # Ensure we don't exceed MTU
+        pad_size = min(pad_size, 1500 - len(pkt))
 
-        pad_size = min(pad_size, 1500 - len(payload)) # Ensure we don't exceed MTU
-        pkt[Raw].load = payload + os.urandom(pad_size)
+        if pad_size > 0:
+            padding = os.urandom(pad_size)
 
-        # Remove fields so Scapy recalculates
-        del pkt[IP].len
-        del pkt[IP].chksum
-        del pkt[TCP].chksum
+            # modify payload
+            if pkt.haslayer(Raw):
+                pkt[Raw].load = pkt[Raw].load + padding
+            else:
+                pkt = pkt / Raw(load=padding)
 
-    return pkt
+            # Remove fields so Scapy recalculates
+            del pkt[IP].len
+            del pkt[IP].chksum
+            del pkt[TCP].chksum
+
+    return Ether(bytes(pkt))
 
 def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, output_pcap):
     original_pcap_reader = PcapReader(original_malicious_pcap)
@@ -56,7 +60,8 @@ def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, ou
     for i, pkt in enumerate(original_pcap_reader):
         # print(f"[{i}] Processing original packet {i}...")
         # print(f"[{j}] Processing adversarial packet {j}...")
-
+        
+        # new_time = last_timestamp + float(modified_IAT[i+1]) if it was just IAT modification, not the perturbation of IAT
         last_timestamp_mod = last_timestamp_mod + (pkt.time - last_timestamp) + float(modified_IAT[i+1])
         last_timestamp = pkt.time
         pkt = adjust_packet_size(pkt, modified_packet_size[i+1])
@@ -127,8 +132,8 @@ def process_pcap_with_TANTGen(
 
         with torch.no_grad():
             pred = model(X) #, y_in)                     # [1, T, 1]
-            #pred = torch.nn.functional.softplus(pred)
 
+        pred = model.transform_pred(pred)
         iats = pred[:, :, -1].squeeze(0).detach().cpu().numpy()  # [T]
         packet_sizes = pred[:, :, 0].squeeze(0).detach().cpu().numpy()  # [T]
         
@@ -144,6 +149,7 @@ def process_pcap_with_TANTGen(
     modified_packet_sizes = modified_packet_sizes.flatten()
     print(modified_iats)
     print(modified_packet_sizes)
+    modified_packet_sizes = [60] * len(modified_packet_sizes)
 
     print("[✓] Modified IATs obtained.")
 
