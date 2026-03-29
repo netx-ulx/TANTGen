@@ -15,6 +15,9 @@ from pathlib import Path
 import yaml
 import json
 import matplotlib.pyplot as plt
+from src.Feature_Extraction.cicflowmeter_mapping import mapping
+
+features = list(mapping.values())
 
 from sklearn.metrics import (
     confusion_matrix,
@@ -37,7 +40,7 @@ with open("config-folders.yaml") as f:
 
 def train_classical(attack_name, df_features, models_out, model_name):
     df = df_features.copy()
-    y = df.pop("Label").astype(int).values
+    y = df.pop(" Label").astype(int).values
     X = df.values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42, shuffle=True)
     scaler = StandardScaler()
@@ -127,9 +130,12 @@ def train_torch_model(model, train_loader, val_loader, epochs=8, lr=1e-3, device
 
 def train_deep(attack_name, df_features, models_out, model_name, epochs=8, batch_size=64):
     df = df_features.copy()
-    y = df.pop("Label").astype(int).values
+    y = df.pop(" Label").astype(int).values
     X = df.values.astype(np.float32)
-    X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-9)
+
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+    joblib.dump(scaler, models_out / f"{attack_name}_{model_name}_scaler.joblib")
 
     train_size = int(0.8 * len(df))
     val_size = len(df) - train_size
@@ -168,7 +174,19 @@ def train(attack_name, features_file, models, epochs=8, batch_size=64):
     models_folder = Path(config["CICIDS2017_Models_Folder"])
     os.makedirs(models_folder, exist_ok=True)
     df = pd.read_csv(features_file)
+    df = df[features + [" Label"]]
     df = df.replace([np.inf, -np.inf], np.nan).fillna(-1)
+    # --------------------------------------------------------
+    # TODO Tirar? Manter?
+    # Balance dataset by undersampling majority class
+    class_counts = df[" Label"].value_counts()
+    min_count = class_counts.min()
+    df = (
+        df.groupby(" Label", group_keys=False)
+        .sample(n=min_count, random_state=42)
+        .reset_index(drop=True)
+    )
+    # --------------------------------------------------------
     for model in models:
         if model in ["LR", "SVM", "RF", "MLP"]:
             print(f"[TRAIN] Classical ML model: {model}")
@@ -247,7 +265,8 @@ def exec(attack_name, csv_file, model_names, dataset_type):
 
     # Load dataset
     df = pd.read_csv(csv_file)
-    y_true = df.pop("Label").astype(int).values
+    df = df[features + [" Label"]]
+    y_true = df.pop(" Label").astype(int).values
     X = df.values
 
     # Load scaler
@@ -270,13 +289,42 @@ def exec(attack_name, csv_file, model_names, dataset_type):
             else:
                 y_score = model.decision_function(X_scaled)
 
-        elif model in ["CNN", "RNN"]:
-            # TODO implement CNN and RNN testing
-            print(f"[WARN] {model} testing not implemented yet.")
-            y_pred = [0] * len(y_true)  # dummy predictions
-            y_score = [0.0] * len(y_true)  # dummy scores
+        elif model_name in ["CNN", "RNN"]:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+            # Normalização (igual ao treino deep)
+            scaler = joblib.load(os.path.join(models_folder, f"{attack_name}_{model_name}_scaler.joblib"))
+            X_dl = scaler.transform(X.astype(np.float32))
+
+            if model_name == "CNN":
+                print("[EXEC] CNN")
+                # formato (N, 1, features)
+                X_tensor = torch.tensor(X_dl).unsqueeze(1).to(device)
+
+                model = CNN1D(X.shape[1])
+                model.load_state_dict(torch.load(os.path.join(models_folder, f"{attack_name}_CNN.pth"), map_location=device))
+            
+            elif model_name == "RNN":
+                print("[EXEC] RNN")
+                # formato (N, seq_len, 1)
+                X_tensor = torch.tensor(X_dl).unsqueeze(2).to(device)
+
+                model = RNN_LSTM(X.shape[1])
+                model.load_state_dict(torch.load(os.path.join(models_folder, f"{attack_name}_RNN.pth"), map_location=device))
+
+            model.to(device)
+            model.eval()
+            with torch.no_grad():
+                outputs = model(X_tensor).squeeze().cpu().numpy()
+
+            # Probabilities
+            y_score = outputs
+            # Threshold 0.5
+            y_pred = (outputs > 0.5).astype(int)
+        
         else:
             print(f"[WARN] Unknown model type: {model}")
+            continue
 
         create_results(attack_name, model_name, dataset_type, y_true, y_pred, y_score)
 

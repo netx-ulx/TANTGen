@@ -5,9 +5,16 @@ from scapy.all import *
 from src.Feature_Extraction.dataloader import get_basic_features
 from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.TANTGen import TANTGen
-from src.TANTGen.utils import is_safe_to_modify
+from src.TANTGen.utils import (
+    is_tcp,
+    is_ssdp,
+    random_bytes,
+    random_ascii,
+    clamp_pad
+)
 from scapy.all import PcapReader, PcapWriter, TCP, UDP, IP, Ether
 import os
+import pandas as pd
 
 with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -19,30 +26,91 @@ with open("config-folders.yaml") as f:
 # Rebuild PCAP 
 # =========================================================
 
-def adjust_packet_size(pkt, pad_size):
-    """
-    Adjust packet size by modifying TCP payload safely.
-    """
+# =========================
+# TCP MODIFICATION
+# =========================
 
-    if is_safe_to_modify(pkt):
-        # Ensure we don't exceed MTU
-        pad_size = min(pad_size, 1500 - len(pkt))
+def adjust_tcp_packet(pkt, pad_size):
+    if not is_tcp(pkt):
+        return pkt
 
-        if pad_size > 0:
-            padding = os.urandom(pad_size)
+    pad_size = clamp_pad(pkt, pad_size)
+    if pad_size <= 0:
+        return pkt
 
-            # modify payload
-            if pkt.haslayer(Raw):
-                pkt[Raw].load = pkt[Raw].load + padding
-            else:
-                pkt = pkt / Raw(load=padding)
+    padding = random_bytes(pad_size)
 
-            # Remove fields so Scapy recalculates
-            del pkt[IP].len
-            del pkt[IP].chksum
-            del pkt[TCP].chksum
+    if pkt.haslayer(Raw):
+        pkt[Raw].load += padding
+    else:
+        pkt = pkt / Raw(load=padding)
+
+    # Recalcular checksums
+    del pkt[IP].len
+    del pkt[IP].chksum
+    del pkt[TCP].chksum
 
     return Ether(bytes(pkt))
+
+
+# =========================
+# SSDP MODIFICATION
+# =========================
+
+def adjust_ssdp_packet(pkt, pad_size):
+    if not is_ssdp(pkt) or not pkt.haslayer(Raw):
+        return pkt
+
+    try:
+        payload = pkt[Raw].load.decode(errors="ignore")
+    except:
+        return pkt
+
+    header_overhead = len("X-Padding: ") + len("\r\n")
+
+    pad_size = clamp_pad(pkt, pad_size)
+
+    effective_pad = pad_size - header_overhead
+    if effective_pad <= 0:
+        return pkt  # not enough space for padding
+
+    # generate random ASCII padding
+    padding = random_ascii(effective_pad)
+    new_header = f"X-Padding: {padding}\r\n"
+
+    # insert new header before the double CRLF that separates headers from body
+    if "\r\n\r\n" in payload:
+        payload = payload.replace("\r\n\r\n", f"\r\n{new_header}\r\n")
+    else:
+        payload += "\r\n" + new_header
+
+    pkt[Raw].load = payload.encode()
+
+    # Recalcular checksums
+    del pkt[IP].len
+    del pkt[IP].chksum
+    del pkt[UDP].len
+    del pkt[UDP].chksum
+
+    return Ether(bytes(pkt))
+
+
+# =========================
+# ADJUST PACKET SIZE
+# =========================
+
+def adjust_packet_size(pkt, pad_size):
+    """
+    Aplica padding dependendo do protocolo
+    """
+
+    if is_ssdp(pkt):
+        return adjust_ssdp_packet(pkt, pad_size)
+
+    elif is_tcp(pkt):
+        return adjust_tcp_packet(pkt, pad_size)
+
+    return pkt
 
 def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, output_pcap):
     original_pcap_reader = PcapReader(original_malicious_pcap)
@@ -148,8 +216,12 @@ def process_pcap_with_TANTGen(
     modified_iats = modified_iats.flatten()
     modified_packet_sizes = modified_packet_sizes.flatten()
     print(modified_iats)
-    print(modified_packet_sizes)
-    modified_packet_sizes = [60] * len(modified_packet_sizes)
+    print(modified_packet_sizes[:120])
+    #modified_iats = [1] * len(modified_iats)
+    # modified_packet_sizes = [0] * len(modified_packet_sizes)
+    #modified_iats = [0] * len(modified_iats) # for testing only, to isolate the effect of packet size modification
+    #modified_packet_sizes = [random.randrange(60, 120) for i in range(len(modified_packet_sizes))]
+    #print(modified_packet_sizes)
 
     print("[✓] Modified IATs obtained.")
 

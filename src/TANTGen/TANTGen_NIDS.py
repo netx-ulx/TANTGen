@@ -1,3 +1,4 @@
+from collections import Counter
 import os
 import time as t
 from datetime import datetime
@@ -421,6 +422,19 @@ def main():
     train_vectors, val_vectors, train_labels, val_labels = train_test_split(
         full_train_vectors, full_train_labels, test_size=0.1, random_state=42, stratify=full_train_labels
     )
+
+
+    print("Original Distribution:", Counter(window_labels))
+
+    from imblearn.under_sampling import RandomUnderSampler
+    train_vectors = np.array(train_vectors)
+    val_vectors = np.array(val_vectors)
+    test_vectors = np.array(test_vectors)
+    n_samples, window_size, n_features = train_vectors.shape
+    train_vectors_reshaped = train_vectors.reshape(n_samples, window_size * n_features)
+    ros = RandomUnderSampler(random_state=42)
+    train_vectors, train_labels = ros.fit_resample(train_vectors_reshaped, train_labels)
+    train_vectors = train_vectors.reshape(-1, window_size, n_features)
 
     train_dataset = PacketDataset(train_vectors, train_labels)
     val_dataset = PacketDataset(val_vectors, val_labels)

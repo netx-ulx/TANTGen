@@ -132,78 +132,79 @@ if __name__ == "__main__":
         plt.legend()
         plt.show()
 
-        if arg.y_true_file_path is not None:
-
+        if arg.y_true_file_path is None:
+            y_true = [1] * len(rmse)  # if no true labels, consider all as malicious
+        else:
             df = pd.read_csv(arg.y_true_file_path)
             y_true = df['x'].values
 
-            y_pred = (rmse > AD_threshold).astype(int)
-            tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        y_pred = (rmse > AD_threshold).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
 
-            print("TP:", tp)
-            print("FP:", fp)
-            print("FN:", fn)
-            print("TN:", tn)
+        print("TP:", tp)
+        print("FP:", fp)
+        print("FN:", fn)
+        print("TN:", tn)
 
-            accuracy  = accuracy_score(y_true, y_pred)
-            precision = precision_score(y_true, y_pred)
-            recall    = recall_score(y_true, y_pred)
-            f1        = f1_score(y_true, y_pred)
+        accuracy  = accuracy_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred)
+        recall    = recall_score(y_true, y_pred)
+        f1        = f1_score(y_true, y_pred)
 
-            print("Accuracy :", accuracy)
-            print("Precision:", precision)
-            print("Recall   :", recall)
-            print("F1-score :", f1)
+        print("Accuracy :", accuracy)
+        print("Precision:", precision)
+        print("Recall   :", recall)
+        print("F1-score :", f1)
 
-            # !!!📌 Nota importante: Em NIDS, Accuracy sozinha é enganadora (datasets são muito desbalanceados).
+        # !!!📌 Nota importante: Em NIDS, Accuracy sozinha é enganadora (datasets são muito desbalanceados).
 
-            #fpr, tpr, thresholds = roc_curve(y_true, rmse)
-            #roc_auc = auc(fpr, tpr)
+        #fpr, tpr, thresholds = roc_curve(y_true, rmse)
+        #roc_auc = auc(fpr, tpr)
 
-            #print("AUC:", roc_auc)
+        #print("AUC:", roc_auc)
 
-            os.makedirs(f"{config['Results_Folder']}plots/Kitsune", exist_ok=True)
+        os.makedirs(f"{config['Results_Folder']}plots/Kitsune", exist_ok=True)
 
-            # plt.figure()
-            # plt.plot(fpr, tpr, label=f'ROC curve (AUC = {roc_auc:.4f})')
-            # plt.plot([0,1], [0,1], linestyle='--')
-            # plt.xlabel('False Positive Rate')
-            # plt.ylabel('True Positive Rate')
-            # plt.title('ROC Curve - Kitsune')
-            # plt.legend()
-            # plt.savefig(f"{config['Results_Folder']}plots/Kitsune/ROC_{arg.attack_name}.png", dpi=300)
-            # plt.show()
+        # plt.figure()
+        # plt.plot(fpr, tpr, label=f'ROC curve (AUC = {roc_auc:.4f})')
+        # plt.plot([0,1], [0,1], linestyle='--')
+        # plt.xlabel('False Positive Rate')
+        # plt.ylabel('True Positive Rate')
+        # plt.title('ROC Curve - Kitsune')
+        # plt.legend()
+        # plt.savefig(f"{config['Results_Folder']}plots/Kitsune/ROC_{arg.attack_name}.png", dpi=300)
+        # plt.show()
 
-            attack_success_rate = fn / (fn + tp + 1e-8)
-            print("Attack Success Rate:", attack_success_rate)
+        attack_success_rate = fn / (fn + tp + 1e-8)
+        print("Attack Success Rate:", attack_success_rate)
 
-            if arg.attack_name is not None:
-                results = {
-                    "attack_name": arg.attack_name,
-                    "model": "Kitsune",
-                    "threshold": float(AD_threshold),
-                    "num_packets": int(len(rmse)),
-                    "confusion_matrix": {
-                        "TP": int(tp),
-                        "FP": int(fp),
-                        "FN": int(fn),
-                        "TN": int(tn)
-                    },
-                    "metrics": {
-                        "accuracy": float(accuracy),
-                        "precision": float(precision),
-                        "recall": float(recall),
-                        "f1_score": float(f1),
-                        #"auc": float(roc_auc),
-                        "attack_success_rate": float(attack_success_rate)
-                    }
+        if arg.attack_name is not None:
+            results = {
+                "attack_name": arg.attack_name,
+                "model": "Kitsune",
+                "threshold": float(AD_threshold),
+                "num_packets": int(len(rmse)),
+                "confusion_matrix": {
+                    "TP": int(tp),
+                    "FP": int(fp),
+                    "FN": int(fn),
+                    "TN": int(tn)
+                },
+                "metrics": {
+                    "accuracy": float(accuracy),
+                    "precision": float(precision),
+                    "recall": float(recall),
+                    "f1_score": float(f1),
+                    #"auc": float(roc_auc),
+                    "attack_success_rate": float(attack_success_rate)
                 }
+            }
 
-                os.makedirs(f"{config['Results_Folder']}Kitsune", exist_ok=True)
-                with open(f"{config['Results_Folder']}Kitsune/results_{arg.attack_name}.json", "w") as f:
-                    json.dump(results, f, indent=4)
+            os.makedirs(f"{config['Results_Folder']}Kitsune", exist_ok=True)
+            with open(f"{config['Results_Folder']}Kitsune/results_{arg.attack_name}.json", "w") as f:
+                json.dump(results, f, indent=4)
 
-                print("Saved results for Kitsune and attack:", arg.attack_name)
+            print("Saved results for Kitsune and attack:", arg.attack_name)
 
     else:
         raise RuntimeError("argument -M is wrong! choose 'train' or 'execute'")

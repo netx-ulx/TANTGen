@@ -1,12 +1,14 @@
 from ipaddress import ip_address
+import os
+import string
 
 import numpy as np
 import torch
-
+import random
 from torch import nn
 import math
 
-from scapy.all import TCP, IP
+from scapy.all import TCP, IP, UDP
 
 # Dataset helper for PyTorch
 class PacketDataset(torch.utils.data.Dataset):
@@ -196,6 +198,41 @@ def iat_log_bucket(iat, num_bins=16, min_iat=1e-6, max_iat=10.0):
     return torch.clamp(bin_idx, 0, num_bins - 1)
 
 
+def adjust_iats_with_rate_limit(original_iats, modified_iats, rate_limit):
+    """
+    Adjust modified IATs to ensure the total time of the sequence does not exceed a certain rate limit compared to the original.
+
+    Args:
+        original_iats: Tensor [B, T] original IATs
+        modified_iats: Tensor [B, T] modified IATs (after adding deltas)
+        rate_limit: float, maximum allowed ratio of total modified time to original time
+
+    Returns:
+        adjusted_iats: Tensor [B, T] modified IATs adjusted to respect the rate limit
+    """
+    original_total_time = torch.sum(original_iats, dim=1)  # [B]
+    modified_total_time = torch.sum(modified_iats, dim=1)  # [B]
+
+    # Calculate scaling factor for each sample in the batch
+    scaling_factor = torch.clamp(modified_total_time / (rate_limit * original_total_time), min=1.0)
+
+    # Scale down modified IATs if they exceed the rate limit
+    adjusted_iats = modified_iats / scaling_factor.unsqueeze(1)
+
+    return adjusted_iats
+
+def mask_top_k_deltas(delta, rate_limit):
+    # Apply only to the top rate_limit% of packets with highest predicted change
+    k = int(rate_limit * delta.shape[1])  # 20% dos pacotes
+    # obter índices dos maiores deltas por amostra
+    _, idx = torch.topk(torch.abs(delta), k, dim=1)
+    mask = torch.zeros_like(delta)
+    mask.scatter_(1, idx, 1.0)
+    # aplicar máscara
+    delta_masked = delta * mask
+    return delta_masked
+
+
 def is_safe_to_modify(pkt):
     if pkt.haslayer(IP) and pkt.haslayer(TCP):
         return True
@@ -252,3 +289,38 @@ def is_safe_to_modify(pkt):
 #                 return True
 
 #     return False
+
+
+# =========================
+# PROTOCOL CHECKS
+# =========================
+
+def is_tcp(pkt):
+    return pkt.haslayer(IP) and pkt.haslayer(TCP)
+
+
+def is_ssdp(pkt):
+    return (
+        pkt.haslayer(IP) and
+        pkt.haslayer(UDP) and
+        (pkt[UDP].sport == 1900 or pkt[UDP].dport == 1900)
+    )
+
+
+# =========================
+# UTILS FOR ADVERSARIAL ATTACKS
+# =========================
+
+MTU_SAFE = 1400  # margin to avoid fragmentation and detection (real MTU is 1500)
+
+def clamp_pad(pkt, pad_size):
+    """Avoid exceeding MTU safe limit"""
+    return max(0, min(pad_size, MTU_SAFE - len(pkt)))
+
+
+def random_bytes(size):
+    return os.urandom(size)
+
+
+def random_ascii(size):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=size))

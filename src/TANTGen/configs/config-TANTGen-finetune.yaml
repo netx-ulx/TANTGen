@@ -5,22 +5,11 @@ loss_fun_diff: huber
 loss_fun_evasion: bce
 # loss_fun_constraints: mse
 
-lambda_diff: 0.01
 lambda_evasion: 2.0
 lambda_constraints: 1.0
-lambda_diversity: 0.1
 
-rate_limit: 10
-
-constraint_limit: 0.025 # 10e-5
-# 0.03 dá ASR de 99.9595% (basta 5 epochs);
-# 0.025 dá ASR de 96.95% (15 epochs); 
-# 0.02 já não funciona quase nada dá ASR de 14.8878% (17 epochs);
-# 0.015 já não funciona quase nada dá ASR de 12.3% (14 epochs);
-# 0.01 já não funciona quase nada dá ASR de 11.8% (18 epochs)
-
-# 0.023 tem loss 2.92 no teste do Surrogate NIDS
-# 0.024 tem loss 2.92 no teste do Surrogate NIDS
+time_rate_limit: 85 # 20 dá na verdade 7.25x, e um ASR de 0.56; 22 dá na verdade 8.5x, e um ASR de 0.9996
+size_rate_limit: 0.5
 
 epochs: 50
 batch_size: 64

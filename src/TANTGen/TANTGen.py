@@ -17,15 +17,14 @@ from torch import nn
 from torch.utils.data import DataLoader
 from src.TANTGen.generate_sequences import generate_sliding_windows_2
 from src.TANTGen.utils import (
-    PacketDataset
+    PacketDataset,
+    adjust_iats_with_rate_limit,
+    mask_top_k_deltas
 )
 from src.TANTGen.TANTGen_pretrain import TANTGen_pretrain
 from src.TANTGen.TANTGen_NIDS import TANTGen_NIDS
 
 torch.manual_seed(0)
-
-CHANGE_PACKET_SIZE = False
-CHANGE_IAT = True
 
 # Hyper parameters from config file
 with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
@@ -41,6 +40,8 @@ class TANTGen(TANTGen_pretrain):
         mean_std,
         epochs=config_finetune["epochs"],
         batch_size=config_finetune["batch_size"],
+        change_iat=True,
+        change_packet_size=True,
     ):
 
         nids_ckpt_path="{}/{}{}.ckpt".format(
@@ -53,6 +54,10 @@ class TANTGen(TANTGen_pretrain):
             batch_size,
             ## posso precisar de enviar os outros ? ver que funções ele reutiliza
         )
+
+        self.change_iat = change_iat
+        self.change_packet_size = change_packet_size
+        self.save_hyperparameters()
 
         self.nids = TANTGen_NIDS()
 
@@ -69,7 +74,8 @@ class TANTGen(TANTGen_pretrain):
         self.lambda_evasion = config_finetune["lambda_evasion"]
         self.lambda_constraints = config_finetune["lambda_constraints"]
 
-        self.constraint_limit = config_finetune["constraint_limit"]
+        self.time_rate_limit = config_finetune["time_rate_limit"]
+        self.size_rate_limit = config_finetune["size_rate_limit"]
 
     def forward(self, src): #, tgt):
         # used for the forward pass of the model
@@ -105,9 +111,6 @@ class TANTGen(TANTGen_pretrain):
         # Safety checks
         assert X.dim() == 3, "X must be [B, T, F]"
 
-        # if iat_bucket.dim() == 3:
-        #     iat_bucket = iat_bucket.squeeze(-1)
-
         if packet_size.dim() == 3:
             packet_size = packet_size.squeeze(-1)
         
@@ -117,207 +120,11 @@ class TANTGen(TANTGen_pretrain):
         # Clone to avoid in-place ops
         X_mod = X.clone()
 
-        # Replace features
-        # X_mod[:, :, 0] = iat_bucket.float()
-
         X_mod[:, :, 0] = packet_size.float()
 
         X_mod[:, :, -1] = pred_iat
 
         return X_mod
-
-    # TANTGen.py
-    # def _step(self, batch):
-        # X, y = batch
-
-        # X = X.float()
-        # y = y.float()
-
-        # pred = self.forward(X)
-
-        # # === Loss 1: difference ===
-        # loss_diff = self.loss_func_diff(pred, y)
-
-        # # === Loss 2: evasion ===
-        # pred_un = pred * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-        # iat_bucket = ...
-        # X_mod = self._reconstruct_packets_with_predicted_iat(X, pred, iat_bucket)
-
-        # # get logits from external IDS (not trainable)
-        # logits_ids = self.nids(X_mod)
-
-        # margin = -1.0
-        # loss_evasion = torch.relu(logits_ids - margin).mean()
-        
-        # # === Loss 3: constraints (hinge) ===
-        # # === Un-normalize ===
-        # y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-
-        # loss_constraint = torch.relu(
-        #     pred_un - y_un - self.constraint_limit
-        # ).mean() + torch.relu(
-        #     y_un - pred_un
-        # ).mean()
-        # # or loss_constraint = torch.mean((pred_un - y_un)**2)
-
-        # # total loss
-        # loss = (
-        #     self.lambda_diff * loss_diff
-        #     + self.lambda_evasion * loss_evasion
-        #     + self.lambda_constraints * loss_constraint
-        # )
-
-        # return loss, pred, y
-
-    # TANTGen2.py
-    # def _step(self, batch, train=False):
-        # X, y = batch
-
-        # X = X.float()
-        # y = y.float()
-
-        # # y_input_shifted = y.clone()
-        # # y_input_shifted = torch.roll(y_input_shifted, shifts=1, dims=1)  # shift right
-        # # y_input_shifted[:, 0, :] = 0
-
-        # #y_input = torch.zeros_like(y) # nem está a ser usado
-        # pred = self.forward(X) #, y_input_shifted)
-        # #pred = torch.nn.functional.softplus(pred)
-        # torch.set_printoptions(precision=10)
-        # #print(pred)
-        # # print("Predicted IAT:", pred)
-        # # pred is the perturbation to add, unnormalized
-
-        # # === Loss 1: difference ===
-        # # loss_diff = torch.mean(torch.abs(w * pred))
-        # # print("Difference loss:", loss_diff.item())
-
-        # # === Loss 2: evasion ===
-        # y_un = y * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-        # y_un_mod = y_un + pred
-        # bins = torch.tensor(
-        #     [-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
-        #     device=y_un_mod.device
-        # )
-
-        # iat_bucket = torch.bucketize(y_un_mod, bins)
-        # y_mod = y + (pred / self.mean_std["std_iat"])
-        # X_mod = self._reconstruct_packets_with_predicted_iat(X, y_mod, iat_bucket)
-
-        # # get logits from external IDS (not trainable)
-        # logits_ids = self.nids(X_mod)
-        # print("logits mean:", logits_ids.mean().item())
-        # print("logits std:", logits_ids.std().item())
-        # #print(logits_ids)
-
-        # # target_benign = torch.zeros(logits_ids.shape, device=self.device)
-        # # loss_evasion = self.loss_func_evasion(logits_ids, target_benign)
-
-        # margin = -1.0
-        # loss_evasion = torch.relu(logits_ids - margin).mean()
-        # print("Evasion loss:", loss_evasion.item())
-        
-        # # === Loss 3: constraints (hinge) ===
-
-        # budget = self.constraint_limit * config_general["sliding_window_size"]
-        # #budget = self.rate_limit * y_un.sum(dim=1, keepdim=True) # budget per window, e.g. 10% increase in total IAT
-
-        # # loss_budget = torch.relu(
-        # #     pred.abs().sum(dim=1) - budget
-        # # ).mean()
-        # # print("Budget loss:", loss_budget.item())
-
-        # # eps = 1e-3 * y_un.mean()
-        # # w = 1.0 / (y_un + eps)
-        # # w = w / w.mean(dim=1, keepdim=True)
-        # # if train:
-        # #     print("bbbbb")
-        # #     print(w[0][:20])
-        # # loss_budget = torch.relu((pred).sum(dim=1) - budget).mean()
-        # # loss_budget = torch.relu((w * pred).sum(dim=1) - budget).mean()
-        # # relative_delta = pred / (y_un + eps)
-        # # loss_budget = torch.relu(relative_delta.sum(dim=1) - budget).mean()
-
-        # # loss_budget = torch.log1p(torch.exp(pred.sum(dim=1) - budget)).mean()
-
-        # # loss_budget = (w * pred).sum(dim=1)
-        # # loss_budget = torch.log1p(torch.exp(loss_budget - budget)).mean()
-
-        # budget_used = pred.sum(dim=1)
-        # loss_budget = (((budget_used - budget)/budget)**2).mean()
-        # print("Budget loss:", loss_budget.item())
-
-        # #loss_diff = torch.mean(torch.abs(w * pred))
-
-        # # === Loss 4: diversity  ===
-        # # loss_diversity = - torch.var(pred, dim=1).mean() * 1e4
-
-        # # print(
-        # #     pred.mean(dim=1).mean().item(),
-        # #     pred.std(dim=1).mean().item(),
-        # #     loss_diversity.item()
-        # # )
-
-        # # p = pred / (pred.sum(dim=1, keepdim=True) + 1e-8)
-        # # entropy = -(p * torch.log(p + 1e-8)).sum(dim=1)
-        # # loss_diversity = -entropy.mean()
-        # # print("Diversity loss:", loss_diversity.item())
-
-        # # total loss
-        # loss = (
-        #     # self.lambda_diff * loss_diff +
-        #     self.lambda_evasion * loss_evasion
-        #     #+ self.lambda_constraints * loss_constraint
-        #     #+ self.lambda_diversity * loss_diversity
-        #     + self.lambda_constraints * loss_budget
-        # )
-
-        # return loss, pred, y
-
-    # TANTGen4.py 
-    # def _step(self, batch, train=False):
-        # X, y = batch
-
-        # X = X.float()
-        # y = y.float()
-
-        # pred = self.forward(X)
-        # torch.set_printoptions(precision=10)
-
-        # # === Loss 1: evasion ===
-        # y_packet_size_mod = y[:, :, 0]
-
-        # log1_iat = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-        # log1_iat_mod = torch.log1p(torch.exp(log1_iat) - 1 + pred[:, :, -1])
-        # y_iat_mod = (log1_iat_mod - self.mean_std["mean_iat"]) / self.mean_std["std_iat"]
-
-        # X_mod = self._reconstruct_packets_with_predicted_iat(X, y_packet_size_mod, y_iat_mod)
-
-        # # get logits from external IDS
-        # logits_ids = self.nids(X_mod)
-        # print(logits_ids)
-
-        # margin = -1.0
-        # loss_evasion = torch.relu(logits_ids - margin).mean()
-        # print("Evasion loss:", loss_evasion.item())
-        
-        # # === Loss 2: constraints (hinge) ===
-
-        # loss_budget = torch.norm(pred[:, :, -1], p=2)
-        # print("Budget loss:", loss_budget.item())
-
-        # attack_success = (logits_ids < 0).float().mean()
-        # target_success = 0.15
-        # self.lambda_evasion = torch.relu(target_success - attack_success) / target_success
-
-        # # total loss
-        # loss = (
-        #     self.lambda_evasion * loss_evasion
-        #     + self.lambda_constraints * loss_budget
-        #     # + self.lambda_constraints * loss_packet_size
-        # )
-
-        # return loss, pred, y
 
 
     def _step(self, batch, train=False):
@@ -329,45 +136,63 @@ class TANTGen(TANTGen_pretrain):
         pred = self.forward(X)
         torch.set_printoptions(precision=10)
 
-        # === Loss 1: evasion ===
-        # y_iat_un = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-        # y_iat_un_mod = y_iat_un + pred[:, :, -1]
-        # bins = torch.tensor(
-        #     [-np.inf, 0.0001, 0.001, 0.01, 0.1, 1, np.inf],
-        #     device=y_iat_un_mod.device
-        # )
-        # iat_bucket = torch.bucketize(y_iat_un_mod, bins)
 
-        if CHANGE_PACKET_SIZE:
+        if self.change_packet_size:
             y_packet_size_un = y[:, :, 0] * self.mean_std["std_packet_size"] + self.mean_std["mean_packet_size"]
+
+            # ...................................................................
+            # pred[:, :, 0] = mask_top_k_deltas(pred[:, :, 0], self.size_rate_limit)
+            # # ...................................................................
+
             y_packet_size_un_mod_cont = y_packet_size_un + pred[:, :, 0] * 100
             y_packet_size_un_mod = y_packet_size_un_mod_cont
-            # y_packet_size_un_mod = (
-            #     y_packet_size_un_mod_cont
-            #     + (torch.round(y_packet_size_un_mod_cont) - y_packet_size_un_mod_cont).detach()
-            # )
 
             y_packet_size_un_mod = torch.clamp(y_packet_size_un_mod, min=0, max=1500) # Assuming max packet size of 1500 bytes
             print(torch.round(pred[:, :, 0] * 100))
             y_packet_size_mod = (y_packet_size_un_mod - self.mean_std["mean_packet_size"]) / self.mean_std["std_packet_size"]
 
-            #loss_packet_size = torch.mean(torch.abs(pred[:, :, 0])) * 0.1# L1 
-            loss_packet_size = torch.mean(pred[:, :, 0] ** 2) * 0.1 # L2
+            #loss_packet_size = torch.mean(torch.abs(pred[:, :, 0])) * 0.1# L1
+            loss_packet_size = torch.mean(pred[:, :, 0] ** 2) * 0.1 # L2 <---
             print("Packet size loss:", loss_packet_size.item())
         else:
             y_packet_size_mod = y[:, :, 0]
-            loss_packet_size = 0.0 #99999 * torch.mean(pred[:, :, 0]) # large penalty to force packet size changes to be zero
+            loss_packet_size = 0.0
 
-        if CHANGE_IAT:
-            log1_iat = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-            log1_iat_mod = torch.log1p(torch.exp(log1_iat) - 1 + pred[:, :, -1])
+        if self.change_iat:
+            log1_iat_un = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
+            iat_un = torch.expm1(log1_iat_un) # torch.exp(log1_iat_un) - 1
+            iat_un_mod = iat_un + pred[:, :, -1]
+
+            # # ...................................................................
+            original_time = torch.sum(iat_un, dim=1, keepdim=True)
+            total_time = torch.sum(iat_un_mod, dim=1, keepdim=True)
+            
+            # scale = torch.clamp(total_time / (2.0 * original_time), min=1.0)
+            # iat_un_mod = iat_un_mod / scale
+
+            # iat_un_mod = adjust_iats_with_rate_limit(iat_un, iat_un_mod, self.time_rate_limit)
+
+            # ratio
+            time_ratio = total_time / (original_time)
+
+            # penalização (soft constraint)
+            time_violation = torch.relu(time_ratio - self.time_rate_limit)
+
+            loss_time_rate = time_violation.mean()
+            print("Time rate loss:", loss_time_rate.item())
+
+            # loss_time_rate = time_ratio.mean() #torch.norm(time_ratio, p=2)
+            # print("Time rate loss:", loss_time_rate.item())
+            # # ....................................................................
+
+            log1_iat_mod = torch.log1p(iat_un_mod)
             y_iat_mod = (log1_iat_mod - self.mean_std["mean_iat"]) / self.mean_std["std_iat"]
 
             loss_budget = torch.norm(pred[:, :, -1], p=2)
             print("Budget loss:", loss_budget.item())
         else:
             y_iat_mod = y[:, :, -1]
-            loss_budget = 0.0 #99999 * torch.mean(pred[:, :, -1]) # large penalty to force iat changes to be zero
+            loss_budget = 0.0
 
         X_mod = self._reconstruct_packets_with_predicted_iat(X, y_packet_size_mod, y_iat_mod)
 
@@ -375,7 +200,7 @@ class TANTGen(TANTGen_pretrain):
         logits_ids = self.nids(X_mod)
         #print(logits_ids)
 
-        margin = 0.0 #-1.0
+        margin = -1.0 #-1.0
         loss_evasion = torch.relu(logits_ids - margin).mean()
         print("Evasion loss:", loss_evasion.item())
         
@@ -388,6 +213,7 @@ class TANTGen(TANTGen_pretrain):
             self.lambda_evasion * loss_evasion
             + self.lambda_constraints * loss_budget
             + self.lambda_constraints * loss_packet_size
+            # + self.lambda_constraints * loss_time_rate
         )
 
         # if train:
@@ -396,14 +222,15 @@ class TANTGen(TANTGen_pretrain):
         return loss, pred, y
 
     def transform_pred(self, pred):
-        if not CHANGE_IAT:
+        if not self.change_iat:
             pred[:, :, -1] = 0.0 # force no change in IAT
-        if not CHANGE_PACKET_SIZE:
+        if not self.change_packet_size:
             pred[:, :, 0] = 0.0 # force no change in packet size
         else:
-            pred[:, :, 0]*100
-        return pred
+            pred[:, :, 0] = pred[:, :, 0]*100
+            #pred[:, :, 0] = mask_top_k_deltas(pred[:, :, 0], self.size_rate_limit)
 
+        return pred
 
 # Argument parser for the model and return
 def get_args():
@@ -476,6 +303,20 @@ def get_args():
         help="Name of the model",
     )
 
+    parser.add_argument(
+        "-iat",
+        "--change_iat",
+        action='store_true',
+        help="If set, the model will be allowed to change IATs; if not set, IAT changes will be forced to 0 (no change)",
+    )
+
+    parser.add_argument(
+        "-size",
+        "--change_packet_size",
+        action='store_true',
+        help="If set, the model will be allowed to change packet sizes; if not set, packet size changes will be forced to 0 (no change)",
+    )
+
     args = parser.parse_args()
 
     return args
@@ -485,6 +326,10 @@ def get_args():
 def main():
     # Arguments
     args = get_args()
+    if not args.change_iat and not args.change_packet_size:
+        args.change_iat = True
+        args.change_packet_size = True
+        print("WARNING: Both change_iat and change_packet_size are not set. Both will be changed")
     sliding_window_size = int(config_general["sliding_window_size"])
     window_stride = int(config_general["window_stride"])
     num_features = int(config_general["num_features"])
@@ -537,14 +382,11 @@ def main():
 
     if os.path.isfile(pretrained_ckpt_path):
 
-        model = TANTGen(
+        model = TANTGen.load_from_checkpoint(
+            checkpoint_path=pretrained_ckpt_path,
             mean_std=mean_std,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
+            strict=True
         )
-
-        ckpt = torch.load(pretrained_ckpt_path, map_location="cpu")
-        model.load_state_dict(ckpt["state_dict"], strict=False)
 
         # Freeze or unfreeze everything!!
         for params in model.parameters():
@@ -559,6 +401,8 @@ def main():
             mean_std=mean_std,
             epochs=args.epochs,
             batch_size=args.batch_size,
+            change_iat=args.change_iat,
+            change_packet_size=args.change_packet_size,
         )
 
 

@@ -7,9 +7,6 @@ import yaml
 
 # TODO não está a funcionar no servidor porque o tshark e mergecap não estão instalados
 
-# TSHARK = "/Applications/Wireshark.app/Contents/MacOS/tshark" # For MacOS users
-TSHARK = "tshark" # For Linux users
-
 with open("config-folders.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -26,7 +23,7 @@ def split_dataset(attack_name,
                   train_adversarial_ratio
                   ):
     cmd = [
-        TSHARK, "-r", benign_pcap, 
+        "tshark", "-r", benign_pcap, 
         "-T", "fields", 
         "-e", "frame.number"
     ]
@@ -37,7 +34,7 @@ def split_dataset(attack_name,
     b_i2 = int(n_benign * (train_nids_b_ratio + train_surrogate_b_ratio))
 
     cmd = [
-        TSHARK, "-r", malicious_pcap, 
+        "tshark", "-r", malicious_pcap, 
         "-T", "fields", 
         "-e", "frame.number"
     ]
@@ -50,7 +47,7 @@ def split_dataset(attack_name,
 
     def cut_pcap(input_pcap, output_pcap, t_start, t_end):
         cmd = [
-            TSHARK,
+            "tshark",
             "-r", input_pcap,
             "-Y", f"frame.number >= {t_start} && frame.number <= {t_end}",
             "-w", output_pcap
@@ -61,14 +58,15 @@ def split_dataset(attack_name,
     cut_pcap(benign_pcap, OUTPUT_FOLDER_SURROGATE + attack_name + "_benign.pcap", b_i1+1, b_i2)
     cut_pcap(benign_pcap, OUTPUT_FOLDER_TEST + attack_name + "_benign.pcap", b_i2+1, n_benign)
     cut_pcap(malicious_pcap, OUTPUT_FOLDER_ADVERSARIAL + attack_name + "_malicious.pcap", 1, m_i1)
-    cut_pcap(malicious_pcap, OUTPUT_FOLDER_NIDS + attack_name + "_malicious.pcap", m_i1+1, m_i2)
+    if train_nids_m_ratio>0:
+        cut_pcap(malicious_pcap, OUTPUT_FOLDER_NIDS + attack_name + "_malicious.pcap", m_i1+1, m_i2)
     cut_pcap(malicious_pcap, OUTPUT_FOLDER_SURROGATE + attack_name + "_malicious.pcap", m_i2+1, m_i3)
     cut_pcap(malicious_pcap, OUTPUT_FOLDER_TEST + attack_name + "_malicious.pcap", m_i3+1, n_malicious)
-
 
     # merge surrogate files
     cmd = [
         "mergecap",
+        "-a", # TODO delete to mix benign and malicious data for surrogate training
         "-w", OUTPUT_FOLDER_SURROGATE + attack_name + "_all.pcap",
         OUTPUT_FOLDER_SURROGATE + attack_name + "_benign.pcap",
         OUTPUT_FOLDER_SURROGATE + attack_name + "_malicious.pcap"
@@ -79,21 +77,40 @@ def split_dataset(attack_name,
     Path(OUTPUT_FOLDER_SURROGATE + attack_name + "_benign.pcap").unlink()
     Path(OUTPUT_FOLDER_SURROGATE + attack_name + "_malicious.pcap").unlink()
 
+    # merge test files
+    cmd = [
+        "mergecap",
+        "-w", OUTPUT_FOLDER_TEST + attack_name + "_all.pcap",
+        OUTPUT_FOLDER_TEST + attack_name + "_benign.pcap",
+        OUTPUT_FOLDER_TEST + attack_name + "_malicious.pcap"
+    ]
+    subprocess.run(cmd, check=True)
+
+    # remove individual test files
+    Path(OUTPUT_FOLDER_TEST + attack_name + "_benign.pcap").unlink()
+
     # ======================================================
     # create splitted labels file
     # ======================================================
+    # labels = pd.read_csv(labels_file)
 
-    labels = pd.read_csv(labels_file)
-
-    labels_train_sur_benign = labels[labels.x == 0].iloc[b_i1:b_i2]
-    labels_train_sur_malicious = labels[labels.x == 1].iloc[m_i2:m_i3]
+    # TODO uncomment to mix benign and malicious data for surrogate training
+    # labels_train_sur_benign = labels[labels.x == 0].iloc[b_i1:b_i2]
+    # labels_train_sur_malicious = labels[labels.x == 1].iloc[m_i2:m_i3]
+    labels_test_benign = labels[labels.x == 0].iloc[b_i2:]
+    labels_test_malicious = labels[labels.x == 1].iloc[m_i3:]
 
     # Concatenate and sort
-    labels_train_sur = pd.concat([labels_train_sur_benign, labels_train_sur_malicious])
-    labels_train_sur = labels_train_sur.sort_index()
+    # labels_train_sur = pd.concat([labels_train_sur_benign, labels_train_sur_malicious])
+    # labels_train_sur = labels_train_sur.sort_index()
+    labels_test_final = pd.concat([labels_test_benign, labels_test_malicious])
+    labels_test_final = labels_test_final.sort_index()
+    labels = [0] * (b_i2 - b_i1) + [1] * (m_i3 - m_i2) # TODO delete to mix benign and malicious data for surrogate training
+    labels_train_sur = pd.DataFrame({'x': labels}) # TODO delete to mix benign and malicious data for surrogate training
 
     # Save to CSV
     labels_train_sur.to_csv(OUTPUT_FOLDER_SURROGATE + attack_name + "_labels.csv", index=False)
+    labels_test_final.to_csv(OUTPUT_FOLDER_TEST + attack_name + "_labels.csv", index=False)
 
 
 if __name__ == "__main__":

@@ -19,3 +19,4 @@ cython-npm
 scikit-learn
 cicflowmeter
 seaborn
+imblearn
