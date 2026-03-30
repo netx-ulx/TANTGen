@@ -1,5 +1,5 @@
 {
-    "attack_name": "Fuzzing_all",
+    "attack_name": "Fuzzing_original_all",
     "model": "Kitsune",
     "threshold": 0.6346326558353714,
     "num_packets": 432783,

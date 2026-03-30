@@ -1,19 +1,19 @@
 {
     "attack_name": "PortScan_original",
     "model": "SVM",
-    "num_packets": 34826,
+    "num_flows": 23584,
     "confusion_matrix": {
-        "TP": 3870,
-        "FP": 121,
-        "FN": 11661,
-        "TN": 19174
+        "TP": 15810,
+        "FP": 20,
+        "FN": 31,
+        "TN": 7723
     },
     "metrics": {
-        "accuracy": 0.6616895422959858,
-        "precision": 0.9696817840140316,
-        "recall": 0.24917906123237396,
-        "f1_score": 0.3964757709251101,
-        "auc": 0.9904994898649483,
-        "attack_success_rate": 0.7508209387671426
+        "accuracy": 0.9978375169606513,
+        "precision": 0.9987365761212887,
+        "recall": 0.9980430528375733,
+        "f1_score": 0.998389694041868,
+        "auc": 0.998673445610622,
+        "attack_success_rate": 0.001956947162425379
     }
 }

@@ -156,8 +156,6 @@ if __name__ == "__main__":
         print("Recall   :", recall)
         print("F1-score :", f1)
 
-        # !!!📌 Nota importante: Em NIDS, Accuracy sozinha é enganadora (datasets são muito desbalanceados).
-
         #fpr, tpr, thresholds = roc_curve(y_true, rmse)
         #roc_auc = auc(fpr, tpr)
 

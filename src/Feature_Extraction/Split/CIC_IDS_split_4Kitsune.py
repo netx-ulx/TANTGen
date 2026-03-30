@@ -92,7 +92,7 @@ def split_dataset(attack_name,
     # ======================================================
     # create splitted labels file
     # ======================================================
-    # labels = pd.read_csv(labels_file)
+    labels = pd.read_csv(labels_file)
 
     # TODO uncomment to mix benign and malicious data for surrogate training
     # labels_train_sur_benign = labels[labels.x == 0].iloc[b_i1:b_i2]

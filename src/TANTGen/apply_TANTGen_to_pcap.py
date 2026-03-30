@@ -1,3 +1,5 @@
+from zipfile import Path
+
 import torch
 import numpy as np
 import yaml
@@ -173,7 +175,7 @@ def process_pcap_with_TANTGen(
     )
 
     print(f"[✓] Windows created: {len(feature_arr)}")
-    # Path(config_folders["Adversarial_Test_Folder"] + "temp_features.csv").unlink()
+    Path(config_folders["Adversarial_Test_Folder"] + "temp_features.csv").unlink()
 
     # =====================================================
     # 3. Load trained TANTGen model

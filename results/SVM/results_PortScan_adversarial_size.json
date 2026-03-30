@@ -1,0 +1,19 @@
+{
+    "attack_name": "PortScan_adversarial",
+    "model": "SVM",
+    "num_flows": 23605,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 20,
+        "FN": 15862,
+        "TN": 7723
+    },
+    "metrics": {
+        "accuracy": 0.3271764456682906,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.6660297236596029,
+        "attack_success_rate": 0.9999999999993695
+    }
+}

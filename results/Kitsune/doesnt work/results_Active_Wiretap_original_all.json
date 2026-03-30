@@ -1,0 +1,19 @@
+{
+    "attack_name": "Active_original_all",
+    "model": "Kitsune",
+    "threshold": 0.5557267139107327,
+    "num_packets": 923216,
+    "confusion_matrix": {
+        "TP": 429964,
+        "FP": 0,
+        "FN": 493252,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 0.4657241642259233,
+        "precision": 1.0,
+        "recall": 0.4657241642259233,
+        "f1_score": 0.6354867792902644,
+        "attack_success_rate": 0.5342758357740709
+    }
+}

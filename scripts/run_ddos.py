@@ -1,37 +1,33 @@
+from scripts.utils import run_ml_nids_on_cicids_pipeline
+
 attack_name = "DDoS"
 
 pcap_file = "data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours-Afternoon-DDoS.pcap"
 labels_file = "data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Friday-WorkingHours-Afternoon-DDoS.pcap_ISCX.csv"
 
 # Split dataset into training adversarial, training surrogate, training target NIDS, and test sets
-train_nids_b_ratio = 0.4  # 40% train NIDS
-train_surrogate_b_ratio = 0.4 # 40% train surrogate
-test_adversarial_b_ratio = 0.2 # 20% test adversarial
+nids_ratio = 0.35
+surrogate_ratio = 0.35
+adversarial_ratio = 0.2
+test_ratio = 0.1
 
-train_nids_m_ratio = 0.28  # 28% train NIDS
-train_adversarial_ratio = 0.34 # 34% train adversarial
-train_surrogate_m_ratio = 0.28 # 28% train surrogate
-test_adversarial_m_ratio = 0.1 # 10% test adversarial
+# Warning: The DDoS attack in the CIC-IDS-2017 dataset is from 19:30 to 21:05 on Friday, so we need to split the dataset accordingly to ensure that the attack samples are included in the correct sets.
+# editcap -A "2017-07-07 19:30:00" -B "2017-07-07 21:05:00" data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours.pcap data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours-Afternoon-DDoS.pcap
 
-# run_cicids_pipeline(attack_name, pcap_file, labels_file,
-#              train_nids_b_ratio, train_surrogate_b_ratio,
-#              train_nids_m_ratio, train_adversarial_ratio,
-#              train_surrogate_m_ratio)
+run_ml_nids_on_cicids_pipeline(attack_name, pcap_file, labels_file,
+             nids_ratio, surrogate_ratio,
+             adversarial_ratio, test_ratio)
 
 # =========================================================
 #   Commands:
 # =========================================================
-
-# editcap -A "2017-07-07 19:30:00" -B "2017-07-07 21:05:00" data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours.pcap data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours-Afternoon-DDos.pcap
-
-# python src/Feature_Extraction/Split/CIC_IDS_divide_BM.py -i data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours-Afternoon-DDoS.pcap -l data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Friday-WorkingHours-Afternoon-DDoS.pcap_ISCX.csv -m data/original/CIC-IDS-2017/PCAPs/Malicious/DDoS_malicious.pcap -b data/original/CIC-IDS-2017/PCAPs/Benign/DDoS_benign.pcap -ol data/original/CIC-IDS-2017/CSVs/Labels/DDos_labels.csv
-# python src/Feature_Extraction/Split/CIC_IDS_split_dataset.py -a DDoS -b data/original/CIC-IDS-2017/PCAPs/Benign/DDoS_benign.pcap -m data/original/CIC-IDS-2017/PCAPs/Malicious/DDoS_malicious.pcap -l data/original/CIC-IDS-2017/CSVs/Labels/DDos_labels.csv --train_nids_b_ratio 0.4 --train_surrogate_b_ratio 0.4 --train_nids_m_ratio 0.28 --train_adversarial_ratio 0.34 --train_surrogate_m_ratio 0.28
+# python src/Feature_Extraction/Split/CIC_IDS_split_4ML_models.py -a DDoS -p data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours-Afternoon-DDoS.pcap -c data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv --nids_ratio 0.35 --surrogate_ratio 0.35 --adversarial_ratio 0.2 --test_ratio 0.1
 
 # source src/Feature_Extraction/cicflowmeter/.venv/bin/activate
 # cicflowmeter -f data/preprocessed/target_train/DDoS_benign.pcap -c data/preprocessed/target_train/DDoS_benign_features.csv
 # cicflowmeter -f data/preprocessed/target_train/DDoS_malicious.pcap -c data/preprocessed/target_train/DDoS_malicious_features.csv
 # source venv/bin/activate
-# python src/Feature_Extraction/cicflowmeter_mapping.py -b data/preprocessed/target_train/DDoS_benign_features.csv -m data/preprocessed/target_train/DDoS_malicious_features.csv -o data/preprocessed/target_train/DDoS_features.csv -ba
+# python src/Feature_Extraction/cicflowmeter_mapping.py -b data/preprocessed/target_train/DDoS_benign_features.csv -m data/preprocessed/target_train/DDoS_malicious_features.csv -o data/preprocessed/target_train/DDoS_features.csv
 # python -m src.NIDS.model -a DDoS -i data/preprocessed/target_train/DDoS_features.csv -M train
 
 # python -m src.TANTGen.TANTGen_pretrain

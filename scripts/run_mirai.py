@@ -1,4 +1,4 @@
-from scripts.utils import run_kitsune_pipeline
+from scripts.utils import run_kitsune_on_kitsune_pipeline
 
 attack_name = "Mirai"
 
@@ -14,7 +14,7 @@ train_adversarial_ratio = 0.6 # 60% train adversarial
 train_surrogate_m_ratio = 0.1 # 10% train surrogate
 test_adversarial_m_ratio = 0.3 # 30% test adversarial
 
-run_kitsune_pipeline(attack_name, pcap_file, labels_file,
+run_kitsune_on_kitsune_pipeline(attack_name, pcap_file, labels_file,
              train_nids_ratio, train_surrogate_b_ratio,
              train_adversarial_ratio, train_surrogate_m_ratio)
 

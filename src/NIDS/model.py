@@ -202,7 +202,7 @@ def train(attack_name, features_file, models, epochs=8, batch_size=64):
 # Main Executing Functions
 # ----------------------------
 
-def create_results(attack_name, model_name, dataset_type, y_true, y_pred, y_score):
+def create_results(attack_name, model_name, information, y_true, y_pred, y_score):
     # confusion matrix
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
 
@@ -224,15 +224,15 @@ def create_results(attack_name, model_name, dataset_type, y_true, y_pred, y_scor
     # plt.plot([0,1], [0,1], linestyle="--")
     # plt.xlabel("False Positive Rate")
     # plt.ylabel("True Positive Rate")
-    # plt.title(f"ROC - {model_name} - {attack_name}_{dataset_type}")
+    # plt.title(f"ROC - {model_name} - {attack_name}_{information}")
     # plt.legend()
     # plt.tight_layout()
-    # plt.savefig(f"{config['Results_Folder']}plots/{model_name}/ROC_{attack_name}_{dataset_type}.png", dpi=300)
+    # plt.savefig(f"{config['Results_Folder']}plots/{model_name}/ROC_{attack_name}_{information}.png", dpi=300)
     # plt.close()
 
     # --- save results ---
     results = {
-        "attack_name": attack_name + "_" + dataset_type,
+        "attack_name": attack_name + "_" + information,
         "model": model_name,
         "num_flows": int(len(y_true)),
         "confusion_matrix": {
@@ -252,13 +252,13 @@ def create_results(attack_name, model_name, dataset_type, y_true, y_pred, y_scor
     }
 
     os.makedirs(f"{config['Results_Folder']}{model_name}", exist_ok=True)
-    with open(f"{config['Results_Folder']}{model_name}/results_{attack_name}_{dataset_type}.json","w") as f:
+    with open(f"{config['Results_Folder']}{model_name}/results_{attack_name}_{information}.json","w") as f:
         json.dump(results, f, indent=4)
 
     print("Saved results for:", model_name, "and attack:", attack_name)
 
 
-def exec(attack_name, csv_file, model_names, dataset_type):
+def exec(attack_name, csv_file, model_names, information):
 
     models_folder = config["CICIDS2017_Models_Folder"]
     scaler_file = attack_name + "_scaler.joblib"
@@ -326,7 +326,7 @@ def exec(attack_name, csv_file, model_names, dataset_type):
             print(f"[WARN] Unknown model type: {model}")
             continue
 
-        create_results(attack_name, model_name, dataset_type, y_true, y_pred, y_score)
+        create_results(attack_name, model_name, information, y_true, y_pred, y_score)
 
 
 if __name__ == "__main__":
@@ -335,7 +335,7 @@ if __name__ == "__main__":
     parse.add_argument('-a', '--attack_name', type=str, required=True, help="Name of the attack")
     parse.add_argument('-i', '--features_file', type=str, required=True, help="features csv file path")
     parse.add_argument("-M", "--mode", type=str, choices=["train", "exec"], default="train", help="train: run the whole training pipeline, exec: only execute the trained models on the test set")
-    parse.add_argument("-dt", "--dataset_type", type=str, choices=["original", "adversarial"], default="original", help="if testing (exec), specify if the dataset is original or adversarial")
+    parse.add_argument("-info", "--information", type=str, default="", help="if testing (exec), specify some info to create results file (e.g., 'test' or 'adversarial')")
     parse.add_argument("-m", "--models", help="Comma-separated list of models to train: LR,SVM,RF,MLP,CNN", default="LR,SVM,RF,MLP,CNN")
     parse.add_argument("--epochs", type=int, default=8)
     parse.add_argument("--batch_size", type=int, default=64)
@@ -344,5 +344,5 @@ if __name__ == "__main__":
     if args.mode == "train":
         train(args.attack_name, args.features_file, args.models.split(","), epochs=args.epochs, batch_size=args.batch_size)
     elif args.mode == "exec":
-        exec(args.attack_name, args.features_file, args.models.split(","), args.dataset_type)
+        exec(args.attack_name, args.features_file, args.models.split(","), args.information)
     

@@ -1,0 +1,19 @@
+{
+    "attack_name": "Mirai_adversarial_iat",
+    "model": "Kitsune",
+    "threshold": 0.5071611113809764,
+    "num_packets": 192755,
+    "confusion_matrix": {
+        "TP": 12,
+        "FP": 0,
+        "FN": 192743,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 6.225519441778423e-05,
+        "precision": 1.0,
+        "recall": 6.225519441778423e-05,
+        "f1_score": 0.0001245026378996405,
+        "attack_success_rate": 0.9999377448055303
+    }
+}

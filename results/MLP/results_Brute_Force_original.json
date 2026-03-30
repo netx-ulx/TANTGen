@@ -1,0 +1,19 @@
+{
+    "attack_name": "Brute_Force_original",
+    "model": "MLP",
+    "num_flows": 22908,
+    "confusion_matrix": {
+        "TP": 79,
+        "FP": 7,
+        "FN": 1,
+        "TN": 22821
+    },
+    "metrics": {
+        "accuracy": 0.999650777021128,
+        "precision": 0.9186046511627907,
+        "recall": 0.9875,
+        "f1_score": 0.9518072289156626,
+        "auc": 0.9999572892938496,
+        "attack_success_rate": 0.0124999999984375
+    }
+}

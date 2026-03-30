@@ -1,0 +1,21 @@
+{
+    "attack_name": "DDoS_kitsune_adversarial_size",
+    "model": "Kitsune",
+    "threshold": 0.506002673799007,
+    "num_packets": 255827,
+    "confusion_matrix": {
+        "TP": 206375,
+        "FP": 0,
+        "FN": 49452,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 0.806697494791402,
+        "precision": 1.0,
+        "recall": 0.806697494791402,
+        "f1_score": 0.8930078190920853,
+        "attack_success_rate": 0.19330250520859044
+    },
+    "ratio": 0,
+    "errors": 691
+}

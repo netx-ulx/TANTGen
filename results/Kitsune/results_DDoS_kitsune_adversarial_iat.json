@@ -1,0 +1,21 @@
+{
+    "attack_name": "DDoS_kitsune_adversarial_iat",
+    "model": "Kitsune",
+    "threshold": 0.506002673799007,
+    "num_packets": 255827,
+    "confusion_matrix": {
+        "TP": 43385,
+        "FP": 0,
+        "FN": 212442,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 0.1695872601406419,
+        "precision": 1.0,
+        "recall": 0.1695872601406419,
+        "f1_score": 0.2899950536743179,
+        "attack_success_rate": 0.8304127398593256
+    },
+    "ratio": 6.67334497756772492208,
+    "errors": 0
+}
