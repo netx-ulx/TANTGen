@@ -1,0 +1,23 @@
+{
+    "attack_name": "BruteForce_adversarial_both_rest05",
+    "model": "SVM",
+    "num_flows": 22981,
+    "confusion_matrix": {
+        "TP": 46,
+        "FP": 14,
+        "FN": 34,
+        "TN": 22887
+    },
+    "metrics": {
+        "accuracy": 0.9979113180453418,
+        "precision": 0.7666666666666667,
+        "recall": 0.575,
+        "f1_score": 0.6571428571428571,
+        "auc": 0.9890960001746648,
+        "attack_success_rate": 0.42499999994687504
+    },
+    "Errors": 0,
+    "Time_ratio": 1.00463663128351246153,
+    "Train_loss": -0.5867847800254822,
+    "Pad_len": 66
+}

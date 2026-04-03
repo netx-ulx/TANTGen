@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_size_rest05",
+    "model": "CNN",
+    "num_flows": 7331,
+    "confusion_matrix": {
+        "TP": 1035,
+        "FP": 6,
+        "FN": 36,
+        "TN": 6254
+    },
+    "metrics": {
+        "accuracy": 0.9942709043786659,
+        "precision": 0.9942363112391931,
+        "recall": 0.9663865546218487,
+        "f1_score": 0.9801136363636364,
+        "auc": 0.9931362853980783,
+        "attack_success_rate": 0.03361344537783741
+    },
+    "Errors":56,
+    "Time_ratio": 1,
+    "Train_loss":-3.4524993896484375,
+    "Pad_len": 388
+}

@@ -51,4 +51,4 @@ run_ml_nids_on_cicids_pipeline(attack_name, pcap_file, labels_file,
 # cicflowmeter -f data/adversarial/DDoS_adversarial.pcap -c data/adversarial/DDoS_adversarial_features.csv
 # source venv/bin/activate
 # python src/Feature_Extraction/cicflowmeter_mapping.py -b data/preprocessed/adversarial_test/DDoS_benign_features.csv -m data/adversarial/DDoS_adversarial_features.csv -o data/adversarial/DDoS_features.csv
-# python -m src.NIDS.model -a DDoS -i data/adversarial/DDoS_features.csv -M exec -dt adversarial
+# python -m src.NIDS.model -a DDoS -i data/adversarial/DDoS_features.csv -M exec -info adversarial

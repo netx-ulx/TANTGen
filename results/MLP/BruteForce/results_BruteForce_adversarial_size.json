@@ -1,0 +1,23 @@
+{
+    "attack_name": "BruteForce_adversarial_size",
+    "model": "MLP",
+    "num_flows": 22993,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 0,
+        "FN": 92,
+        "TN": 22901
+    },
+    "metrics": {
+        "accuracy": 0.9959987822380725,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.7460714645079102,
+        "attack_success_rate": 0.9999999998913044
+    },
+    "Errors": 0,
+    "Time_ratio": 1,
+    "Train_loss": -0.31326282024383545,
+    "Pad_len": 186
+}

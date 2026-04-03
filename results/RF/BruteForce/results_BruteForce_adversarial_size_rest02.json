@@ -1,0 +1,23 @@
+{
+    "attack_name": "BruteForce_adversarial_size_rest02",
+    "model": "RF",
+    "num_flows": 22993,
+    "confusion_matrix": {
+        "TP": 88,
+        "FP": 0,
+        "FN": 4,
+        "TN": 22901
+    },
+    "metrics": {
+        "accuracy": 0.999826034010351,
+        "precision": 1.0,
+        "recall": 0.9565217391304348,
+        "f1_score": 0.9777777777777777,
+        "auc": 1.0,
+        "attack_success_rate": 0.04347826086483932
+    },
+    "Errors": 0,
+    "Time_ratio": 1,
+    "Train_loss": 0.7184891104698181,
+    "Pad_len": 326
+}

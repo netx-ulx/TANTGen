@@ -1,0 +1,22 @@
+{
+    "attack_name": "PortScan_adversarial_size_rest02",
+    "model": "RF",
+    "num_flows": 23581,
+    "confusion_matrix": {
+        "TP": 9889,
+        "FP": 0,
+        "FN": 5963,
+        "TN": 7729
+    },
+    "metrics": {
+        "accuracy": 0.7471269242186506,
+        "precision": 1.0,
+        "recall": 0.6238329548321978,
+        "f1_score": 0.7683462180956451,
+        "auc": 0.9998656138958023,
+        "attack_success_rate": 0.37616704516756483
+    },
+    "Errors":21,
+    "Time_ratio": 1,
+    "Train_loss": -0.8325356245040894
+}

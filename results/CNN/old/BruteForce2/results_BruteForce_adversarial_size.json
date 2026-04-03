@@ -1,0 +1,22 @@
+{
+    "attack_name": "BruteForce_adversarial_size",
+    "model": "CNN",
+    "num_flows": 22981,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 31,
+        "FN": 80,
+        "TN": 22870
+    },
+    "metrics": {
+        "accuracy": 0.995169922979853,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.07051875463953539,
+        "attack_success_rate": 0.9999999998750001
+    },
+    "Errors": 0,
+    "Time Ratio": 1,
+    "Train_loss": 3.836549997329712
+}

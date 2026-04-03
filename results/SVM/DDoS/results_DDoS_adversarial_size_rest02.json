@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_size_rest02",
+    "model": "SVM",
+    "num_flows": 7307,
+    "confusion_matrix": {
+        "TP": 1037,
+        "FP": 18,
+        "FN": 10,
+        "TN": 6242
+    },
+    "metrics": {
+        "accuracy": 0.9961680580265498,
+        "precision": 0.9829383886255925,
+        "recall": 0.9904489016236867,
+        "f1_score": 0.9866793529971456,
+        "auc": 0.9990741842660149,
+        "attack_success_rate": 0.009551098376222053
+    },
+    "Errors": 3,
+    "Time_ratio": 1,
+    "Train_loss": -3.0437512397766113,
+    "Pad_len": 608
+}

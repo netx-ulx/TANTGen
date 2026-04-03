@@ -1,0 +1,22 @@
+{
+    "attack_name": "PortScan_adversarial_both_rest02",
+    "model": "RF",
+    "num_flows": 23587,
+    "confusion_matrix": {
+        "TP": 10049,
+        "FP": 0,
+        "FN": 5809,
+        "TN": 7729
+    },
+    "metrics": {
+        "accuracy": 0.753720269640056,
+        "precision": 1.0,
+        "recall": 0.6336864673981587,
+        "f1_score": 0.7757748870961516,
+        "auc": 0.9999294994858382,
+        "attack_success_rate": 0.3663135326016103
+    },
+    "Errors": 4, 
+    "Time Ratio": 1.01630517974816547829,
+    "Train_loss": 1.6445016860961914
+}

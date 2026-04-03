@@ -1,0 +1,22 @@
+{
+    "attack_name": "PortScan_adversarial_both_rest02",
+    "model": "SVM",
+    "num_flows": 23587,
+    "confusion_matrix": {
+        "TP": 15005,
+        "FP": 28,
+        "FN": 853,
+        "TN": 7701
+    },
+    "metrics": {
+        "accuracy": 0.9626489167761902,
+        "precision": 0.9981374309851659,
+        "recall": 0.9462101147685711,
+        "f1_score": 0.971480366449775,
+        "auc": 0.9639950096634087,
+        "attack_success_rate": 0.05378988523139501
+    },
+    "Errors": 4, 
+    "Time Ratio": 1.01630517974816547829,
+    "Train_loss": 1.6445016860961914
+}

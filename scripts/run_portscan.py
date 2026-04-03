@@ -51,4 +51,4 @@ run_ml_nids_on_cicids_pipeline(attack_name, pcap_file, labels_file,
 # cicflowmeter -f data/adversarial/PortScan_adversarial.pcap -c data/adversarial/PortScan_adversarial_features.csv
 # source venv/bin/activate
 # python src/Feature_Extraction/cicflowmeter_mapping.py -b data/preprocessed/adversarial_test/PortScan_benign_features.csv -m data/adversarial/PortScan_adversarial_features.csv -o data/adversarial/PortScan_features.csv
-# python -m src.NIDS.model -a PortScan -i data/adversarial/PortScan_features.csv -M exec -dt adversarial
+# python -m src.NIDS.model -a PortScan -i data/adversarial/PortScan_features.csv -M exec -info adversarial

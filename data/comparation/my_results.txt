@@ -1,0 +1,28 @@
+Warning: under EXECUTE mode!
+## mapping(v) has been loaded from file...
+## ensembleLayer has been loaded from file...
+## outputLayer has been loaded from file...
+--- RunKitNET: Pkts 0 ---
+--- RunKitNET: Pkts 1000 ---
+--- RunKitNET: Pkts 2000 ---
+--- RunKitNET: Pkts 3000 ---
+--- RunKitNET: Pkts 4000 ---
+--- RunKitNET: Pkts 5000 ---
+--- RunKitNET: Pkts 6000 ---
+--- RunKitNET: Pkts 7000 ---
+--- RunKitNET: Pkts 8000 ---
+--- RunKitNET: Pkts 9000 ---
+AD_threshold: 0.5085942809077308
+# rmse over AD_t: (9,)
+Total number: 10000
+rmse mean: 0.09929769146349873
+TP: 9
+FP: 0
+FN: 9991
+TN: 0
+Accuracy : 0.0009
+Precision: 1.0
+Recall   : 0.0009
+F1-score : 0.00179838145668898
+Attack Success Rate: 0.9990999999990008
+Ratio: 8.05827572303789003727x (7.05827572303789003727x para a anotação deles, sendo que tiram 1)

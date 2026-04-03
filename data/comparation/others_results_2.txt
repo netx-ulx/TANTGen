@@ -1,0 +1,40 @@
+## mapping(v) has been loaded from file...
+## ensembleLayer has been loaded from file...
+## outputLayer has been loaded from file...
+--- RunKitNET: Pkts 0 ---
+--- RunKitNET: Pkts 1000 ---
+--- RunKitNET: Pkts 2000 ---
+--- RunKitNET: Pkts 3000 ---
+--- RunKitNET: Pkts 4000 ---
+--- RunKitNET: Pkts 5000 ---
+--- RunKitNET: Pkts 6000 ---
+--- RunKitNET: Pkts 7000 ---
+--- RunKitNET: Pkts 8000 ---
+--- RunKitNET: Pkts 9000 ---
+AD_threshold: 0.5085942809077308
+1.Time elapse:
+--Before: 50.844508
+--After : 110.35529255867004
+--Rate: 1.170446659817616
+====================================================
+2.Pkt num:
+--Before: 10000
+--After : 10013
+--cft : 13
+--Rate: 0.0013
+====================================================
+RMSE:
+  original: 2.008371369368174 mutated: 1.0771503489047916
+  PDR: 0.46366973492374625
+----------------------------------------------------------------
+# Detected:
+  original: 8401 mutated: 8194
+  PDR: 0.024639923818593024
+----------------------------------------------------------------
+Feature Changed:
+  Before: 209527.97898437025 After: 109925.47274560735
+  MMR: 0.475366138315078
+====================================================
+ASR:
+  original: 8401 mutated: 8194
+  ASR: 0.18059999999999998

@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_both_1_04_rest05",
+    "model": "CNN",
+    "num_flows": 7405,
+    "confusion_matrix": {
+        "TP": 1113,
+        "FP": 6,
+        "FN": 32,
+        "TN": 6254
+    },
+    "metrics": {
+        "accuracy": 0.9948683322079676,
+        "precision": 0.9946380697050938,
+        "recall": 0.9720524017467249,
+        "f1_score": 0.9832155477031802,
+        "auc": 0.995385967604671,
+        "attack_success_rate": 0.027947598253031027
+    },
+    "Errors": 81, 
+    "Summary": "Leading CRLF previous message in the stream may have extra CRLF",
+    "Time Ratio": 1.01276394443727691050,
+    "Train_loss": 0.15811988711357117
+}

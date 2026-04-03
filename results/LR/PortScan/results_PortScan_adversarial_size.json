@@ -1,0 +1,23 @@
+{
+    "attack_name": "PortScan_adversarial_size",
+    "model": "LR",
+    "num_flows": 23576,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 33,
+        "FN": 15847,
+        "TN": 7696
+    },
+    "metrics": {
+        "accuracy": 0.326433661350526,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.021162075766518237,
+        "attack_success_rate": 0.999999999999369
+    },
+    "Errors":48,
+    "Time_ratio": 1,
+    "Train_loss": -3.21142315864563,
+    "Pad_len": 542
+}

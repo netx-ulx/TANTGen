@@ -1,0 +1,23 @@
+{
+    "attack_name": "PortScan_kitsune_adversarial_both",
+    "model": "Kitsune",
+    "threshold": 0.5037823333310305,
+    "num_packets": 48224,
+    "confusion_matrix": {
+        "TP": 1992,
+        "FP": 0,
+        "FN": 46232,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 0.04130723291307233,
+        "precision": 1.0,
+        "recall": 0.04130723291307233,
+        "f1_score": 0.07933726302373745,
+        "attack_success_rate": 0.9586927670867289
+    },
+    "Errors": 45,
+    "Time_ratio": 4.64350517527672909165,
+    "Train_loss": -5.16,
+    "Pad_len": 107
+}

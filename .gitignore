@@ -12,7 +12,8 @@ src/Feature_Extraction/cicflowmeter
 src/Kitsune/Feature_Extraction/build
 src/Kitsune/Feature_Extraction/AfterImage*
 
-src/TANTGen/transformer_iat_logs
+src/TANTGen/transformer_pretrained_logs_cic_ids
+src/TANTGen/transformer_pretrained_logs
 src/TANTGen/transformer_nids_logs
 src/TANTGen/TANTGen_logs
 src/TANTGen/plots
@@ -25,3 +26,6 @@ venv
 *.pth
 *.pkl
 *.joblib
+*.npy
+*.csv
+*.pcap

@@ -1,0 +1,22 @@
+{
+    "attack_name": "PortScan_adversarial_size_rest02",
+    "model": "CNN",
+    "num_flows": 23569,
+    "confusion_matrix": {
+        "TP": 10234,
+        "FP": 1,
+        "FN": 5606,
+        "TN": 7728
+    },
+    "metrics": {
+        "accuracy": 0.7621027621027621,
+        "precision": 0.9999022960429897,
+        "recall": 0.6460858585858585,
+        "f1_score": 0.7849664429530201,
+        "auc": 0.9399419173949352,
+        "attack_success_rate": 0.35391414141391797
+    },
+    "Errors": 5, 
+    "Time Ratio": 1,
+    "Train_loss": 1.7575364112854004
+}

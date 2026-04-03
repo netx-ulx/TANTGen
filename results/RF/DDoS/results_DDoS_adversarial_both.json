@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_both",
+    "model": "RF",
+    "num_flows": 7342,
+    "confusion_matrix": {
+        "TP": 1,
+        "FP": 0,
+        "FN": 1081,
+        "TN": 6260
+    },
+    "metrics": {
+        "accuracy": 0.8527649141923181,
+        "precision": 1.0,
+        "recall": 0.0009242144177449168,
+        "f1_score": 0.0018467220683287165,
+        "auc": 0.998679303502566,
+        "attack_success_rate": 0.9990757855730216
+    },
+    "Errors":15,
+    "Time_ratio": 1.00241689244398572227,
+    "Train_loss": -3.7937216758728027,
+    "Pad_len": 235
+}

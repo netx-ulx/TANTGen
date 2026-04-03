@@ -136,13 +136,10 @@ class TANTGen(TANTGen_pretrain):
         pred = self.forward(X)
         torch.set_printoptions(precision=10)
 
-
         if self.change_packet_size:
             y_packet_size_un = y[:, :, 0] * self.mean_std["std_packet_size"] + self.mean_std["mean_packet_size"]
 
-            # ...................................................................
-            # pred[:, :, 0] = mask_top_k_deltas(pred[:, :, 0], self.size_rate_limit)
-            # # ...................................................................
+            pred[:, :, 0] = mask_top_k_deltas(pred[:, :, 0], self.size_rate_limit)
 
             y_packet_size_un_mod_cont = y_packet_size_un + pred[:, :, 0] * 100
             y_packet_size_un_mod = y_packet_size_un_mod_cont
@@ -175,15 +172,15 @@ class TANTGen(TANTGen_pretrain):
             # ratio
             time_ratio = total_time / (original_time)
 
-            # penalização (soft constraint)
+            # penalização
             time_violation = torch.relu(time_ratio - self.time_rate_limit)
+
+            # loss_time_rate = time_ratio.mean() #torch.norm(time_ratio, p=2)
+            print("Time rate loss:", time_ratio.mean().item())
 
             loss_time_rate = time_violation.mean()
             print("Time rate loss:", loss_time_rate.item())
-
-            # loss_time_rate = time_ratio.mean() #torch.norm(time_ratio, p=2)
-            # print("Time rate loss:", loss_time_rate.item())
-            # # ....................................................................
+            # ....................................................................
 
             log1_iat_mod = torch.log1p(iat_un_mod)
             y_iat_mod = (log1_iat_mod - self.mean_std["mean_iat"]) / self.mean_std["std_iat"]
@@ -198,10 +195,11 @@ class TANTGen(TANTGen_pretrain):
 
         # get logits from external IDS
         logits_ids = self.nids(X_mod)
-        #print(logits_ids)
+        print("Logits IDS mean:", logits_ids.mean().item())
 
-        margin = -1.0 #-1.0
+        margin = -1.0 # cic ids com -4, kitsune com 0.0
         loss_evasion = torch.relu(logits_ids - margin).mean()
+        #loss_evasion = torch.sigmoid(logits_ids).mean()
         print("Evasion loss:", loss_evasion.item())
         
         # attack_success = (logits_ids < 0).float().mean()
@@ -211,9 +209,9 @@ class TANTGen(TANTGen_pretrain):
         # total loss
         loss = (
             self.lambda_evasion * loss_evasion
-            + self.lambda_constraints * loss_budget
+            # + self.lambda_constraints * loss_budget
             + self.lambda_constraints * loss_packet_size
-            # + self.lambda_constraints * loss_time_rate
+            + self.lambda_constraints * loss_time_rate
         )
 
         # if train:
@@ -228,7 +226,7 @@ class TANTGen(TANTGen_pretrain):
             pred[:, :, 0] = 0.0 # force no change in packet size
         else:
             pred[:, :, 0] = pred[:, :, 0]*100
-            #pred[:, :, 0] = mask_top_k_deltas(pred[:, :, 0], self.size_rate_limit)
+            pred[:, :, 0] = mask_top_k_deltas(pred[:, :, 0], self.size_rate_limit)
 
         return pred
 
@@ -380,30 +378,35 @@ def main():
         config_general["save_path_pretrain"], config_general["model_name_pretrain"], sliding_window_size
     )
 
-    if os.path.isfile(pretrained_ckpt_path):
-
-        model = TANTGen.load_from_checkpoint(
-            checkpoint_path=pretrained_ckpt_path,
-            mean_std=mean_std,
-            strict=True
-        )
-
-        # Freeze or unfreeze everything!!
-        for params in model.parameters():
-            params.requires_grad = True
-
-        for params in model.output_head.parameters():
-            params.requires_grad = True
-
-    else:
-        # Do not freeze anything for non pre-trained
-        model = TANTGen(
+    model = TANTGen(
             mean_std=mean_std,
             epochs=args.epochs,
             batch_size=args.batch_size,
             change_iat=args.change_iat,
             change_packet_size=args.change_packet_size,
         )
+
+    if os.path.isfile(pretrained_ckpt_path):
+
+        pretrained_model = TANTGen_pretrain.load_from_checkpoint(
+            pretrained_ckpt_path,
+            mean_std=mean_std,
+        )
+
+        # Freeze or unfreeze everything!!
+        # for params in pretrained_model.parameters():
+        #     params.requires_grad = True
+
+        # for params in pretrained_model.output_head.parameters():
+        #     params.requires_grad = True
+
+        model.encoder.load_state_dict(pretrained_model.encoder.state_dict())
+        model.feature_transform1.load_state_dict(pretrained_model.feature_transform1.state_dict())
+        model.positional_encoding.load_state_dict(pretrained_model.positional_encoding.state_dict())
+
+        for m in model.output_head.modules():
+            if isinstance(m, nn.Linear):
+                m.reset_parameters()
 
 
     # Make new dir for storing logs

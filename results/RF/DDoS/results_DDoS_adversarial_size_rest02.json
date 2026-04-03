@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_size_rest02",
+    "model": "RF",
+    "num_flows": 7307,
+    "confusion_matrix": {
+        "TP": 121,
+        "FP": 0,
+        "FN": 926,
+        "TN": 6260
+    },
+    "metrics": {
+        "accuracy": 0.8732722047351854,
+        "precision": 1.0,
+        "recall": 0.11556829035339064,
+        "f1_score": 0.2071917808219178,
+        "auc": 0.7201331355981337,
+        "attack_success_rate": 0.8844317096381622
+    },
+    "Errors": 3,
+    "Time_ratio": 1,
+    "Train_loss": -3.0437512397766113,
+    "Pad_len": 608
+}

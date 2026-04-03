@@ -1,0 +1,23 @@
+{
+    "attack_name": "PortScan_adversarial_size_1_04",
+    "model": "MLP",
+    "num_flows": 23589,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 1,
+        "FN": 15860,
+        "TN": 7728
+    },
+    "metrics": {
+        "accuracy": 0.3276103268472593,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.3046906012419122,
+        "attack_success_rate": 0.9999999999993694
+    },
+    "Errors": 47, 
+    "Summary": "          10  Malformed               SNMP  Malformed Packet (Exception occurred) / 4  Malformed               IPDC  Malformed Packet (Exception occurred) / 24  Malformed              OMAPI  Malformed Packet (Exception occurred) / 4  Malformed             ISAKMP  Malformed Packet (Exception occurred) / 1  Malformed                IRC  Prefix missing ending <space> / 4  Malformed               SMUX  Malformed Packet (Exception occurred)",
+    "Time Ratio": 1,
+    "Train_loss": 0.5341631770133972
+}

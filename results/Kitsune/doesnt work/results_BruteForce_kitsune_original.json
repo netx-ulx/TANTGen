@@ -1,0 +1,19 @@
+{
+    "attack_name": "BruteForce_kitsune_original",
+    "model": "Kitsune",
+    "threshold": 0.5628939578644694,
+    "num_packets": 196646,
+    "confusion_matrix": {
+        "TP": 9,
+        "FP": 88,
+        "FN": 27480,
+        "TN": 169069
+    },
+    "metrics": {
+        "accuracy": 0.859808996877638,
+        "precision": 0.09278350515463918,
+        "recall": 0.00032740368874822657,
+        "f1_score": 0.0006525048937867034,
+        "attack_success_rate": 0.9996725963108881
+    }
+}

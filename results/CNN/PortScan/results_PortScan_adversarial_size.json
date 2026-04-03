@@ -1,0 +1,23 @@
+{
+    "attack_name": "PortScan_adversarial_size",
+    "model": "CNN",
+    "num_flows": 23576,
+    "confusion_matrix": {
+        "TP": 42,
+        "FP": 1,
+        "FN": 15805,
+        "TN": 7728
+    },
+    "metrics": {
+        "accuracy": 0.32957244655581946,
+        "precision": 0.9767441860465116,
+        "recall": 0.0026503439136745127,
+        "f1_score": 0.0052863436123348016,
+        "auc": 0.012984340332381588,
+        "attack_success_rate": 0.997349656085696
+    },
+    "Errors":48,
+    "Time_ratio": 1,
+    "Train_loss": -3.21142315864563,
+    "Pad_len": 542
+}

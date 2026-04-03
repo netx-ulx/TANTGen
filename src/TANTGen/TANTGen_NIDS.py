@@ -391,8 +391,12 @@ def main():
         print("ERROR: NO CUDA DEVICE FOUND")
         NUM_GPUS = 0
 
+    pretrained_ckpt_path = "{}/{}{}.ckpt".format(
+            config_general["save_path_pretrain"], config_general["model_name_pretrain"] ,config_general["sliding_window_size"]
+        )
+
     # delete mean_std.json if it exists (TODO: remove this after the file is created)
-    if os.path.isfile("src/TANTGen/models/mean_std.json"):
+    if os.path.isfile("src/TANTGen/models/mean_std.json") and not os.path.isfile(pretrained_ckpt_path):
         os.remove("src/TANTGen/models/mean_std.json")
 
     ## Get the data

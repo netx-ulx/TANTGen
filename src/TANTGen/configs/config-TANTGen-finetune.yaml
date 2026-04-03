@@ -8,10 +8,10 @@ loss_fun_evasion: bce
 lambda_evasion: 2.0
 lambda_constraints: 1.0
 
-time_rate_limit: 85 # 20 dá na verdade 7.25x, e um ASR de 0.56; 22 dá na verdade 8.5x, e um ASR de 0.9996
-size_rate_limit: 0.5
+time_rate_limit: 2 # 15 para 5 # 20 dá na verdade 7.25x, e um ASR de 0.56; 22 dá na verdade 8.5x, e um ASR de 0.9996
+size_rate_limit: 1
 
-epochs: 50
+epochs: 100
 batch_size: 64
 
 #--------------------

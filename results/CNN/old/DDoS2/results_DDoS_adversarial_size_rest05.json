@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_size_1_04_rest05",
+    "model": "CNN",
+    "num_flows": 7394,
+    "confusion_matrix": {
+        "TP": 1098,
+        "FP": 6,
+        "FN": 36,
+        "TN": 6254
+    },
+    "metrics": {
+        "accuracy": 0.9943197186908304,
+        "precision": 0.9945652173913043,
+        "recall": 0.9682539682539683,
+        "f1_score": 0.9812332439678284,
+        "auc": 0.9952049208039624,
+        "attack_success_rate": 0.0317460317457518
+    },
+    "Errors": 98, 
+    "Summary": "Leading CRLF previous message in the stream may have extra CRLF/Malformed Packet (Exception occurred)",
+    "Time Ratio": 1,
+    "Train_loss": 0.23895041644573212
+}

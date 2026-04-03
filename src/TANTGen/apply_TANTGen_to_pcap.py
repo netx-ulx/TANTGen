@@ -1,4 +1,4 @@
-from zipfile import Path
+from pathlib import Path
 
 import torch
 import numpy as np
@@ -42,8 +42,14 @@ def adjust_tcp_packet(pkt, pad_size):
 
     padding = random_bytes(pad_size)
 
+    # if pkt.haslayer(Raw):
+    #     pkt[Raw].load += padding
     if pkt.haslayer(Raw):
-        pkt[Raw].load += padding
+        try:
+            pkt[Raw].load.decode("ascii")
+            pkt[Raw].load += padding
+        except:
+            return pkt
     else:
         pkt = pkt / Raw(load=padding)
 
@@ -134,7 +140,8 @@ def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, ou
         # new_time = last_timestamp + float(modified_IAT[i+1]) if it was just IAT modification, not the perturbation of IAT
         last_timestamp_mod = last_timestamp_mod + (pkt.time - last_timestamp) + float(modified_IAT[i+1])
         last_timestamp = pkt.time
-        pkt = adjust_packet_size(pkt, modified_packet_size[i+1])
+        if modified_packet_size[i+1] != 0:
+            pkt = adjust_packet_size(pkt, modified_packet_size[i+1])
 
         pkt.time = last_timestamp_mod
         writer.write(pkt)
@@ -219,11 +226,10 @@ def process_pcap_with_TANTGen(
     modified_packet_sizes = modified_packet_sizes.flatten()
     print(modified_iats)
     print(modified_packet_sizes[:120])
-    #modified_iats = [1] * len(modified_iats)
-    # modified_packet_sizes = [0] * len(modified_packet_sizes)
-    #modified_iats = [0] * len(modified_iats) # for testing only, to isolate the effect of packet size modification
-    #modified_packet_sizes = [random.randrange(60, 120) for i in range(len(modified_packet_sizes))]
-    #print(modified_packet_sizes)
+    packets_modfied = sum(modified_packet_sizes != 0)
+    print("Pad_len", sum(modified_packet_sizes)/packets_modfied if packets_modfied > 0 else 0)
+    #modified_iats = [0.01] * len(modified_iats)
+    #modified_packet_sizes = modified_packet_sizes * 20
 
     print("[✓] Modified IATs obtained.")
 
@@ -250,7 +256,6 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser()
     parse.add_argument('-i', '--malicious_pcap_path', type=str, required=True, help="malicious raw traffic (.pcap) path")
     parse.add_argument('-o', '--output_pcap', type=str, required=True, help="output adversarial pcap path")
-    #parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/TANTGen/transformer_iat_logs/TANTGen_pretrain_window{}.ckpt".format(config["sliding_window_size"]))
     parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/TANTGen/TANTGen_logs/1#_final_TANTGen_window{}.ckpt".format(config["sliding_window_size"]))
     arg = parse.parse_args()
 

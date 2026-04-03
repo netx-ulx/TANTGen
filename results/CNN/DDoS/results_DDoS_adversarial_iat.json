@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_iat",
+    "model": "CNN",
+    "num_flows": 7297,
+    "confusion_matrix": {
+        "TP": 1004,
+        "FP": 6,
+        "FN": 33,
+        "TN": 6254
+    },
+    "metrics": {
+        "accuracy": 0.9946553378100589,
+        "precision": 0.994059405940594,
+        "recall": 0.9681774349083896,
+        "f1_score": 0.9809477283829995,
+        "auc": 0.9937980041961791,
+        "attack_success_rate": 0.031822565091303545
+    },
+    "Errors":0,
+    "Time_ratio": 1.09450823549649507590,
+    "Train_loss": -2.6439170837402344,
+    "Pad_len": 0
+}

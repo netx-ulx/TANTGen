@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from src.TANTGen.generate_sequences import generate_sliding_windows
+from src.TANTGen.generate_sequences import generate_sliding_windows_2 as generate_sliding_windows
 from src.TANTGen.utils import (
     PacketDataset,
     PositionalEncoding,
@@ -201,16 +201,16 @@ class TANTGen_pretrain(pl.LightningModule):
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = learning_rate
 
-    def forward(self, src, tgt):
+    def forward(self, src, tgt=None):
         # used for the forward pass of the model
 
         # Cast to doubletensor
         scaled_input = src.float()
 
         # Create target mask for decoder (prevent positions from attending to subsequent positions)
-        tgt_mask = torch.triu(
-            torch.ones(tgt.size(1), tgt.size(1)) * float("-inf"), diagonal=1
-        ).to(self.device)
+        # tgt_mask = torch.triu(
+        #     torch.ones(tgt.size(1), tgt.size(1)) * float("-inf"), diagonal=1
+        # ).to(self.device)
 
         #---
         # EMBEDDING AND HIERARCHICAL AGGREGATION
@@ -242,14 +242,14 @@ class TANTGen_pretrain(pl.LightningModule):
         final_input = self.positional_encoding(final_input)
         memory = self.encoder(final_input)
 
-        tgt = self.tgt_embedding(tgt)
-        tgt = self.positional_encoding(tgt)
-        dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
+        # tgt = self.tgt_embedding(tgt)
+        # tgt = self.positional_encoding(tgt)
+        # dec = self.decoder(tgt, memory, tgt_mask=tgt_mask)
 
-        return self.output_head(dec)
+        return self.output_head(memory) # dec
 
 
-    def _step(self, batch):
+    def _step(self, batch, train=False):
         X, y = batch
         
         X = X.float()
@@ -276,11 +276,11 @@ class TANTGen_pretrain(pl.LightningModule):
             X[:, iat_indexes_output, self.num_features-1]
         ) * int(config_general["mask_token"])
 
-        y_input_shifted = torch.zeros_like(y)
-        y_input_shifted[:, 1:, :] = y[:, :-1, :]
-        y_input_shifted[:, 0, :] = int(config_general["start_token"])
+        # y_input_shifted = torch.zeros_like(y)
+        # y_input_shifted[:, 1:, :] = y[:, :-1, :]
+        # y_input_shifted[:, 0, :] = int(config_general["start_token"])
     
-        prediction = self.forward(X, y_input_shifted)
+        prediction = self.forward(X) #y_input_shifted)
 
         ## Un-normalize the iat prediction
         # prediction = prediction * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
@@ -305,8 +305,8 @@ class TANTGen_pretrain(pl.LightningModule):
 
         self.log("Train loss", loss, sync_dist=True)
         self.training_step_outputs.append(loss)
-        self.training_step_predictions += prediction.squeeze()
-        self.training_step_original += y.squeeze()
+        self.training_step_predictions.append(prediction.detach())
+        self.training_step_original.append(y.detach())
         return loss
 
     def validation_step(self, val_batch, val_idx):
@@ -315,8 +315,8 @@ class TANTGen_pretrain(pl.LightningModule):
 
         self.log("Val loss", loss, sync_dist=True)
         self.validation_step_outputs.append(loss)
-        self.validation_step_predictions += prediction.squeeze()
-        self.validation_step_original += y.squeeze()
+        self.validation_step_predictions.append(prediction.detach())
+        self.validation_step_original.append(y.detach())
         return loss
 
     def test_step(self, test_batch, test_idx):
@@ -324,8 +324,10 @@ class TANTGen_pretrain(pl.LightningModule):
 
         self.log("Test loss", loss, sync_dist=True)
         self.test_step_outputs.append(loss)
-        self.test_step_predictions += prediction.squeeze()
-        self.test_step_original += y.squeeze()
+        #self.test_step_predictions += prediction.squeeze()
+        #self.test_step_original += y.squeeze()
+        self.test_step_predictions.append(prediction.detach())
+        self.test_step_original.append(y.detach())
         return loss
 
     def predict_step(self, test_batch, test_idx, dataloader_idx=0): # TODO ver isto
@@ -335,8 +337,8 @@ class TANTGen_pretrain(pl.LightningModule):
 
     def on_train_epoch_end(self):
         loss = [x.detach().cpu().item() for x in self.training_step_outputs]
-        y_pred = torch.cat(self.training_step_predictions).view(-1).cpu()
-        y_true = torch.cat(self.training_step_original).view(-1).cpu()
+        y_pred = torch.cat(self.training_step_predictions, dim=0).cpu()
+        y_true = torch.cat(self.training_step_original, dim=0).cpu()
         self.log(
             "Avg loss per epoch",
             np.mean(np.array(loss)),
@@ -346,9 +348,12 @@ class TANTGen_pretrain(pl.LightningModule):
         print(f"Avg train loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Train Loss = {np.sum(loss):.4f}")
 
+        # y_true_iat = y_true[:, :, -1].reshape(-1).cpu()
+        # y_pred_iat = y_pred[:, :, -1].reshape(-1).cpu()  
+
         # plt.figure(figsize=(14,6))
-        # plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
-        # plt.plot(y_pred, label='Predição MSE', alpha=0.7)
+        # plt.plot(y_true_iat, label='IAT real', color='black', linewidth=1.5)
+        # plt.plot(y_pred_iat, label='Predição MSE', alpha=0.7)
         # plt.xlabel('Amostra')
         # plt.ylabel('IAT normalizado')
         # plt.title('Comparação das previsões de IAT (MSE)')
@@ -370,19 +375,19 @@ class TANTGen_pretrain(pl.LightningModule):
     def on_validation_epoch_end(self):
         print()
         loss = [x.detach().cpu().item() for x in self.validation_step_outputs]
-        y_pred = torch.cat(self.validation_step_predictions).view(-1).cpu()
-        y_true = torch.cat(self.validation_step_original).view(-1).cpu()
+        y_pred = torch.cat(self.validation_step_predictions, dim=0).cpu()
+        y_true = torch.cat(self.validation_step_original, dim=0).cpu()
         print(f"Avg val loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Validation Loss = {np.sum(loss):.4f}")
         
-        plt.figure(figsize=(14,6))
-        plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
-        plt.plot(y_pred, label='Predição MSE', alpha=0.7)
-        plt.xlabel('Amostra')
-        plt.ylabel('IAT normalizado')
-        plt.title('Comparação das previsões de IAT (MSE)')
-        plt.legend()
-        plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE_validation.png")
+        # plt.figure(figsize=(14,6))
+        # plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
+        # plt.plot(y_pred, label='Predição MSE', alpha=0.7)
+        # plt.xlabel('Amostra')
+        # plt.ylabel('IAT normalizado')
+        # plt.title('Comparação das previsões de IAT (MSE)')
+        # plt.legend()
+        # plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE_validation.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -399,19 +404,37 @@ class TANTGen_pretrain(pl.LightningModule):
     def on_test_epoch_end(self):
         print()
         loss = [x.detach().cpu().item() for x in self.test_step_outputs]
-        y_pred = torch.cat(self.test_step_predictions).view(-1).cpu()
-        y_true = torch.cat(self.test_step_original).view(-1).cpu()
+        y_pred = torch.cat(self.test_step_predictions, dim=0).cpu()
+        y_true = torch.cat(self.test_step_original, dim=0).cpu()
+        #y_pred = torch.cat(self.test_step_predictions).view(-1).cpu()
+        # y_true = torch.cat(self.test_step_original).view(-1).cpu()
         print(f"Avg test loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Test Loss = {np.sum(loss):.4f}")
+
+        y_true_iat = y_true[:, :, -1].reshape(-1).cpu()
+        y_pred_iat = y_pred[:, :, -1].reshape(-1).cpu()
         
         plt.figure(figsize=(14,6))
-        plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
-        plt.plot(y_pred, label='Predição MSE', alpha=0.7)
-        plt.xlabel('Amostra')
-        plt.ylabel('IAT normalizado')
-        plt.title('Comparação das previsões de IAT (MSE)')
+        plt.plot(y_true_iat, label='Real IAT', color='black', linewidth=1.5)
+        plt.plot(y_pred_iat, label='MSE prediction', alpha=0.7)
+        plt.xlabel('Sample')
+        plt.ylabel('normalized IAT')
+        plt.title('Comparison of IAT predictions (MSE)')
         plt.legend()
         plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE_test.png")
+
+
+        y_true_size = y_true[:, :, 0].reshape(-1).cpu()
+        y_pred_size = y_pred[:, :, 0].reshape(-1).cpu()
+        
+        plt.figure(figsize=(14,6))
+        plt.plot(y_true_size, label='Real size', color='black', linewidth=1.5)
+        plt.plot(y_pred_size, label='MSE prediction', alpha=0.7)
+        plt.xlabel('Sample')
+        plt.ylabel('normalized Size')
+        plt.title('Comparison of Size predictions (MSE)')
+        plt.legend()
+        plt.savefig("src/TANTGen/plots/comparacao_prev_size_MSE_test.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -520,6 +543,10 @@ def main():
     else:
         print("ERROR: NO CUDA DEVICE FOUND")
         NUM_GPUS = 0
+
+    # delete mean_std.json if it exists (TODO: remove this after the file is created)
+    if os.path.isfile("src/TANTGen/models/mean_std.json"):
+        os.remove("src/TANTGen/models/mean_std.json")
 
     ## Get the data
     feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
