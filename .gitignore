@@ -12,16 +12,25 @@ src/Feature_Extraction/cicflowmeter
 src/Kitsune/Feature_Extraction/build
 src/Kitsune/Feature_Extraction/AfterImage*
 
-src/TANTGen/transformer_pretrained_logs_cic_ids
+src/TANTGen/transformer_pretrained_logs_cicids
 src/TANTGen/transformer_pretrained_logs
 src/TANTGen/transformer_nids_logs
 src/TANTGen/TANTGen_logs
 src/TANTGen/plots
+src/TANTGen/models
 
 results/create_results_plot.ipynb
+results/CIC-IDS\ new_iat\ margin=-1
+results/CIC-IDS_old
+results/CNN
+results/LR
+results/MLP
+results/RF
+results/SVM
 
 # Others
 venv
+TrafficManipulator
 
 *.pth
 *.pkl

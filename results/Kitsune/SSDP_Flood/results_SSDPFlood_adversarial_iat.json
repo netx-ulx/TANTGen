@@ -1,0 +1,23 @@
+{
+    "attack_name": "SSDP_Flood_adversarial_iat",
+    "model": "Kitsune",
+    "threshold": 0.5707482690128459,
+    "num_packets": 287921,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 0,
+        "FN": 287921,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "attack_success_rate": 0.9999999999999653
+    },
+    "Errors": 0,
+    "Time_ratio": 51.30195163645428968268,
+    "Train_loss": -0.65,
+    "Pad_len": 0
+}

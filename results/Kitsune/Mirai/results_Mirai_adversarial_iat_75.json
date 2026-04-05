@@ -1,0 +1,23 @@
+{
+    "attack_name": "Mirai_adversarial_6",
+    "model": "Kitsune",
+    "threshold": 0.5071611113809764,
+    "num_packets": 192755,
+    "confusion_matrix": {
+        "TP": 23,
+        "FP": 0,
+        "FN": 192732,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 0.00011932245596741978,
+        "precision": 1.0,
+        "recall": 0.00011932245596741978,
+        "f1_score": 0.00023861643963522808,
+        "attack_success_rate": 0.9998806775439807
+    },
+    "Errors": 0,
+    "Time_ratio": 7.58604715622842565335,
+    "Train_loss": 0,
+    "Pad_len": 0
+}

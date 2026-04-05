@@ -1,24 +1,23 @@
 {
-    "attack_name": "Mirai_adversarial_iat",
+    "attack_name": "Mirai_adversarial_iat_rest05",
     "model": "Kitsune",
     "threshold": 0.5071611113809764,
     "num_packets": 192755,
     "confusion_matrix": {
-        "TP": 12,
+        "TP": 9,
         "FP": 0,
-        "FN": 192743,
+        "FN": 192746,
         "TN": 0
     },
     "metrics": {
-        "accuracy": 6.225519441778423e-05,
+        "accuracy": 4.669139581333818e-05,
         "precision": 1.0,
-        "recall": 6.225519441778423e-05,
-        "f1_score": 0.0001245026378996405,
-        "attack_success_rate": 0.9999377448055303
+        "recall": 4.669139581333818e-05,
+        "f1_score": 9.33784316573634e-05,
+        "attack_success_rate": 0.9999533086041347
     },
     "Errors": 0,
-    "Time_ratio": 9.69221668150938941230,
-    "note": "Mas já dá com 8 :')",
-    "Train_loss": -3.28,
+    "Time_ratio": 8.37831491039187354513,
+    "Train_loss": 0,
     "Pad_len": 0
 }
