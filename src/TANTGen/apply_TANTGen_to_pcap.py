@@ -8,6 +8,7 @@ from src.Feature_Extraction.dataloader import get_basic_features
 from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.TANTGen import TANTGen
 from src.TANTGen.utils import (
+    is_sensitive,
     is_tcp,
     is_ssdp,
     random_bytes,
@@ -111,6 +112,8 @@ def adjust_packet_size(pkt, pad_size):
     """
     Aplica padding dependendo do protocolo
     """
+    if is_sensitive(pkt):
+        return pkt
 
     if is_ssdp(pkt):
         return adjust_ssdp_packet(pkt, pad_size)
@@ -127,6 +130,7 @@ def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, ou
     # read first packet to get initial timestamp
     first_pkt = original_pcap_reader.read_packet()
     last_timestamp = first_pkt.time
+    first_time = last_timestamp
     last_timestamp_mod = last_timestamp + float(modified_IAT[0])
     first_pkt = adjust_packet_size(first_pkt, modified_packet_size[0])
 
@@ -148,6 +152,13 @@ def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, ou
 
     original_pcap_reader.close()
     writer.close()
+
+    original_time = last_timestamp - first_time
+    modified_time = last_timestamp_mod - first_time
+    print(f"Original duration: {original_time:.2f} seconds")
+    print(f"Modified duration: {modified_time:.2f} seconds")
+    print(f"Duration change: {modified_time - original_time:.2f} seconds ({(modified_time - original_time) / original_time * 100:.2f}%)")
+    print(f"Ratio of modified to original duration: {modified_time / original_time:.2f}x")
 
 # =========================================================
 # MAIN PIPELINE

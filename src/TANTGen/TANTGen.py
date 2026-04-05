@@ -170,22 +170,24 @@ class TANTGen(TANTGen_pretrain):
             # iat_un_mod = adjust_iats_with_rate_limit(iat_un, iat_un_mod, self.time_rate_limit)
 
             # ratio
-            time_ratio = total_time / (original_time)
 
             # penalização
-            time_violation = torch.relu(time_ratio - self.time_rate_limit)
 
-            # loss_time_rate = time_ratio.mean() #torch.norm(time_ratio, p=2)
-            print("Time rate loss:", time_ratio.mean().item())
-
-            loss_time_rate = time_violation.mean()
+            budget = original_time * (self.time_rate_limit-1)
+            #scale budget to be in the same range as the loss
+            budget = budget / (original_time + 1e-8) # avoid division by zero
+            total_time = total_time / (original_time + 1e-8) # avoid division by zero
+            print("Budget:", (total_time.mean() - budget.mean()).item())
+            loss_time_rate = torch.mean(torch.abs(total_time - budget)) 
             print("Time rate loss:", loss_time_rate.item())
             # ....................................................................
 
             log1_iat_mod = torch.log1p(iat_un_mod)
             y_iat_mod = (log1_iat_mod - self.mean_std["mean_iat"]) / self.mean_std["std_iat"]
 
-            loss_budget = torch.norm(pred[:, :, -1], p=2)
+            pred_normalized = pred[:, :, -1] / self.mean_std["std_iat"]
+            loss_budget = torch.relu(pred_normalized).mean()
+            #loss_budget = torch.norm(pred[:, :, -1], p=2)
             print("Budget loss:", loss_budget.item())
         else:
             y_iat_mod = y[:, :, -1]
@@ -197,22 +199,23 @@ class TANTGen(TANTGen_pretrain):
         logits_ids = self.nids(X_mod)
         print("Logits IDS mean:", logits_ids.mean().item())
 
-        margin = -1.0 # cic ids com -4, kitsune com 0.0
+        margin = -1.0 # cic ids com -4, kitsune com -1.0
         loss_evasion = torch.relu(logits_ids - margin).mean()
         #loss_evasion = torch.sigmoid(logits_ids).mean()
         print("Evasion loss:", loss_evasion.item())
-        
-        # attack_success = (logits_ids < 0).float().mean()
-        # target_success = 0.9
-        # self.lambda_evasion = torch.relu(target_success - attack_success) / target_success
 
-        # total loss
-        loss = (
-            self.lambda_evasion * loss_evasion
-            # + self.lambda_constraints * loss_budget
-            + self.lambda_constraints * loss_packet_size
-            + self.lambda_constraints * loss_time_rate
-        )
+        if self.time_rate_limit > 1.0:
+            loss = (
+                self.lambda_evasion * loss_evasion
+                + self.lambda_constraints * loss_packet_size
+                + self.lambda_constraints * loss_time_rate
+            )
+        else:
+            loss = (
+                self.lambda_evasion * loss_evasion
+                + self.lambda_constraints * loss_budget
+                + self.lambda_constraints * loss_packet_size
+            )
 
         # if train:
         #     exit(0)

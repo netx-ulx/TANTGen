@@ -306,6 +306,30 @@ def is_ssdp(pkt):
         (pkt[UDP].sport == 1900 or pkt[UDP].dport == 1900)
     )
 
+def is_sensitive(pkt):
+    if pkt.haslayer(IP) and pkt.haslayer(TCP):
+        dport = pkt[TCP].dport
+        sport = pkt[TCP].sport
+
+        sensitive_ports = {
+            22,    # SSH -
+            25,    # SMTP
+            53,    # DNS
+            110,   # POP3
+            139,   # NetBIOS
+            143,   # IMAP
+            389,   # LDAP -
+            443,   # TLS
+            445,   # SMB -
+            1521,  # Oracle -
+            3306,  # MySQL
+            3389   # RDP
+        }
+
+        return dport in sensitive_ports or sport in sensitive_ports
+
+    return False
+
 
 # =========================
 # UTILS FOR ADVERSARIAL ATTACKS
