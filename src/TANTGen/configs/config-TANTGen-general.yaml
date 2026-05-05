@@ -1,7 +1,6 @@
 #---------------------------
 # General model parameters
 #---------------------------
-start_token: -10.0
 mask_token: 0
 
 weight_decay: 1e-5
@@ -20,7 +19,7 @@ window_stride: 64
 #--------------------
 # Dataset parameters
 #--------------------
-num_features: 2 #6
+num_features: 2
 output_size: 2
 
 #--------------------

@@ -1,7 +1,6 @@
 #---------------------------
 # Pretrain model parameters
 #---------------------------
-loss_function: huber
 epochs: 100 #|TODO verify
 batch_size: 64
 

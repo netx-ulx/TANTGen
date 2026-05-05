@@ -2,8 +2,8 @@
 # Pretrain model parameters
 #---------------------------
 loss_function: mse
-epochs: 10
-batch_size: 128
+epochs: 100
+batch_size: 64
 
 #--------------------
 # Dataset parameters

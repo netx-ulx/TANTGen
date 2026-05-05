@@ -1,0 +1,22 @@
+{
+    "attack_name": "PortScan_adversarial_iat",
+    "model": "CNN",
+    "num_flows": 23590,
+    "confusion_matrix": {
+        "TP": 11498,
+        "FP": 1,
+        "FN": 4363,
+        "TN": 7728
+    },
+    "metrics": {
+        "accuracy": 0.8150063586265367,
+        "precision": 0.9999130359161666,
+        "recall": 0.7249227665342665,
+        "f1_score": 0.8404970760233919,
+        "auc": 0.9999283381701602,
+        "attack_success_rate": 0.2750772334655601
+    },
+    "Errors": 0,
+    "Time_ratio": 1.00823574099936313797,
+    "Train_loss": -1.4849368333816528
+}

@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import torch
-from src.Feature_Extraction.dataloader import get_basic_features
 
 sliding_window_size = 64
 window_stride = 64
@@ -27,10 +26,9 @@ dataset_labels_path = "data/adversarial/temp_malicious_labels.csv"
 # df = get_basic_features(dataset_path)
 # df.to_csv(dataset_features_path, index=False)
 
-feature_arr, target_arr, _ = generate_sliding_windows_NIDS(
+feature_arr, target_arr = generate_sliding_windows_NIDS(
     sliding_window_size,
     window_stride,
-    num_features,
     dataset_features_path,
     dataset_labels_path,
     "src/TANTGen/models/mean_std.json" # TODO

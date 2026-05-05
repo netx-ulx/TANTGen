@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_iat",
+    "model": "LR",
+    "num_flows": 7406,
+    "confusion_matrix": {
+        "TP": 72,
+        "FP": 29,
+        "FN": 1074,
+        "TN": 6231
+    },
+    "metrics": {
+        "accuracy": 0.8510667026735079,
+        "precision": 0.7128712871287128,
+        "recall": 0.06282722513089005,
+        "f1_score": 0.11547714514835605,
+        "auc": 0.24467393183123406,
+        "attack_success_rate": 0.9371727748609323
+    },
+    "Errors": 0,
+    "Time_ratio":  19.02,
+    "Train_loss": -1,
+    "Pad_len": 0
+}

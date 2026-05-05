@@ -188,15 +188,6 @@ def get_last_digit(ip):
 
 # -----------------------------------------------------------------------
 
-def iat_log_bucket(iat, num_bins=16, min_iat=1e-6, max_iat=10.0):
-    iat = torch.clamp(iat, min=min_iat, max=max_iat)
-    log_iat = torch.log10(iat)
-    log_min = torch.log10(torch.tensor(min_iat))
-    log_max = torch.log10(torch.tensor(max_iat))
-
-    bin_idx = ((log_iat - log_min) / (log_max - log_min) * num_bins).long()
-    return torch.clamp(bin_idx, 0, num_bins - 1)
-
 
 def adjust_iats_with_rate_limit(original_iats, modified_iats, rate_limit):
     """
@@ -223,12 +214,14 @@ def adjust_iats_with_rate_limit(original_iats, modified_iats, rate_limit):
 
 def mask_top_k_deltas(delta, rate_limit):
     # Apply only to the top rate_limit% of packets with highest predicted change
-    k = int(rate_limit * delta.shape[1])  # 20% dos pacotes
-    # obter índices dos maiores deltas por amostra
+    k = int(rate_limit * delta.shape[1]) 
+
+    # get indices of top k absolute deltas
     _, idx = torch.topk(torch.abs(delta), k, dim=1)
     mask = torch.zeros_like(delta)
     mask.scatter_(1, idx, 1.0)
-    # aplicar máscara
+    
+    # apply mask to deltas
     delta_masked = delta * mask
     return delta_masked
 

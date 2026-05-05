@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn
 from torch.utils.data import DataLoader
-from src.TANTGen.generate_sequences import generate_sliding_windows_2
+from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.utils import (
     PacketDataset,
     adjust_iats_with_rate_limit,
@@ -72,10 +72,17 @@ class TANTGen(TANTGen_pretrain):
                 p.requires_grad = False
 
         self.lambda_evasion = config_finetune["lambda_evasion"]
-        self.lambda_constraints = config_finetune["lambda_constraints"]
+        self.lambda_perturbation = config_finetune["lambda_perturbation"]
 
         self.time_rate_limit = config_finetune["time_rate_limit"]
         self.size_rate_limit = config_finetune["size_rate_limit"]
+        self.margin = config_finetune["margin"]
+    
+    def iat_on(self):
+        return self.change_iat
+    
+    def size_on(self):
+        return self.change_packet_size
 
     def forward(self, src): #, tgt):
         # used for the forward pass of the model
@@ -145,10 +152,8 @@ class TANTGen(TANTGen_pretrain):
             y_packet_size_un_mod = y_packet_size_un_mod_cont
 
             y_packet_size_un_mod = torch.clamp(y_packet_size_un_mod, min=0, max=1500) # Assuming max packet size of 1500 bytes
-            print(torch.round(pred[:, :, 0] * 100))
             y_packet_size_mod = (y_packet_size_un_mod - self.mean_std["mean_packet_size"]) / self.mean_std["std_packet_size"]
 
-            #loss_packet_size = torch.mean(torch.abs(pred[:, :, 0])) * 0.1# L1
             loss_packet_size = torch.mean(pred[:, :, 0] ** 2) * 0.1 # L2 <---
             print("Packet size loss:", loss_packet_size.item())
         else:
@@ -157,7 +162,7 @@ class TANTGen(TANTGen_pretrain):
 
         if self.change_iat:
             log1_iat_un = y[:, :, -1] * self.mean_std["std_iat"] + self.mean_std["mean_iat"]
-            iat_un = torch.expm1(log1_iat_un) # torch.exp(log1_iat_un) - 1
+            iat_un = torch.expm1(log1_iat_un)
             iat_un_mod = iat_un + pred[:, :, -1]
 
             # # ...................................................................
@@ -169,52 +174,46 @@ class TANTGen(TANTGen_pretrain):
 
             # iat_un_mod = adjust_iats_with_rate_limit(iat_un, iat_un_mod, self.time_rate_limit)
 
-            # ratio
-
-            # penalização
-
-            budget = original_time * (self.time_rate_limit-1)
+            budget = original_time * self.time_rate_limit
             #scale budget to be in the same range as the loss
             budget = budget / (original_time + 1e-8) # avoid division by zero
             total_time = total_time / (original_time + 1e-8) # avoid division by zero
-            print("Budget:", (total_time.mean() - budget.mean()).item())
-            loss_time_rate = torch.mean(torch.abs(total_time - budget)) 
-            print("Time rate loss:", loss_time_rate.item())
+            #print("Budget:", (total_time.mean() - budget.mean()).item())
+            loss_time_rate = torch.mean(torch.abs(total_time - budget))
+            #print("Time rate loss:", loss_time_rate.item())
             # ....................................................................
 
             log1_iat_mod = torch.log1p(iat_un_mod)
             y_iat_mod = (log1_iat_mod - self.mean_std["mean_iat"]) / self.mean_std["std_iat"]
 
-            pred_normalized = pred[:, :, -1] / self.mean_std["std_iat"]
-            loss_budget = torch.relu(pred_normalized).mean()
-            #loss_budget = torch.norm(pred[:, :, -1], p=2)
+            pred_rescaled = pred[:, :, -1] / self.mean_std["mean_iat"]
+            loss_budget = torch.relu(pred_rescaled).mean()
             print("Budget loss:", loss_budget.item())
         else:
             y_iat_mod = y[:, :, -1]
             loss_budget = 0.0
+            loss_time_rate = 0.0
 
         X_mod = self._reconstruct_packets_with_predicted_iat(X, y_packet_size_mod, y_iat_mod)
 
         # get logits from external IDS
         logits_ids = self.nids(X_mod)
-        print("Logits IDS mean:", logits_ids.mean().item())
+        #print("Logits IDS mean:", logits_ids.mean().item())
 
-        margin = -1.0 # cic ids com -4, kitsune com -1.0
-        loss_evasion = torch.relu(logits_ids - margin).mean()
-        #loss_evasion = torch.sigmoid(logits_ids).mean()
+        loss_evasion = torch.relu(logits_ids - self.margin).mean()
         print("Evasion loss:", loss_evasion.item())
 
         if self.time_rate_limit > 1.0:
             loss = (
                 self.lambda_evasion * loss_evasion
-                + self.lambda_constraints * loss_packet_size
-                + self.lambda_constraints * loss_time_rate
+                + self.lambda_perturbation * loss_packet_size
+                + self.lambda_perturbation * loss_time_rate
             )
         else:
             loss = (
                 self.lambda_evasion * loss_evasion
-                + self.lambda_constraints * loss_budget
-                + self.lambda_constraints * loss_packet_size
+                + self.lambda_perturbation * loss_budget
+                + self.lambda_perturbation * loss_packet_size
             )
 
         # if train:
@@ -333,7 +332,6 @@ def main():
         print("WARNING: Both change_iat and change_packet_size are not set. Both will be changed")
     sliding_window_size = int(config_general["sliding_window_size"])
     window_stride = int(config_general["window_stride"])
-    num_features = int(config_general["num_features"])
 
     cpath = "{}/{}{}.ckpt".format(
             args.save_path, args.model_name, sliding_window_size
@@ -347,13 +345,14 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows_2(
+    df = pd.read_csv(args.dataset_path)
+    feature_arr, mean_std = generate_sliding_windows(
+        df,
         sliding_window_size,
         window_stride,
-        num_features,
-        args.dataset_path,
         "src/TANTGen/models/mean_std.json" # TODO
     )
+    target_arr = feature_arr.copy()
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
         feature_arr, target_arr, test_size=0.05, shuffle=False, random_state=42
@@ -395,13 +394,6 @@ def main():
             pretrained_ckpt_path,
             mean_std=mean_std,
         )
-
-        # Freeze or unfreeze everything!!
-        # for params in pretrained_model.parameters():
-        #     params.requires_grad = True
-
-        # for params in pretrained_model.output_head.parameters():
-        #     params.requires_grad = True
 
         model.encoder.load_state_dict(pretrained_model.encoder.state_dict())
         model.feature_transform1.load_state_dict(pretrained_model.feature_transform1.state_dict())

@@ -43,3 +43,6 @@ python results/create_plots.py
 
 # ver erros e warnings nos pacotes
 tshark -r PortScan_adversarial.pcap -q -z expert 
+
+
+# Para os resultados que foram para a tese: CICIDS com pretreino e margin -4; Kitsune sem pretreino e margin 0

@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_iat",
+    "model": "SVM",
+    "num_flows": 7369,
+    "confusion_matrix": {
+        "TP": 140,
+        "FP": 18,
+        "FN": 969,
+        "TN": 6242
+    },
+    "metrics": {
+        "accuracy": 0.8660605238159859,
+        "precision": 0.8860759493670886,
+        "recall": 0.12623985572587917,
+        "f1_score": 0.22099447513812154,
+        "auc": 0.8935128501341045,
+        "attack_success_rate": 0.8737601442662422
+    },
+    "Errors": 0,
+    "Time_ratio":  8.15,
+    "Train_loss": -1,
+    "Pad_len": 0
+}

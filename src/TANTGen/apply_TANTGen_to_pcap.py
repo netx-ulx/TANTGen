@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import torch
 import numpy as np
 import yaml
@@ -16,8 +14,25 @@ from src.TANTGen.utils import (
     clamp_pad
 )
 from scapy.all import PcapReader, PcapWriter, TCP, UDP, IP, Ether
-import os
-import pandas as pd
+import psutil
+import threading
+import csv
+from datetime import datetime
+from pynvml import *
+
+nvmlInit()
+handle = nvmlDeviceGetHandleByIndex(0)
+
+process = psutil.Process()
+
+cpu_usage_end_to_end = []
+ram_usage_end_to_end = []
+running_end_to_end = True
+
+def monitor_end_to_end():
+    while running_end_to_end:
+        cpu_usage_end_to_end.append(process.cpu_percent(interval=0.5))
+        ram_usage_end_to_end.append(process.memory_percent())
 
 with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -43,12 +58,11 @@ def adjust_tcp_packet(pkt, pad_size):
 
     padding = random_bytes(pad_size)
 
-    # if pkt.haslayer(Raw):
-    #     pkt[Raw].load += padding
     if pkt.haslayer(Raw):
         try:
-            pkt[Raw].load.decode("ascii")
-            pkt[Raw].load += padding
+            #pkt[Raw].load.decode("ascii")
+            if pkt.haslayer(Raw) and isinstance(pkt[Raw].load, bytes):
+                pkt[Raw].load += padding
         except:
             return pkt
     else:
@@ -59,7 +73,7 @@ def adjust_tcp_packet(pkt, pad_size):
     del pkt[IP].chksum
     del pkt[TCP].chksum
 
-    return Ether(bytes(pkt))
+    return Ether(bytes(pkt), type=pkt.type) #pkt #Ether(bytes(pkt))
 
 
 # =========================
@@ -101,7 +115,7 @@ def adjust_ssdp_packet(pkt, pad_size):
     del pkt[UDP].len
     del pkt[UDP].chksum
 
-    return Ether(bytes(pkt))
+    return Ether(raw(pkt))
 
 
 # =========================
@@ -125,7 +139,7 @@ def adjust_packet_size(pkt, pad_size):
 
 def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, output_pcap):
     original_pcap_reader = PcapReader(original_malicious_pcap)
-    writer = PcapWriter(output_pcap, sync=True)
+    writer = PcapWriter(output_pcap, sync=False)
 
     # read first packet to get initial timestamp
     first_pkt = original_pcap_reader.read_packet()
@@ -137,18 +151,25 @@ def rebuild_pcap(original_malicious_pcap, modified_IAT, modified_packet_size, ou
     first_pkt.time = last_timestamp_mod
     writer.write(first_pkt)
 
+    # Buffer for optimized writing
+    buffer = []
+
     for i, pkt in enumerate(original_pcap_reader):
-        # print(f"[{i}] Processing original packet {i}...")
-        # print(f"[{j}] Processing adversarial packet {j}...")
-        
-        # new_time = last_timestamp + float(modified_IAT[i+1]) if it was just IAT modification, not the perturbation of IAT
+
         last_timestamp_mod = last_timestamp_mod + (pkt.time - last_timestamp) + float(modified_IAT[i+1])
         last_timestamp = pkt.time
         if modified_packet_size[i+1] != 0:
             pkt = adjust_packet_size(pkt, modified_packet_size[i+1])
 
         pkt.time = last_timestamp_mod
-        writer.write(pkt)
+
+        buffer.append(pkt)
+        if len(buffer) >= 10000:
+            writer.write(buffer)
+            buffer = []
+
+    if buffer:
+        writer.write(buffer)
 
     original_pcap_reader.close()
     writer.close()
@@ -169,31 +190,26 @@ def process_pcap_with_TANTGen(
     checkpoint_path
 ):
 
-    start_token = int(config["start_token"])
-
     window_size = int(config["sliding_window_size"])
-    stride = int(config["window_stride"])
-    num_features = int(config["num_features"])
-    output_size = int(config["output_size"])
 
     # =====================================================
     # 1. Extracting features from malicious PCAP
     # =====================================================
+    start_time = time.time()
     df = get_basic_features(malicious_pcap_path)
-    df.to_csv(config_folders["Adversarial_Test_Folder"] + "temp_features.csv", index=False)
-    # df = pd.read_csv(config_folders["Adversarial_Test_Folder"] + "temp_features.csv")
+
+    end_time = time.time()
+    features_extraction_time = end_time - start_time
 
     print(f"[✓] Features extracted: {df.shape}")
 
     # =====================================================
     # 2. Generate Sliding Windows exactly as in training
     # =====================================================
-    feature_arr, _, mean_std, _ = generate_sliding_windows(
-        window_size, stride, num_features, config_folders["Adversarial_Test_Folder"] + "temp_features.csv", "src/TANTGen/models/mean_std.json" # TODO
+    feature_arr, mean_std = generate_sliding_windows(df,
+        window_size, window_size, "src/TANTGen/models/mean_std.json"
     )
-
     print(f"[✓] Windows created: {len(feature_arr)}")
-    Path(config_folders["Adversarial_Test_Folder"] + "temp_features.csv").unlink()
 
     # =====================================================
     # 3. Load trained TANTGen model
@@ -203,6 +219,8 @@ def process_pcap_with_TANTGen(
         mean_std=mean_std,
         strict=True
     )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     model.eval()
 
     print("[✓] Model loaded.")
@@ -211,15 +229,46 @@ def process_pcap_with_TANTGen(
     # 4. Pass each window through the model
     # =====================================================
     print("[*] Modifying IATs...")
+
+    start_time = time.time()
     modified_iats = []
     modified_packet_sizes = []
+    num_windows = 0
+
+    cpu_usage_model = []
+    ram_usage_model = []
+    running_model = True
+    gpu_util = []
+    gpu_mem = []
+    process_model = psutil.Process()
+
+    def monitor_model():
+        while running_model:
+            cpu_usage_model.append(process_model.cpu_percent())
+            ram_usage_model.append(process_model.memory_percent())
+
+            if torch.cuda.is_available():
+                util = nvmlDeviceGetUtilizationRates(handle)
+                mem = nvmlDeviceGetMemoryInfo(handle)
+
+                gpu_util.append(util.gpu)
+                gpu_mem.append(mem.used / 1024**2)  # MB
+
+    monitor_thread = threading.Thread(target=monitor_model)
+    monitor_thread.start()
+
+    batch_size = 128
+
+    # for i in range(0, len(feature_arr), batch_size):
+    #     batch = feature_arr[i:i+batch_size]
+    #     X = torch.from_numpy(np.array(batch)).float().to(device)
 
     for window in feature_arr:
 
-        X = torch.tensor(window).unsqueeze(0).float()
+        X = torch.tensor(window).unsqueeze(0).float().to(device)
 
         with torch.no_grad():
-            pred = model(X) #, y_in)                     # [1, T, 1]
+            pred = model(X)
 
         pred = model.transform_pred(pred)
         iats = pred[:, :, -1].squeeze(0).detach().cpu().numpy()  # [T]
@@ -228,10 +277,26 @@ def process_pcap_with_TANTGen(
         modified_iats.extend(iats)
         modified_packet_sizes.extend(packet_sizes)
 
+        num_windows += 1
+
+    end_time = time.time()
+
+    running_model = False
+    monitor_thread.join()
+
+    total_time = end_time - start_time
+
+    print(f"[THROUGHPUT] {len(modified_iats)/total_time:.2f} packets/sec")
+    print(f"[LATENCY] {total_time/len(modified_iats)*1000:.2f} ms per packet")
+    print(f"[RESOURCES] Avg CPU: {sum(cpu_usage_model)/len(cpu_usage_model):.2f}%")
+    print(f"[RESOURCES] Avg RAM: {sum(ram_usage_model)/len(ram_usage_model):.2f}%")
+
+    gpu_util_avg = sum(gpu_util) / len(gpu_util) if gpu_util else 0
+    gpu_mem_avg = sum(gpu_mem) / len(gpu_mem) if gpu_mem else 0
+    gpu_mem_peak = max(gpu_mem) if gpu_mem else 0
 
     modified_iats = np.array(modified_iats).reshape(-1, 1)
     modified_packet_sizes = np.array(modified_packet_sizes).reshape(-1, 1)
-    #modified_iats = modified_iats * mean_std["std_iat"] + mean_std["mean_iat"]
     modified_packet_sizes = np.round(modified_packet_sizes).astype(int)
     modified_iats = modified_iats.flatten()
     modified_packet_sizes = modified_packet_sizes.flatten()
@@ -239,25 +304,49 @@ def process_pcap_with_TANTGen(
     print(modified_packet_sizes[:120])
     packets_modfied = sum(modified_packet_sizes != 0)
     print("Pad_len", sum(modified_packet_sizes)/packets_modfied if packets_modfied > 0 else 0)
-    #modified_iats = [0.01] * len(modified_iats)
-    #modified_packet_sizes = modified_packet_sizes * 20
 
     print("[✓] Modified IATs obtained.")
-
-    # save modified_iats
-    # np.save(config_folders["Final_Adversarial_Folder"] + "modified_iats.npy", modified_iats)
-
-    # load
-    # modified_iats = np.load(config_folders["Final_Adversarial_Folder"] + "modified_iats.npy").flatten()
 
     # =====================================================
     # 5. Rebuild PCAP with new IATs
     # =====================================================
+    start_time = time.time()
     rebuild_pcap(malicious_pcap_path, modified_iats, modified_packet_sizes, output_pcap)
+    end_time = time.time()
+
+    rebuild_time = end_time - start_time
 
     print("[✓] Process completed.")
 
+    feature = "Both"
+    if not model.iat_on():
+        feature = "size"
+    elif not model.size_on():
+        feature = "iat"
 
+    return {
+        "total_packets": len(modified_iats),
+        "num_windows": num_windows,
+        "gpu_memory": gpu_mem_avg,
+        "gpu_utilization": gpu_util_avg,
+        "gpu_memory_peak": gpu_mem_peak,
+        "batch_size": batch_size,
+        "feature": feature,
+        "features_extraction_time": features_extraction_time,
+        "inference_time": total_time,
+        "rebuild_time": rebuild_time
+    }
+
+def log_to_csv(file_path, data_dict):
+    file_exists = os.path.isfile(file_path)
+
+    with open(file_path, mode='a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=data_dict.keys())
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(data_dict)
 
 # =========================================================
 # EXECUÇÃO DIRETA
@@ -269,9 +358,79 @@ if __name__ == "__main__":
     parse.add_argument('-o', '--output_pcap', type=str, required=True, help="output adversarial pcap path")
     parse.add_argument('-m', '--model_path', type=str, required=False, help="model checkpoint path", default="src/TANTGen/TANTGen_logs/1#_final_TANTGen_window{}.ckpt".format(config["sliding_window_size"]))
     arg = parse.parse_args()
+    
+    # =========================
+    # START MONITORING
+    # =========================
+    monitor_thread = threading.Thread(target=monitor_end_to_end)
+    monitor_thread.start()
 
-    process_pcap_with_TANTGen(
-        malicious_pcap_path=arg.malicious_pcap_path,
-        output_pcap=arg.output_pcap,
-        checkpoint_path=arg.model_path,
-    )
+    start_total = time.time()
+
+    # END-TO-END EXECUTION
+    metrics = process_pcap_with_TANTGen(
+                        malicious_pcap_path=arg.malicious_pcap_path,
+                        output_pcap=arg.output_pcap,
+                        checkpoint_path=arg.model_path,
+                    )
+
+    end_total = time.time()
+
+    # =========================
+    # STOP MONITORING
+    # =========================
+    running_end_to_end = False
+    monitor_thread.join()
+
+    # =========================
+    # METRICS
+    # =========================
+    total_time = end_total - start_total
+    throughput_e2e_packets = metrics["total_packets"] / total_time
+    throughput_e2e_windows = metrics["num_windows"] / total_time
+    latency_per_packet = total_time / metrics["total_packets"]
+    latency_per_window = total_time / metrics["num_windows"]
+    cpu_avg = sum(cpu_usage_end_to_end) / len(cpu_usage_end_to_end)
+    ram_avg = sum(ram_usage_end_to_end) / len(ram_usage_end_to_end)
+
+
+    print("\n========== END-TO-END METRICS ==========")
+    print(f"Total Time: {total_time:.2f} seconds")
+    print(f"End-to-End Throughput (Packets): {throughput_e2e_packets:.2f} packets/sec")
+    print(f"End-to-End Throughput (Windows): {throughput_e2e_windows:.2f} windows/sec")
+    print(f"Latency per packet: {latency_per_packet*1000:.2f} ms per packet")
+    print(f"Latency per window: {latency_per_window*1000:.2f} ms per window")
+    print(f"Avg CPU: {cpu_avg:.2f}%")
+    print(f"Avg RAM: {ram_avg:.2f}%")
+    print(f"GPU Memory: {metrics['gpu_memory']:.2f} MB")
+    print(f"GPU Utilization: {metrics['gpu_utilization']:.2f}%")
+    print(f"GPU Memory Peak: {metrics['gpu_memory_peak']:.2f} MB")
+
+    # =========================
+    # PREPARE CSV ROW
+    # =========================
+    row = {
+        "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "file": os.path.basename(arg.malicious_pcap_path),
+        "total_time": total_time,
+        "features_extraction_time": metrics["features_extraction_time"],
+        "inference_time": metrics["inference_time"],
+        "rebuild_time": metrics["rebuild_time"],
+        "throughput_packets": throughput_e2e_packets,
+        "throughput_windows": throughput_e2e_windows,
+        "latency_per_packet": latency_per_packet*1000,
+        "latency_per_window": latency_per_window*1000,
+        "cpu_avg": cpu_avg,
+        "ram_avg": ram_avg,
+        "gpu_memory": metrics['gpu_memory'],
+        "gpu_utilization": metrics['gpu_utilization'],
+        "gpu_memory_peak": metrics['gpu_memory_peak'],
+        "batch_size": metrics["batch_size"],
+        "feature": metrics["feature"]
+    }
+
+    # =========================
+    # SAVE CSV
+    # =========================
+    csv_path = "results/experiment_metrics.csv"
+    log_to_csv(csv_path, row)

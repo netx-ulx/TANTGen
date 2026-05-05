@@ -4,6 +4,7 @@ from datetime import datetime
 import yaml
 import argparse
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 import torch
@@ -19,7 +20,7 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
-from src.TANTGen.generate_sequences import generate_sliding_windows_NIDS2
+from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.utils import (
     PacketDatasetAnomaly,
 )
@@ -307,11 +308,11 @@ def main():
         NUM_GPUS = 0
 
     ## Get the data
-    feature_arr, _ = generate_sliding_windows_NIDS2(
+    df = pd.read_csv(args.dataset_path)
+    feature_arr, _ = generate_sliding_windows(
+        df,
         sliding_window_size,
         window_stride,
-        num_features,
-        args.dataset_path,
         "src/TANTGen/models/mean_std.json" # TODO
     )
 

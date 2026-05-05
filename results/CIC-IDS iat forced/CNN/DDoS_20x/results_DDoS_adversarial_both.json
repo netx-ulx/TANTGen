@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_both",
+    "model": "CNN",
+    "num_flows": 7428,
+    "confusion_matrix": {
+        "TP": 105,
+        "FP": 6,
+        "FN": 1063,
+        "TN": 6254
+    },
+    "metrics": {
+        "accuracy": 0.8560850834679591,
+        "precision": 0.9459459459459459,
+        "recall": 0.0898972602739726,
+        "f1_score": 0.1641907740422205,
+        "auc": 0.6191660466541206,
+        "attack_success_rate": 0.9101027397182355
+    },
+    "Errors": 0,
+    "Time_ratio":  20.75,
+    "Train_loss": -1,
+    "Pad_len": 77
+}

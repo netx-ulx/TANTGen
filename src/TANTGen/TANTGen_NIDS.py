@@ -400,10 +400,9 @@ def main():
         os.remove("src/TANTGen/models/mean_std.json")
 
     ## Get the data
-    feature_arr, target_arr, _ = generate_sliding_windows_NIDS(
+    feature_arr, target_arr = generate_sliding_windows_NIDS(
         sliding_window_size,
         window_stride,
-        num_features,
         args.dataset_path,
         args.dataset_labels_path,
         "src/TANTGen/models/mean_std.json" # TODO

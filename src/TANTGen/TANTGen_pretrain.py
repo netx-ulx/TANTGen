@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from src.TANTGen.generate_sequences import generate_sliding_windows_2 as generate_sliding_windows
+from src.TANTGen.generate_sequences import generate_sliding_windows
 from src.TANTGen.utils import (
     PacketDataset,
     PositionalEncoding,
@@ -297,6 +297,50 @@ class TANTGen_pretrain(pl.LightningModule):
         # loss = 0.7 * loss_masked + 0.3 * loss_full
 
         return loss, prediction, y
+    
+    # def _step(self, batch, train=False):
+    #     X, _ = batch  # no need for y anymore (self-supervised)
+
+    #     X = X.float()
+    #     original = X.clone()
+
+    #     _, seq_len, num_features = X.shape
+
+    #     # --- 1. Random masking ratio ---
+    #     mask_ratio = np.random.uniform(0.3, 0.6)
+    #     num_mask = int(seq_len * num_features * mask_ratio)
+
+    #     # --- 2. Create mask over ALL features ---
+    #     mask = torch.zeros_like(X, dtype=torch.bool)
+
+    #     flat_indices = np.random.choice(
+    #         seq_len * num_features,
+    #         size=num_mask,
+    #         replace=False
+    #     )
+
+    #     for idx in flat_indices:
+    #         t = idx // num_features
+    #         f = idx % num_features
+    #         mask[:, t, f] = True
+
+    #     # --- 3. Apply mask token ---
+    #     X[mask] = int(config_general["mask_token"])
+
+    #     # --- 4. Add small noise (denoising effect) ---
+    #     noise = torch.randn_like(X) * 0.01
+    #     X = X + noise
+
+    #     # --- 5. Forward pass ---
+    #     prediction = self.forward(X)
+
+    #     # --- 6. Compute loss ONLY on masked positions ---
+    #     loss = self.loss_func(
+    #         prediction[mask],
+    #         original[mask]
+    #     )
+
+    #     return loss, prediction, original
 
     def training_step(self, train_batch, train_idx):
         self.lr_update()
@@ -324,8 +368,6 @@ class TANTGen_pretrain(pl.LightningModule):
 
         self.log("Test loss", loss, sync_dist=True)
         self.test_step_outputs.append(loss)
-        #self.test_step_predictions += prediction.squeeze()
-        #self.test_step_original += y.squeeze()
         self.test_step_predictions.append(prediction.detach())
         self.test_step_original.append(y.detach())
         return loss
@@ -348,18 +390,6 @@ class TANTGen_pretrain(pl.LightningModule):
         print(f"Avg train loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Train Loss = {np.sum(loss):.4f}")
 
-        # y_true_iat = y_true[:, :, -1].reshape(-1).cpu()
-        # y_pred_iat = y_pred[:, :, -1].reshape(-1).cpu()  
-
-        # plt.figure(figsize=(14,6))
-        # plt.plot(y_true_iat, label='IAT real', color='black', linewidth=1.5)
-        # plt.plot(y_pred_iat, label='Predição MSE', alpha=0.7)
-        # plt.xlabel('Amostra')
-        # plt.ylabel('IAT normalizado')
-        # plt.title('Comparação das previsões de IAT (MSE)')
-        # plt.legend()
-        # plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE.png")
-
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
         mae_mse = torch.mean(torch.abs(y_pred - y_true))
@@ -379,15 +409,6 @@ class TANTGen_pretrain(pl.LightningModule):
         y_true = torch.cat(self.validation_step_original, dim=0).cpu()
         print(f"Avg val loss per epoch = {np.mean(loss):.4f}")
         print(f"Total Validation Loss = {np.sum(loss):.4f}")
-        
-        # plt.figure(figsize=(14,6))
-        # plt.plot(y_true, label='IAT real', color='black', linewidth=1.5)
-        # plt.plot(y_pred, label='Predição MSE', alpha=0.7)
-        # plt.xlabel('Amostra')
-        # plt.ylabel('IAT normalizado')
-        # plt.title('Comparação das previsões de IAT (MSE)')
-        # plt.legend()
-        # plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE_validation.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
@@ -529,7 +550,6 @@ def get_args():
 def main():
     # Arguments
     args = get_args()
-    num_features = int(config_general["num_features"])
     sliding_window_size = int(config_general["sliding_window_size"])
     window_stride = int(config_general["window_stride"])
 
@@ -549,13 +569,14 @@ def main():
         os.remove("src/TANTGen/models/mean_std.json")
 
     ## Get the data
-    feature_arr, target_arr, mean_std, _ = generate_sliding_windows(
+    df = pd.read_csv(args.dataset_path)
+    feature_arr, mean_std = generate_sliding_windows(
+        df,
         sliding_window_size,
         window_stride,
-        num_features,
-        args.dataset_path,
         "src/TANTGen/models/mean_std.json" # TODO
     )
+    target_arr = feature_arr.copy()
 
     full_train_vectors, test_vectors, full_train_labels, test_labels = train_test_split(
         feature_arr, target_arr, test_size=0.05, shuffle=False, random_state=42

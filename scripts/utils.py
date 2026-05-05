@@ -403,11 +403,6 @@ def run_kitsune_pipeline(attack_name):
                             original_test_pcap, original_test_npy,
                             original_test_labels)
 
-    # TODO dataset
-    # python extract features TODO
-    # python -m src.TANTGen.TANTGen_pretrain
-    # pretrain_tantgen()
-
     surrogate_train_pcap = config["Surrogate_Train_Folder"] + attack_name + "_all.pcap"
     surrogate_train_features = config["Surrogate_Train_Folder"] + attack_name + "_all_features.csv"
     surrogate_train_labels = config["Surrogate_Train_Folder"] + attack_name + "_labels.csv"

@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_both",
+    "model": "SVM",
+    "num_flows": 7431,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 18,
+        "FN": 1171,
+        "TN": 6242
+    },
+    "metrics": {
+        "accuracy": 0.839994617144395,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.18380101658013276,
+        "attack_success_rate": 0.9999999999914604
+    },
+    "Errors": 0,
+    "Time_ratio":  20.75,
+    "Train_loss": -1,
+    "Pad_len": 77
+}

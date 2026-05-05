@@ -13,74 +13,114 @@ def entropy(data):
     probs = [float(c) / len(data) for c in occur.values()]
     return -sum(p * math.log2(p) for p in probs)
 
+# def get_basic_features(pcap_path):
+#     print(f"[i] Extracting features from: {pcap_path}")
+#     pcap_reader = PcapReader(pcap_path)
+#     rows = []
+#     last_ts = None
+#     for pkt in pcap_reader:
+#         IPtype = -1  # Default value for non-IP packets
+#         timestamp = pkt.time
+#         framelen = len(pkt)
+#         protocol = -1  # Default value for non-IP packets
+#         if pkt.haslayer(IP):  # IPv4
+#             srcIP = pkt[IP].src
+#             dstIP = pkt[IP].dst
+#             IPtype = 0
+#             protocol = pkt[IP].proto
+#         elif pkt.haslayer(IPv6):  # IPv6
+#             srcIP = pkt[IPv6].src
+#             dstIP = pkt[IPv6].dst
+#             IPtype = 1
+#         else:
+#             srcIP = '-1'
+#             dstIP = '-1'
+
+        
+#         if pkt.haslayer(TCP):
+#             srcproto = str(pkt[TCP].sport)
+#             dstproto = str(pkt[TCP].dport)
+#         elif pkt.haslayer(UDP):
+#             srcproto = str(pkt[UDP].sport)
+#             dstproto = str(pkt[UDP].dport)
+#         else:
+#             srcproto = '-1'
+#             dstproto = '-1'
+#         # srcMAC = pkt.src
+#         # dstMAC = pkt.dst
+#         if srcproto == '-1':  # it's a L2/L1 level protocol
+#             if pkt.haslayer(ARP):  # is ARP
+#                 srcproto = 'arp'
+#                 dstproto = 'arp'
+#                 srcIP = pkt[ARP].psrc  # src IP (ARP)
+#                 dstIP = pkt[ARP].pdst  # dst IP (ARP)
+#                 IPtype = 0
+#             elif pkt.haslayer(ICMP):  # is ICMP
+#                 srcproto = 'icmp'
+#                 dstproto = 'icmp'
+#                 IPtype = 0
+#             elif srcIP + srcproto + dstIP + dstproto == '':  # some other protocol
+#                 srcIP = pkt.src  # src MAC
+#                 dstIP = pkt.dst  # dst MAC
+#         iat = timestamp - last_ts if last_ts else 0
+#         last_ts = timestamp
+
+#         row= {
+#             'Timestamp': timestamp,
+#             'IAT': iat,
+#             'Packet Size': framelen,
+#             'Proto': protocol,
+#             'Source IP': srcIP,
+#             'Destination IP': dstIP,
+#             'TCP Source Port': srcproto,
+#             'TCP Destination Port': dstproto,
+#             'TCP Flags': pkt[TCP].flags if pkt.haslayer(TCP) else 0,
+#             'Payload Length': len(pkt[IP].payload) if pkt.haslayer(IP) else 0,
+#             #'Payload Entropy': entropy(bytes(pkt[IP].payload)) if pkt.haslayer(IP) else 0,
+#             'IP Type': IPtype
+#         }
+#         rows.append(row)
+#     return pd.DataFrame(rows)
+
+
 def get_basic_features(pcap_path):
     print(f"[i] Extracting features from: {pcap_path}")
     pcap_reader = PcapReader(pcap_path)
-    rows = []
+
+    timestamps = []
+    iats = []
+    sizes = []
+    protos = []
+    ip_types = []
+
     last_ts = None
+
     for pkt in pcap_reader:
-        IPtype = -1  # Default value for non-IP packets
-        timestamp = pkt.time
-        framelen = len(pkt)
-        protocol = -1  # Default value for non-IP packets
-        if pkt.haslayer(IP):  # IPv4
-            srcIP = pkt[IP].src
-            dstIP = pkt[IP].dst
-            IPtype = 0
-            protocol = pkt[IP].proto
-        elif pkt.haslayer(IPv6):  # IPv6
-            srcIP = pkt[IPv6].src
-            dstIP = pkt[IPv6].dst
-            IPtype = 1
-        else:
-            srcIP = '-1'
-            dstIP = '-1'
+        ts = pkt.time
+        size = len(pkt)
 
-        
-        if pkt.haslayer(TCP):
-            srcproto = str(pkt[TCP].sport)
-            dstproto = str(pkt[TCP].dport)
-        elif pkt.haslayer(UDP):
-            srcproto = str(pkt[UDP].sport)
-            dstproto = str(pkt[UDP].dport)
+        if last_ts is None:
+            iat = 0.0
         else:
-            srcproto = '-1'
-            dstproto = '-1'
-        # srcMAC = pkt.src
-        # dstMAC = pkt.dst
-        if srcproto == '-1':  # it's a L2/L1 level protocol
-            if pkt.haslayer(ARP):  # is ARP
-                srcproto = 'arp'
-                dstproto = 'arp'
-                srcIP = pkt[ARP].psrc  # src IP (ARP)
-                dstIP = pkt[ARP].pdst  # dst IP (ARP)
-                IPtype = 0
-            elif pkt.haslayer(ICMP):  # is ICMP
-                srcproto = 'icmp'
-                dstproto = 'icmp'
-                IPtype = 0
-            elif srcIP + srcproto + dstIP + dstproto == '':  # some other protocol
-                srcIP = pkt.src  # src MAC
-                dstIP = pkt.dst  # dst MAC
-        iat = timestamp - last_ts if last_ts else 0
-        last_ts = timestamp
+            iat = ts - last_ts
+        last_ts = ts
 
-        row= {
-            'Timestamp': timestamp,
-            'IAT': iat,
-            'Packet Size': framelen,
-            'Proto': protocol,
-            'Source IP': srcIP,
-            'Destination IP': dstIP,
-            'TCP Source Port': srcproto,
-            'TCP Destination Port': dstproto,
-            'TCP Flags': pkt[TCP].flags if pkt.haslayer(TCP) else 0,
-            'Payload Length': len(pkt[IP].payload) if pkt.haslayer(IP) else 0,
-            'Payload Entropy': entropy(bytes(pkt[IP].payload)) if pkt.haslayer(IP) else 0,
-            'IP Type': IPtype
-        }
-        rows.append(row)
-    return pd.DataFrame(rows)
+        proto = pkt[IP].proto if pkt.haslayer(IP) else -1
+        ip_type = 0 if pkt.haslayer(IP) else (1 if pkt.haslayer(IPv6) else -1)
+
+        timestamps.append(float(ts))
+        iats.append(float(iat))
+        sizes.append(size)
+        protos.append(proto)
+        ip_types.append(ip_type)
+
+    return pd.DataFrame({
+        "Timestamp": timestamps,
+        "IAT": iats,
+        "Packet Size": sizes,
+        "Proto": protos,
+        "IP Type": ip_types
+    })
 
 if __name__ == "__main__":
 

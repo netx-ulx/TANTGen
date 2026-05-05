@@ -1,0 +1,23 @@
+{
+    "attack_name": "BruteForce_adversarial_both",
+    "model": "RF",
+    "num_flows": 23008,
+    "confusion_matrix": {
+        "TP": 46,
+        "FP": 0,
+        "FN": 61,
+        "TN": 22901
+    },
+    "metrics": {
+        "accuracy": 0.9973487482614742,
+        "precision": 1.0,
+        "recall": 0.42990654205607476,
+        "f1_score": 0.6013071895424836,
+        "auc": 0.910552410273069,
+        "attack_success_rate": 0.5700934578906455
+    },
+    "Errors": 0,
+    "Time_ratio":  1.26,
+    "Train_loss": -1,
+    "Pad_len": 108
+}

@@ -1,17 +1,14 @@
 #---------------------------
 # Pretrain model parameters
 #---------------------------
-loss_fun_diff: huber
-loss_fun_evasion: bce
-# loss_fun_constraints: mse
-
-lambda_evasion: 2.0
-lambda_constraints: 1.0
+lambda_evasion: 10.0
+lambda_perturbation: 1.0
 
 time_rate_limit: -1 # <0 to not consider
 size_rate_limit: 1
+margin: -4 # cic ids com -4, kitsune com -0.0
 
-epochs: 100
+epochs: 200
 batch_size: 64
 
 #--------------------

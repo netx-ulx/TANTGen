@@ -1,0 +1,23 @@
+{
+    "attack_name": "DDoS_adversarial_both",
+    "model": "MLP",
+    "num_flows": 7431,
+    "confusion_matrix": {
+        "TP": 3,
+        "FP": 5,
+        "FN": 1168,
+        "TN": 6255
+    },
+    "metrics": {
+        "accuracy": 0.8421477593863544,
+        "precision": 0.375,
+        "recall": 0.0025619128949615714,
+        "f1_score": 0.005089058524173028,
+        "auc": 0.2333771686906415,
+        "attack_success_rate": 0.9974380870965207
+    },
+    "Errors": 0,
+    "Time_ratio":  20.75,
+    "Train_loss": -1,
+    "Pad_len": 77
+}

@@ -1,0 +1,23 @@
+{
+    "attack_name": "BruteForce_adversarial_iat",
+    "model": "CNN",
+    "num_flows": 22981,
+    "confusion_matrix": {
+        "TP": 79,
+        "FP": 1,
+        "FN": 1,
+        "TN": 22900
+    },
+    "metrics": {
+        "accuracy": 0.9999129715852225,
+        "precision": 0.9875,
+        "recall": 0.9875,
+        "f1_score": 0.9875,
+        "auc": 0.9999989083446138,
+        "attack_success_rate": 0.0124999999984375
+    },
+    "Errors": 0,
+    "Time_ratio": 1.00464611314707792669,
+    "Train_loss": -0.5855425596237183,
+    "Pad_len": 0
+}

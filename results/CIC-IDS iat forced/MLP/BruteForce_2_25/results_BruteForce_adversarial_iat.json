@@ -1,0 +1,23 @@
+{
+    "attack_name": "BruteForce_adversarial_iat",
+    "model": "MLP",
+    "num_flows": 23151,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 0,
+        "FN": 250,
+        "TN": 22901
+    },
+    "metrics": {
+        "accuracy": 0.9892013303960951,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.17218322344002446,
+        "attack_success_rate": 0.99999999996
+    },
+    "Errors": 0,
+    "Time_ratio": 8.27,
+    "Train_loss": -1,
+    "Pad_len": 0
+}

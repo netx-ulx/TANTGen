@@ -27,8 +27,6 @@ run_kitsune_on_kitsune_pipeline(attack_name, pcap_file, labels_file,
 # python src/Kitsune/Feature_Extraction/extractor.py -i data/preprocessed/target_train/SSDP_Flood_benign.pcap -o data/preprocessed/target_train/SSDP_Flood_benign.npy
 # python src/Kitsune/KitNET/model.py -M train -tf data/preprocessed/target_train/SSDP_Flood_benign.npy -mf src/Kitsune/models/SSDP_Flood_model.pkl
 
-# python -m src.TANTGen.TANTGen_pretrain
-
 # python src/Feature_Extraction/dataloader.py -i data/preprocessed/adversarial_train/surrogate_train/SSDP_Flood_all.pcap -o data/preprocessed/adversarial_train/surrogate_train/SSDP_Flood_all_features.csv
 # python -m src.TANTGen.TANTGen_NIDS --dataset_path data/preprocessed/adversarial_train/surrogate_train/SSDP_Flood_all_features.csv --dataset_labels_path data/preprocessed/adversarial_train/surrogate_train/SSDP_Flood_labels.csv
 
