@@ -500,13 +500,6 @@ def get_args():
     )
 
     parser.add_argument(
-        "--save_model",
-        type=bool,
-        default=True,
-        help="Save the model",
-    )
-
-    parser.add_argument(
         "--make_epoch_plot",
         type=bool,
         default=False,
@@ -646,9 +639,6 @@ def main():
         time = datetime.now()
         print(time)
         trainer.save_checkpoint(cpath)
-
-        if args.save_model:
-            torch.save(model.state_dict(), "src/TANTGen/models/TANTGen_pretrain.pth")
 
         if args.make_epoch_plot:
             log_dir = "{}/lightning_logs/version_0".format(args.save_path)
