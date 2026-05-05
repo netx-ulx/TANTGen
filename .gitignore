@@ -12,6 +12,7 @@ src/Feature_Extraction/cicflowmeter
 src/Kitsune/Feature_Extraction/build
 src/Kitsune/Feature_Extraction/AfterImage*
 
+src/TANTGen/transformer_pretrained_models
 src/TANTGen/transformer_pretrained_logs
 src/TANTGen/transformer_nids_logs
 src/TANTGen/TANTGen_logs
@@ -24,5 +25,4 @@ TrafficManipulator
 *.pkl
 *.joblib
 *.npy
-*.csv
 *.pcap
