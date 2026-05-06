@@ -2,9 +2,9 @@
 __pycache__
 
 # data
-data/adversarial
-data/original
-data/preprocessed
+data/adversarial/**/*.csv
+data/original/**/*.csv
+data/preprocessed/**/*.csv
 
 # src
 src/Feature_Extraction/cicflowmeter
@@ -26,3 +26,5 @@ TrafficManipulator
 *.joblib
 *.npy
 *.pcap
+*.pcapng
+**/test.ipynb
