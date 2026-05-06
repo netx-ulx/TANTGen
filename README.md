@@ -53,7 +53,7 @@ TANTGen operates in three main stages:
 .
 ├── data/
 │   ├── adversarial/                   # Generated adversarial traffic
-│   ├── TANTGen vs TrafficManipulator/ # TANTGen vs TrafficManipulator data
+│   ├── TANTGen\ vs\ TrafficManipulator/ # TANTGen vs TrafficManipulator data
 │   ├── original/                    
 │   │   ├── CIC-IDS-2017/              # Original CIC dataset
 │   │   └── Kitsune/                   # Original Kitsune dataset
