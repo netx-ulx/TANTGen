@@ -44,7 +44,26 @@ def split_kitsune_datasets(attack_name, pcap_file, labels_file,
     print("Dataset splitting completed.")
     print()
 
-def split_kitsune_cicids_datasets(attack_name, pcap_file, labels_file, 
+def split_cicids_datasets(attack_name, pcap_file, labels_file,
+                        nids_ratio, surrogate_ratio, adversarial_ratio, test_ratio):
+
+    print("================================================")
+    print("Splitting dataset into training and test sets...")
+    print("================================================")
+    cmd = ["python", "src/Feature_Extraction/Split/CIC_IDS_split_4ML_models.py",
+            "-a", attack_name,
+            "-p", pcap_file,
+            "-c", labels_file,
+            "--nids_ratio", str(nids_ratio),
+            "--surrogate_ratio", str(surrogate_ratio),
+            "--adversarial_ratio", str(adversarial_ratio),
+            "--test_ratio", str(test_ratio)]
+    subprocess.run(cmd)
+    print()
+    print("Dataset splitting completed.")
+    print()
+
+def split_cicids_4kitsune_datasets(attack_name, pcap_file, labels_file, 
                    benign_file, malicious_file, output_labels_file,
                    train_nids_ratio, train_surrogate_b_ratio,
                    train_adversarial_ratio, train_surrogate_m_ratio):
@@ -322,12 +341,27 @@ def run_kitsune_on_kitsune_pipeline(attack_name, pcap_file, labels_file,
 
     # python src/Feature_Extraction/Split/Kitsune_divide_BM.py -i <original_pcap.pcap> -c <original_labels.csv> -m <output_malicious.pcap> -b <output_benign.pcap>
     # python src/Feature_Extraction/Split/Kitsune_split_dataset.py -a <attack_name> -b <previous_benign.pcap> -m <previous_malicious.pcap> -l <original_labels.csv> --train_nids_ratio <value> --train_surrogate_b_ratio <value> --train_adversarial_ratio <value> --train_surrogate_m_ratio <value>
-    # split_kitsune_datasets(attack_name, pcap_file, labels_file,
-    #             output_benign_file, output_malicious_file,
-    #             train_nids_ratio, train_surrogate_b_ratio,
-    #             train_adversarial_ratio, train_surrogate_m_ratio)
+    split_kitsune_datasets(attack_name, pcap_file, labels_file,
+                output_benign_file, output_malicious_file,
+                train_nids_ratio, train_surrogate_b_ratio,
+                train_adversarial_ratio, train_surrogate_m_ratio)
 
     run_kitsune_pipeline(attack_name)
+    
+
+# ===============================================
+# Run ML-NIDS on CICIDS dataset Pipeline
+# ===============================================
+
+def run_ml_nids_on_cicids_pipeline(attack_name, pcap_file, labels_file,
+                                    nids_ratio, surrogate_ratio,
+                                    adversarial_ratio, test_ratio):
+    
+    # python src/Feature_Extraction/Split/CIC_IDS_split_4ML_models.py -a <attack_name> -p <pcap_file> -c <labels_file> --nids_ratio <nids_ratio> --surrogate_ratio <surrogate_ratio> --adversarial_ratio <adversarial_ratio> --test_ratio <test_ratio>
+    split_cicids_datasets(attack_name, pcap_file, labels_file,
+                        nids_ratio, surrogate_ratio, adversarial_ratio, test_ratio)
+
+    run_ml_nids_pipeline(attack_name)
     
 
 # ===============================================
@@ -341,42 +375,14 @@ def run_kitsune_on_CICIDS_pipeline(attack_name, pcap_file, labels_file,
     output_benign_file = config["Original_Kitsune_Benign_Folder"] + attack_name + "_benign.pcap"
     output_labels_file = config["Original_Kitsune_Labels_Folder"] + attack_name + "_labels.csv"
 
-    # TODO uncomment
     # python src/Feature_Extraction/Split/CIC_IDS_divide_BM.py -i <pcap_file> -l <labels_file> -m <output_malicious_file> -b <output_benign_file> -ol <output_labels_file>
     # python src/Feature_Extraction/Split/CIC_IDS_split_4Kitsune.py -a <attack_name>_kitsune -b <output_benign_file> -m <output_malicious_file> -l <output_labels_file> --train_nids_b_ratio <train_nids_ratio> --train_surrogate_b_ratio <train_surrogate_b_ratio> --train_nids_m_ratio 0 --train_adversarial_ratio <train_adversarial_ratio> --train_surrogate_m_ratio <train_surrogate_m_ratio>
-    # split_kitsune_cicids_datasets(attack_name, pcap_file, labels_file,
-    #             output_benign_file, output_malicious_file, output_labels_file,
-    #             train_nids_ratio, train_surrogate_b_ratio,
-    #             train_adversarial_ratio, train_surrogate_m_ratio)
+    split_cicids_4kitsune_datasets(attack_name, pcap_file, labels_file,
+                output_benign_file, output_malicious_file, output_labels_file,
+                train_nids_ratio, train_surrogate_b_ratio,
+                train_adversarial_ratio, train_surrogate_m_ratio)
 
     run_kitsune_pipeline(attack_name + "_kitsune")
-
-# ===============================================
-# Run ML-NIDS on CICIDS dataset Pipeline
-# ===============================================
-
-def run_ml_nids_on_cicids_pipeline(attack_name, pcap_file, labels_file,
-                                    nids_ratio, surrogate_ratio,
-                                    adversarial_ratio, test_ratio):
-
-    # print("================================================")
-    # print("Splitting dataset into training and test sets...")
-    # print("================================================")
-    # # python src/Feature_Extraction/Split/CIC_IDS_split_4ML_models.py -a <attack_name> -p <pcap_file> -c <labels_file> --nids_ratio <nids_ratio> --surrogate_ratio <surrogate_ratio> --adversarial_ratio <adversarial_ratio> --test_ratio <test_ratio>
-    # cmd = ["python", "src/Feature_Extraction/Split/CIC_IDS_split_4ML_models.py",
-    #         "-a", attack_name,
-    #         "-p", pcap_file,
-    #         "-c", labels_file,
-    #         "--nids_ratio", str(nids_ratio),
-    #         "--surrogate_ratio", str(surrogate_ratio),
-    #         "--adversarial_ratio", str(adversarial_ratio),
-    #         "--test_ratio", str(test_ratio)]
-    # subprocess.run(cmd)
-    # print()
-    # print("Dataset splitting completed.")
-    # print()
-
-    run_ml_nids_pipeline(attack_name)
     
 
 # ===============================================
@@ -539,10 +545,9 @@ def run_ml_nids_pipeline(attack_name):
                                 adversarial_test_malicious_pcap, adversarial_test_malicious_features,
                                 adversarial_test_features, information="original")
 
-    # TODO dataset
     # python extract features TODO
     # python -m src.TANTGen.TANTGen_pretrain
-    # pretrain_tantgen()
+    pretrain_tantgen()
     
     surrogate_train_pcap = config["Surrogate_Train_Folder"] + attack_name + "_all.pcap"
     surrogate_train_features = config["Surrogate_Train_Folder"] + attack_name + "_all_features.csv"

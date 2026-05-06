@@ -23,18 +23,6 @@ def get_protocol_validity(pcap_path):
 
 # validity_score = 1 - (num_errors / total_packets)
 
-# Para verificar o impacto real nas features dos NIDS
-def adversarial_strength(original_features, modified_features):
-    return np.mean(np.abs(original_features - modified_features))
-
-# OU
-
-def adversarial_strength_norm(orig, mod):
-    return np.mean(np.abs(orig - mod) / (np.abs(orig) + 1e-6))
-
-# Ideal é alta adversarial strength e alta validade do protocolo (baixo número de erros)
-
-
 # orig=$(tshark -r original.pcap -T fields -e frame.time_epoch | awk 'NR==1{start=$1} {end=$1} END{print end-start}'); \
 # mut=$(tshark -r mutated.pcap -T fields -e frame.time_epoch | awk 'NR==1{start=$1} {end=$1} END{print end-start}'); \
 # echo "Original: $orig"; \
