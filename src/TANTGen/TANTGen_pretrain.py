@@ -434,28 +434,8 @@ class TANTGen_pretrain(pl.LightningModule):
 
         y_true_iat = y_true[:, :, -1].reshape(-1).cpu()
         y_pred_iat = y_pred[:, :, -1].reshape(-1).cpu()
-        
-        plt.figure(figsize=(14,6))
-        plt.plot(y_true_iat, label='Real IAT', color='black', linewidth=1.5)
-        plt.plot(y_pred_iat, label='MSE prediction', alpha=0.7)
-        plt.xlabel('Sample')
-        plt.ylabel('normalized IAT')
-        plt.title('Comparison of IAT predictions (MSE)')
-        plt.legend()
-        plt.savefig("src/TANTGen/plots/comparacao_prev_IAT_MSE_test.png")
-
-
         y_true_size = y_true[:, :, 0].reshape(-1).cpu()
         y_pred_size = y_pred[:, :, 0].reshape(-1).cpu()
-        
-        plt.figure(figsize=(14,6))
-        plt.plot(y_true_size, label='Real size', color='black', linewidth=1.5)
-        plt.plot(y_pred_size, label='MSE prediction', alpha=0.7)
-        plt.xlabel('Sample')
-        plt.ylabel('normalized Size')
-        plt.title('Comparison of Size predictions (MSE)')
-        plt.legend()
-        plt.savefig("src/TANTGen/plots/comparacao_prev_size_MSE_test.png")
 
         # Errors
         rmse_mse = torch.sqrt(torch.mean((y_pred - y_true)**2))
