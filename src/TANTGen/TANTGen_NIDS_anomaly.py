@@ -306,7 +306,7 @@ def main():
         df,
         sliding_window_size,
         window_stride,
-        "src/TANTGen/models/mean_std.json" # TODO
+        "src/TANTGen/mean_std.json" # TODO
     )
 
     full_train_vectors, test_vectors = train_test_split(

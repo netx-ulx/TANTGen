@@ -343,7 +343,7 @@ def main():
         df,
         sliding_window_size,
         window_stride,
-        "src/TANTGen/models/mean_std.json" # TODO
+        "src/TANTGen/mean_std.json" # TODO
     )
     target_arr = feature_arr.copy()
 

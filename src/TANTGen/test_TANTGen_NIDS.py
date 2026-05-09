@@ -31,7 +31,7 @@ feature_arr, target_arr = generate_sliding_windows_NIDS(
     window_stride,
     dataset_features_path,
     dataset_labels_path,
-    "src/TANTGen/models/mean_std.json" # TODO
+    "src/TANTGen/mean_std.json" # TODO
 )
 
 test_dataset = PacketDataset(feature_arr, target_arr)

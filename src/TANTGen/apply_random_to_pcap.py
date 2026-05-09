@@ -208,7 +208,7 @@ def process_pcap_with_TANTGen(
     # 2. Generate Sliding Windows exactly as in training
     # =====================================================
     feature_arr, _ = generate_sliding_windows(df,
-        window_size, window_size, "src/TANTGen/models/mean_std.json"
+        window_size, window_size, "src/TANTGen/mean_std.json"
     )
     print(f"[✓] Windows created: {len(feature_arr)}")
 

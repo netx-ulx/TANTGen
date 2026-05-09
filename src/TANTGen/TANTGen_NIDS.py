@@ -389,8 +389,8 @@ def main():
         )
 
     # delete mean_std.json if it exists (TODO: remove this after the file is created)
-    if os.path.isfile("src/TANTGen/models/mean_std.json") and not os.path.isfile(pretrained_ckpt_path):
-        os.remove("src/TANTGen/models/mean_std.json")
+    if os.path.isfile("src/TANTGen/mean_std.json") and not os.path.isfile(pretrained_ckpt_path):
+        os.remove("src/TANTGen/mean_std.json")
 
     ## Get the data
     feature_arr, target_arr = generate_sliding_windows_NIDS(
@@ -398,7 +398,7 @@ def main():
         window_stride,
         args.dataset_path,
         args.dataset_labels_path,
-        "src/TANTGen/models/mean_std.json" # TODO
+        "src/TANTGen/mean_std.json" # TODO
     )
 
     window_labels = [
@@ -527,65 +527,65 @@ def main():
             trainer.test(testmodel, dataloaders=test_loader)
 
     # --- EXPLAINABILITY WITH INTEGRATED GRADIENTS ---
-    from captum.attr import IntegratedGradients
+    # from captum.attr import IntegratedGradients
 
-    model.eval()
-    model.cuda()
+    # model.eval()
+    # model.cuda()
 
-    ig = IntegratedGradients(model.forward_for_explain)
+    # ig = IntegratedGradients(model.forward_for_explain)
 
-    # usa UM exemplo apenas
-    X, y = next(iter(test_loader))
-    X = X[:1].cuda()        # B = 1
-    X.requires_grad = True
+    # # usa UM exemplo apenas
+    # X, y = next(iter(test_loader))
+    # X = X[:1].cuda()        # B = 1
+    # X.requires_grad = True
 
-    baseline = torch.zeros_like(X)
+    # baseline = torch.zeros_like(X)
 
-    attr = ig.attribute(
-        inputs=X,
-        baselines=baseline,
-        n_steps=8,
-        internal_batch_size=1
-    )
+    # attr = ig.attribute(
+    #     inputs=X,
+    #     baselines=baseline,
+    #     n_steps=8,
+    #     internal_batch_size=1
+    # )
 
-    importance_time = attr.abs().mean(dim=2)  # (B, seq_len)
+    # importance_time = attr.abs().mean(dim=2)  # (B, seq_len)
 
-    plt.figure(figsize=(8, 4))
-    plt.plot(importance_time[0].detach().cpu().numpy())
-    plt.xlabel("Packet index (time)")
-    plt.ylabel("Attribution")
-    plt.title("Temporal importance")
-    plt.tight_layout()
-    plt.savefig(f"src/TANTGen/plots/a.png", dpi=300)
-    plt.show()
+    # plt.figure(figsize=(8, 4))
+    # plt.plot(importance_time[0].detach().cpu().numpy())
+    # plt.xlabel("Packet index (time)")
+    # plt.ylabel("Attribution")
+    # plt.title("Temporal importance")
+    # plt.tight_layout()
+    # plt.savefig(f"src/TANTGen/plots/a.png", dpi=300)
+    # plt.show()
 
-    importance_feat = attr.abs().mean(dim=1)  # (B, num_features)
+    # importance_feat = attr.abs().mean(dim=1)  # (B, num_features)
 
-    plt.figure(figsize=(8, 4))
-    plt.bar(
-        range(importance_feat.shape[1]),
-        importance_feat[0].detach().cpu().numpy()
-    )
-    plt.xlabel("Feature index")
-    plt.ylabel("Attribution")
-    plt.title("Feature importance")
-    plt.tight_layout()
-    plt.savefig(f"src/TANTGen/plots/b.png", dpi=300)
-    plt.show()
+    # plt.figure(figsize=(8, 4))
+    # plt.bar(
+    #     range(importance_feat.shape[1]),
+    #     importance_feat[0].detach().cpu().numpy()
+    # )
+    # plt.xlabel("Feature index")
+    # plt.ylabel("Attribution")
+    # plt.title("Feature importance")
+    # plt.tight_layout()
+    # plt.savefig(f"src/TANTGen/plots/b.png", dpi=300)
+    # plt.show()
 
-    plt.figure(figsize=(10, 5))
-    plt.imshow(
-        attr[0].abs().detach().cpu().numpy().T,
-        aspect="auto",
-        cmap="hot"
-    )
-    plt.xlabel("Packet index (time)")
-    plt.ylabel("Feature index")
-    plt.colorbar(label="Attribution")
-    plt.title("Attribution heatmap (time × feature)")
-    plt.tight_layout()
-    plt.savefig(f"src/TANTGen/plots/c.png", dpi=300)
-    plt.show()
+    # plt.figure(figsize=(10, 5))
+    # plt.imshow(
+    #     attr[0].abs().detach().cpu().numpy().T,
+    #     aspect="auto",
+    #     cmap="hot"
+    # )
+    # plt.xlabel("Packet index (time)")
+    # plt.ylabel("Feature index")
+    # plt.colorbar(label="Attribution")
+    # plt.title("Attribution heatmap (time × feature)")
+    # plt.tight_layout()
+    # plt.savefig(f"src/TANTGen/plots/c.png", dpi=300)
+    # plt.show()
 
 
 

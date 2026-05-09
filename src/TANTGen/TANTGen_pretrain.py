@@ -558,8 +558,8 @@ def main():
         NUM_GPUS = 0
 
     # delete mean_std.json if it exists (TODO: remove this after the file is created)
-    if os.path.isfile("src/TANTGen/models/mean_std.json"):
-        os.remove("src/TANTGen/models/mean_std.json")
+    if os.path.isfile("src/TANTGen/mean_std.json"):
+        os.remove("src/TANTGen/mean_std.json")
 
     ## Get the data
     df = pd.read_csv(args.dataset_path)
@@ -567,7 +567,7 @@ def main():
         df,
         sliding_window_size,
         window_stride,
-        "src/TANTGen/models/mean_std.json" # TODO
+        "src/TANTGen/mean_std.json" # TODO
     )
     target_arr = feature_arr.copy()
 

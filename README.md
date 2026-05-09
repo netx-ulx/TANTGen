@@ -100,7 +100,7 @@ cd Transformer-based_Adversarial_Network_Traffic_Generator
 ### 2. Create environment
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 ```
 
@@ -109,6 +109,16 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+
+### 4. Compiling cython file in AfterImage
+
+```bash
+cd src/Kitsune/Feature_Extraction
+python setup.py build_ext --inplace
+cd ../../..
+```
+
+#TODO tshark necessario
 
 ---
 
@@ -215,10 +225,10 @@ Download the following datasets and place them in `data/original/`:
 To reproduce the experimental results, run one of the following scripts:
 
 ```bash
-python -m scripts.<script_name>.py
+python -m scripts.<script_name>
 ```
 
-Where `<script_name>` is one of:
+Where `<script_name>` (without .py) is one of:
 
 ```bash
 .
