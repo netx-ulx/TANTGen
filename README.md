@@ -220,7 +220,11 @@ Download the following datasets and place them in `data/original/`:
 * **[CIC-IDS2017](https://www.unb.ca/cic/datasets/ids-2017.html)** → `data/original/CIC-IDS-2017/{PCAPs,CSVs/TrafficLabelling}/`
 * **[CIC-DDoS2019](https://www.unb.ca/cic/datasets/ddos-2019.html)** → `data/original/CIC-DDoS-2019/{PCAPs,CSVs}/`
 * **[Kitsune Dataset](https://archive.ics.uci.edu/dataset/516/kitsune+network+attack+dataset)** → `data/original/Kitsune/<Attack Name>/`
-* **[HyperVision Dataset](https://www.hypervision.fuchuanpu.xyz/hypervision-dataset.tar.gz)** → `data/original/HyperVision/{encrypted_flooding,encrypted_web,malware}/`
+
+> The HyperVision public archive ships preprocessed flow records, not raw pcaps,
+> so it is not currently usable with TANTGen. The `hypervision` pipeline wrapper
+> and adapter are kept in the codebase; if/when raw HyperVision pcaps become
+> available, repopulate the `hypervision` section of [scripts/attacks.yaml](scripts/attacks.yaml).
 
 ### Run attack scripts
 
@@ -252,9 +256,6 @@ add one block there — no Python changes required.
 | `Mirai`, `SSDP_Flood` | Kitsune | Kitsune | Original 2 Kitsune-native attacks |
 | `DDoS`, `PortScan`, `BruteForce` | CIC-IDS-2017 | ML (LR/SVM/RF/MLP/CNN/RNN) | Original 3 CIC-IDS attacks |
 | `NTP_DDoS`, `DNS_DDoS`, `SSDP_DDoS`, `SYN_DDoS`, `LDAP_DDoS` | CIC-DDoS-2019 | ML | DDoS variants: amplification, reflection, source-spoofing |
-| `Crossfire_M`, `LrDoS_05`, `SSH_Cracking_M`, `Telnet_Cracking_M` | HyperVision | Kitsune | Encrypted flooding family |
-| `XSS_Encrypted`, `Padding_Oracle`, `SSLScan`, `CSRF_Bolt`, `WebCVE_2013_2028` | HyperVision | Kitsune | Encrypted web attacks |
-| `Trickster`, `Mobidash`, `Koler`, `BitCoinMiner`, `Emotet`, `Sality_P2P_Botnet`, `SMTP_SSL_Spam_1bot` | HyperVision | Kitsune | Encrypted malware (spyware/adware/ransomware/miner/botware/spam) |
 
 > The legacy hardcoded scripts under [scripts/](scripts/) (`run_brute_force.py`,
 > `run_ddos.py`, `run_mirai.py`, `run_portscan.py`, `run_ssdp_flood.py` and their
