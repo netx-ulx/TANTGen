@@ -6,7 +6,7 @@
 import pandas as pd
 
 import argparse
-from scapy.utils import PcapReader, PcapWriter
+from scapy.utils import RawPcapReader, RawPcapWriter
 
 
 def _load_labels(labels_file):
@@ -51,27 +51,44 @@ def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
 
     labels = _load_labels(labels_file)
 
-    reader = PcapReader(pcap_file)
-    writer_mal = PcapWriter(malicious_pcap, append=False, sync=True)
-    malicious_count = 0
-    writer_ben = PcapWriter(benign_pcap, append=False, sync=True)
-    benign_count = 0
+    # Raw reader/writer: copy packets byte-for-byte, preserving the original
+    # link-layer type and per-packet timestamps. Avoids scapy trying to decode
+    # non-Ethernet captures (which would yield Raw objects and break the
+    # per-class linktype lookup in the writer).
+    reader = RawPcapReader(pcap_file)
+    linktype = reader.linktype
 
-    for i, pkt in enumerate(reader):
-        if labels[i] == 1:
-            writer_mal.write(pkt)
+    writer_mal = RawPcapWriter(malicious_pcap, linktype=linktype, sync=True)
+    writer_ben = RawPcapWriter(benign_pcap, linktype=linktype, sync=True)
+
+    malicious_count = 0
+    benign_count = 0
+    last_i = -1
+
+    for i, item in enumerate(reader):
+        last_i = i
+        if i >= len(labels):
+            raise ValueError(
+                f"Pcap has more packets than labels (saw packet #{i+1}, "
+                f"labels file has {len(labels)} rows)"
+            )
+        # item is (pkt_bytes, metadata) from RawPcapReader. RawPcapWriter.write
+        # accepts this tuple form and preserves the embedded timestamps.
+        if int(labels[i]) == 1:
+            writer_mal.write(item)
             malicious_count += 1
         else:
-            writer_ben.write(pkt)
+            writer_ben.write(item)
             benign_count += 1
-    
-    if i + 1 != len(labels):
-        raise ValueError("Number of packets in pcap does not match number of rows in csv")
-
 
     reader.close()
     writer_mal.close()
     writer_ben.close()
+
+    if last_i + 1 != len(labels):
+        raise ValueError(
+            f"Pcap has {last_i + 1} packets but labels file has {len(labels)} rows"
+        )
 
     print(f"File generated: {malicious_pcap} with {malicious_count} packets")
     print(f"File generated: {benign_pcap} with {benign_count} packets")
