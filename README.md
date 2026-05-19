@@ -217,28 +217,49 @@ cd ../../..
 
 Download the following datasets and place them in `data/original/`:
 
-* **[CIC-IDS2017](https://www.unb.ca/cic/datasets/ids-2017.html)**
-* **[Kitsune Dataset](https://archive.ics.uci.edu/dataset/516/kitsune+network+attack+dataset)**
+* **[CIC-IDS2017](https://www.unb.ca/cic/datasets/ids-2017.html)** → `data/original/CIC-IDS-2017/{PCAPs,CSVs/TrafficLabelling}/`
+* **[CIC-DDoS2019](https://www.unb.ca/cic/datasets/ddos-2019.html)** → `data/original/CIC-DDoS-2019/{PCAPs,CSVs}/`
+* **[Kitsune Dataset](https://archive.ics.uci.edu/dataset/516/kitsune+network+attack+dataset)** → `data/original/Kitsune/<Attack Name>/`
+* **[HyperVision Dataset](https://www.hypervision.fuchuanpu.xyz/hypervision-dataset.tar.gz)** → `data/original/HyperVision/{encrypted_flooding,encrypted_web,malware}/`
 
 ### Run attack scripts
 
-To reproduce the experimental results, run one of the following scripts:
+The recommended entry point is the **universal runner** backed by a YAML registry of attacks:
 
 ```bash
-python -m scripts.<script_name>
+# single attack
+python -m scripts.run_attack <attack_id>
+
+# every attack in a family (serial)
+python -m scripts.run_attack --all-kitsune
+python -m scripts.run_attack --all-cicids
+python -m scripts.run_attack --all-cicddos
+python -m scripts.run_attack --all-hypervision
+python -m scripts.run_attack --all
+
+# inspection
+python -m scripts.run_attack --list
+python -m scripts.run_attack <attack_id> --dry-run
 ```
 
-Where `<script_name>` (without .py) is one of:
+The registry lives in [scripts/attacks.yaml](scripts/attacks.yaml). To add a new attack,
+add one block there — no Python changes required.
 
-```bash
-.
-└── scripts/
-    ├── run_brute_force.py
-    ├── run_ddos.py
-    ├── run_mirai.py
-    ├── run_portscan.py
-    └── run_ssdp_flood.py
-```
+#### Supported attacks
+
+| Attack id | Dataset | Target NIDS | Notes |
+| --- | --- | --- | --- |
+| `Mirai`, `SSDP_Flood` | Kitsune | Kitsune | Original 2 Kitsune-native attacks |
+| `DDoS`, `PortScan`, `BruteForce` | CIC-IDS-2017 | ML (LR/SVM/RF/MLP/CNN/RNN) | Original 3 CIC-IDS attacks |
+| `NTP_DDoS`, `DNS_DDoS`, `SSDP_DDoS`, `SYN_DDoS`, `LDAP_DDoS` | CIC-DDoS-2019 | ML | DDoS variants: amplification, reflection, source-spoofing |
+| `Crossfire_M`, `LrDoS_05`, `SSH_Cracking_M`, `Telnet_Cracking_M` | HyperVision | Kitsune | Encrypted flooding family |
+| `XSS_Encrypted`, `Padding_Oracle`, `SSLScan`, `CSRF_Bolt`, `WebCVE_2013_2028` | HyperVision | Kitsune | Encrypted web attacks |
+| `Trickster`, `Mobidash`, `Koler`, `BitCoinMiner`, `Emotet`, `Sality_P2P_Botnet`, `SMTP_SSL_Spam_1bot` | HyperVision | Kitsune | Encrypted malware (spyware/adware/ransomware/miner/botware/spam) |
+
+> The legacy hardcoded scripts under [scripts/](scripts/) (`run_brute_force.py`,
+> `run_ddos.py`, `run_mirai.py`, `run_portscan.py`, `run_ssdp_flood.py` and their
+> `*_kitsune` variants) still work and produce identical results. New attacks
+> should go through `run_attack.py` instead.
 
 ---
 

@@ -1,0 +1,296 @@
+# =============================================================================
+# TANTGen attack registry
+# =============================================================================
+# One block per attack. Used by `scripts/run_attack.py`.
+#
+# Keys:
+#   pipeline        kitsune_native | cicids_ml | cicids_kitsune | hypervision
+#   pcap            absolute or repo-relative path to the source .pcap/.pcapng
+#   labels          path to the labels file (format depends on pipeline)
+#   ratios          per-pipeline split ratios (see below)
+#   margin          finetune evasion margin (-4 for CIC-IDS, 0 for Kitsune-style)
+#   pretrain        informational; the pipeline type already decides this
+#   family          used by batch flags (--all-kitsune / --all-cicids /
+#                   --all-cicddos / --all-hypervision)
+#
+# Ratios per pipeline:
+#   kitsune_native / cicids_kitsune / hypervision
+#       train_nids, train_surrogate_b, train_adversarial, train_surrogate_m
+#   cicids_ml
+#       nids, surrogate, adversarial, test
+# =============================================================================
+
+
+# =============================================================================
+# EXISTING ATTACKS (mirror of scripts/run_*.py — kept for batch coverage)
+# =============================================================================
+
+Mirai:
+  pipeline: kitsune_native
+  pcap: data/original/Kitsune/Mirai Botnet/Mirai.pcap
+  labels: data/original/Kitsune/Mirai Botnet/mirai_labels.csv
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: kitsune
+
+SSDP_Flood:
+  pipeline: kitsune_native
+  pcap: data/original/Kitsune/SSDP Flood/SSDP_Flood_pcap.pcapng
+  labels: data/original/Kitsune/SSDP Flood/SSDP_Flood_labels.csv
+  ratios: {train_nids: 0.8, train_surrogate_b: 0.1, train_adversarial: 0.6, train_surrogate_m: 0.2}
+  margin: 0.0
+  pretrain: false
+  family: kitsune
+
+DDoS:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours-Afternoon-DDoS.pcap
+  labels: data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Friday-WorkingHours-Afternoon-DDoS.pcap_ISCX.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicids
+
+PortScan:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-IDS-2017/PCAPs/Friday-WorkingHours-Afternoon-PortScan.pcap
+  labels: data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicids
+
+BruteForce:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-IDS-2017/PCAPs/Tuesday-WorkingHours.pcap
+  labels: data/original/CIC-IDS-2017/CSVs/TrafficLabelling/Tuesday-WorkingHours.pcap_ISCX.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicids
+
+
+# =============================================================================
+# CIC-DDoS-2019 (5 attacks, ML NIDS target)
+# =============================================================================
+# Download: https://www.unb.ca/cic/datasets/ddos-2019.html
+# Each pcap day contains one DDoS variant per file. Some attacks are split
+# across multiple PCAPs — concatenate with `mergecap` if needed (see the
+# command list at the end of the README).
+
+NTP_DDoS:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-DDoS-2019/PCAPs/NTP.pcap
+  labels: data/original/CIC-DDoS-2019/CSVs/NTP.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicddos
+
+DNS_DDoS:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-DDoS-2019/PCAPs/DNS.pcap
+  labels: data/original/CIC-DDoS-2019/CSVs/DNS.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicddos
+
+SSDP_DDoS:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-DDoS-2019/PCAPs/SSDP.pcap
+  labels: data/original/CIC-DDoS-2019/CSVs/SSDP.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicddos
+
+SYN_DDoS:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-DDoS-2019/PCAPs/Syn.pcap
+  labels: data/original/CIC-DDoS-2019/CSVs/Syn.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicddos
+
+LDAP_DDoS:
+  pipeline: cicids_ml
+  pcap: data/original/CIC-DDoS-2019/PCAPs/LDAP.pcap
+  labels: data/original/CIC-DDoS-2019/CSVs/LDAP.csv
+  ratios: {nids: 0.35, surrogate: 0.35, adversarial: 0.2, test: 0.1}
+  margin: -4.0
+  pretrain: true
+  family: cicddos
+
+
+# =============================================================================
+# HYPERVISION (16 attacks, Kitsune NIDS target)
+# =============================================================================
+# Download:
+#   wget https://www.hypervision.fuchuanpu.xyz/hypervision-dataset.tar.gz
+#   tar -xzf hypervision-dataset.tar.gz -C data/original/HyperVision/
+#
+# HyperVision distributes per-attack pcaps with per-packet labels in a custom
+# format. The `hypervision` pipeline first runs
+# `HyperVision_divide_BM.py` to convert those labels to the binary `x` CSV
+# expected by the Kitsune splitter, then proceeds through the Kitsune→Kitsune
+# pipeline.
+#
+# NOTE: After downloading, verify the actual filenames under
+#       data/original/HyperVision/ and adjust the `pcap`/`labels` paths below
+#       if upstream uses different naming. The keys here follow the labels
+#       documented in HyperVision Table VI of the NDSS'23 paper.
+
+# --- Encrypted Flooding (4) ---
+
+Crossfire_M:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_flooding/CrossfireM.pcap
+  labels: data/original/HyperVision/encrypted_flooding/CrossfireM.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+LrDoS_05:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_flooding/LrDoS_0.5.pcap
+  labels: data/original/HyperVision/encrypted_flooding/LrDoS_0.5.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+SSH_Cracking_M:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_flooding/SSH_M.pcap
+  labels: data/original/HyperVision/encrypted_flooding/SSH_M.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+Telnet_Cracking_M:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_flooding/Telnet_M.pcap
+  labels: data/original/HyperVision/encrypted_flooding/Telnet_M.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+# --- Encrypted Web Attacks (4) ---
+
+XSS_Encrypted:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_web/XSS.pcap
+  labels: data/original/HyperVision/encrypted_web/XSS.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+Padding_Oracle:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_web/Oracle.pcap
+  labels: data/original/HyperVision/encrypted_web/Oracle.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+SSLScan:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_web/SSLScan.pcap
+  labels: data/original/HyperVision/encrypted_web/SSLScan.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+CSRF_Bolt:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_web/CSRF.pcap
+  labels: data/original/HyperVision/encrypted_web/CSRF.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+# --- Encrypted Malware (7) ---
+
+Trickster:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/malware/Trickster.pcap
+  labels: data/original/HyperVision/malware/Trickster.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+Mobidash:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/malware/Mobidash.pcap
+  labels: data/original/HyperVision/malware/Mobidash.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+Koler:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/malware/Koler.pcap
+  labels: data/original/HyperVision/malware/Koler.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+BitCoinMiner:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/malware/BitCoinMiner.pcap
+  labels: data/original/HyperVision/malware/BitCoinMiner.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+Emotet:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/malware/Emotet.pcap
+  labels: data/original/HyperVision/malware/Emotet.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+Sality_P2P_Botnet:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/malware/Sality.pcap
+  labels: data/original/HyperVision/malware/Sality.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+SMTP_SSL_Spam_1bot:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/malware/Spam1.pcap
+  labels: data/original/HyperVision/malware/Spam1.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision
+
+# --- WebCVE (1) ---
+
+WebCVE_2013_2028:
+  pipeline: hypervision
+  pcap: data/original/HyperVision/encrypted_web/WebCVE_2013_2028.pcap
+  labels: data/original/HyperVision/encrypted_web/WebCVE_2013_2028.label
+  ratios: {train_nids: 0.6, train_surrogate_b: 0.2, train_adversarial: 0.6, train_surrogate_m: 0.1}
+  margin: 0.0
+  pretrain: false
+  family: hypervision

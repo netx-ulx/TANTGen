@@ -329,6 +329,33 @@ def evaluate_examples_on_ml_nids(attack_name,
     print()
 
 # ===============================================
+# Run HyperVision-format dataset through Kitsune NIDS
+# ===============================================
+
+def run_hypervision_pipeline(attack_name, pcap_file, hv_labels_file,
+                             train_nids_ratio, train_surrogate_b_ratio,
+                             train_adversarial_ratio, train_surrogate_m_ratio):
+
+    converted_labels = config["Original_Kitsune_Labels_Folder"] + attack_name + "_labels.csv"
+
+    print("===============================================")
+    print("Converting HyperVision labels to Kitsune format...")
+    print("===============================================")
+    cmd = ["python", "src/Feature_Extraction/Split/HyperVision_divide_BM.py",
+           "-i", pcap_file,
+           "-l", hv_labels_file,
+           "-o", converted_labels]
+    subprocess.run(cmd)
+    print()
+    print("Label conversion completed.")
+    print()
+
+    run_kitsune_on_kitsune_pipeline(attack_name, pcap_file, converted_labels,
+                                     train_nids_ratio, train_surrogate_b_ratio,
+                                     train_adversarial_ratio, train_surrogate_m_ratio)
+
+
+# ===============================================
 # Run Kitsune on Kitsune dataset
 # ===============================================
 
