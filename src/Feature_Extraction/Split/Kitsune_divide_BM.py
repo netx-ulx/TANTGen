@@ -111,6 +111,12 @@ def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
 
     writer_mal = RawPcapWriter(malicious_pcap, linktype=linktype, sync=True)
     writer_ben = RawPcapWriter(benign_pcap, linktype=linktype, sync=True)
+    # scapy 2.7's public write_packet() does not auto-write the pcap global
+    # header; only the internal _write_packet / public write() do. Call the
+    # header writer explicitly so the resulting file starts with a valid
+    # libpcap magic + linktype, otherwise tshark/capinfos misdetect it.
+    writer_mal._write_header(None)
+    writer_ben._write_header(None)
 
     malicious_count = 0
     benign_count = 0
