@@ -47,6 +47,25 @@ def _load_labels(labels_file):
     )
 
 
+def _get_linktype(reader):
+    """Resolve the link-layer type for either pcap or pcapng input.
+
+    - Standard pcap (`RawPcapReader`) exposes a top-level `linktype`.
+    - pcapng (`RawPcapNgReader`) stores linktype per-interface in
+      `interfaces`, which scapy populates from the IDBs at construction.
+    """
+    linktype = getattr(reader, "linktype", None)
+    if linktype is not None:
+        return linktype
+    interfaces = getattr(reader, "interfaces", None)
+    if interfaces:
+        first = interfaces[0]
+        if isinstance(first, (tuple, list)):
+            return first[0]
+        return getattr(first, "linktype", 1)
+    return 1  # DLT_EN10MB (Ethernet) as last resort
+
+
 def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
 
     labels = _load_labels(labels_file)
@@ -55,8 +74,8 @@ def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
     # link-layer type and per-packet timestamps. Avoids scapy trying to decode
     # non-Ethernet captures (which would yield Raw objects and break the
     # per-class linktype lookup in the writer).
-    reader = RawPcapReader(pcap_file)
-    linktype = reader.linktype
+    reader = RawPcapReader(pcap_file)  # factory: RawPcapReader or RawPcapNgReader
+    linktype = _get_linktype(reader)
 
     writer_mal = RawPcapWriter(malicious_pcap, linktype=linktype, sync=True)
     writer_ben = RawPcapWriter(benign_pcap, linktype=linktype, sync=True)
