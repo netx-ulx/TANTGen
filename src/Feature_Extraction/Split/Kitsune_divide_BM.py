@@ -66,6 +66,38 @@ def _get_linktype(reader):
     return 1  # DLT_EN10MB (Ethernet) as last resort
 
 
+def _extract_timing(meta, pkt_len):
+    """Normalize timestamp + wirelen across pcap and pcapng PacketMetadata.
+
+    - RawPcapReader.PacketMetadata: (sec, usec, wirelen)
+    - RawPcapNgReader.PacketMetadata: (linktype, tsresol, tshigh, tslow,
+      wirelen, ...) where ts = (tshigh<<32)|tslow in `tsresol` ticks/sec.
+    Returns (sec, usec, wirelen) in pcap-friendly units.
+    """
+    wirelen = getattr(meta, "wirelen", None) or pkt_len
+    sec = getattr(meta, "sec", None)
+    usec = getattr(meta, "usec", None)
+    if sec is not None and usec is not None:
+        return sec, usec, wirelen
+    tshigh = getattr(meta, "tshigh", None)
+    tslow = getattr(meta, "tslow", None)
+    if tshigh is not None and tslow is not None:
+        ts = (tshigh << 32) | tslow
+        tsresol = getattr(meta, "tsresol", 1_000_000) or 1_000_000
+        sec = ts // tsresol
+        rem = ts % tsresol
+        if tsresol == 1_000_000:
+            usec = rem
+        elif tsresol > 1_000_000 and tsresol % 1_000_000 == 0:
+            usec = rem // (tsresol // 1_000_000)
+        elif tsresol < 1_000_000 and 1_000_000 % tsresol == 0:
+            usec = rem * (1_000_000 // tsresol)
+        else:
+            usec = int(rem * 1_000_000 / tsresol)
+        return sec, usec, wirelen
+    return 0, 0, wirelen
+
+
 def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
 
     labels = _load_labels(labels_file)
@@ -91,13 +123,21 @@ def separate(pcap_file, labels_file, malicious_pcap, benign_pcap):
                 f"Pcap has more packets than labels (saw packet #{i+1}, "
                 f"labels file has {len(labels)} rows)"
             )
-        # item is (pkt_bytes, metadata) from RawPcapReader. RawPcapWriter.write
-        # accepts this tuple form and preserves the embedded timestamps.
+        # item is (pkt_bytes, metadata) from RawPcapReader / RawPcapNgReader.
+        # Older/newer scapy versions disagree on whether RawPcapWriter.write
+        # accepts that tuple directly, so call the lower-level write_packet
+        # with explicit timing extracted from the metadata.
+        pkt_bytes, meta = item
+        sec, usec, wirelen = _extract_timing(meta, len(pkt_bytes))
+        writer = writer_mal if int(labels[i]) == 1 else writer_ben
+        writer.write_packet(
+            pkt_bytes,
+            sec=sec, usec=usec,
+            caplen=len(pkt_bytes), wirelen=wirelen,
+        )
         if int(labels[i]) == 1:
-            writer_mal.write(item)
             malicious_count += 1
         else:
-            writer_ben.write(item)
             benign_count += 1
 
     reader.close()
