@@ -18,6 +18,45 @@ OUTPUT_FOLDER_ADVERSARIAL = config["Adversarial_Train_Folder"]
 OUTPUT_FOLDER_SURROGATE = config["Surrogate_Train_Folder"]
 OUTPUT_FOLDER_TEST = config["Adversarial_Test_Folder"]
 
+
+def _load_labels_df(labels_file):
+    """Load a Kitsune labels CSV and return a DataFrame with a normalized
+    `x` column (0=benign, 1=malicious).
+
+    Handles three layouts seen across Kitsune mirrors:
+      - CSV with header `x` (the dissertation's working layout)
+      - CSV with a single label column under a different name (Class, label, ...)
+      - Headerless CSV — one integer per line
+
+    Downstream consumers (TANTGen generate_sequences, KitNET model) read the
+    labels expecting a column literally named `x`, so the column is renamed if
+    necessary before returning.
+    """
+    with open(labels_file, "r") as f:
+        first_line = f.readline().strip()
+    has_header = not first_line.replace(",", "").replace("-", "").isdigit()
+
+    if not has_header:
+        df = pd.read_csv(labels_file, header=None, names=["x"])
+        return df
+
+    df = pd.read_csv(labels_file)
+    for candidate in ("x", "Class", "label", "Label", "y", "malicious", "is_malicious"):
+        if candidate in df.columns:
+            return df if candidate == "x" else df.rename(columns={candidate: "x"})
+    stripped = {c.strip(): c for c in df.columns}
+    for candidate in ("x", "Class", "label", "Label", "y", "malicious", "is_malicious"):
+        if candidate in stripped:
+            actual = stripped[candidate]
+            return df.rename(columns={actual: "x"}) if actual != "x" else df
+    if df.shape[1] == 1:
+        return df.rename(columns={df.columns[0]: "x"})
+    raise KeyError(
+        f"Could not find a label column in {labels_file}. "
+        f"Saw columns: {list(df.columns)}. "
+        "Expected one of: x, Class, label, Label, y, malicious, is_malicious."
+    )
+
 def split_dataset(attack_name,
                   benign_pcap, malicious_pcap,
                   labels_file,
@@ -89,7 +128,7 @@ def split_dataset(attack_name,
     # create splitted labels file
     # ======================================================
 
-    labels = pd.read_csv(labels_file)
+    labels = _load_labels_df(labels_file)
 
     labels_train_sur_benign = labels[labels.x == 0].iloc[b_i1:b_i2]
     labels_test_final_benign = labels[labels.x == 0].iloc[b_i2:]
