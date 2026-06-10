@@ -1,0 +1,19 @@
+{
+    "attack_name": "Mirai_adversarial_size",
+    "model": "Kitsune",
+    "threshold": 0.5120435379739683,
+    "num_packets": 192755,
+    "confusion_matrix": {
+        "TP": 170419,
+        "FP": 0,
+        "FN": 22336,
+        "TN": 0
+    },
+    "metrics": {
+        "accuracy": 0.8841223314570309,
+        "precision": 1.0,
+        "recall": 0.8841223314570309,
+        "f1_score": 0.9384977999526398,
+        "attack_success_rate": 0.11587766854296304
+    }
+}

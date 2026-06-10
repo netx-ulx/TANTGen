@@ -1,0 +1,19 @@
+{
+    "attack_name": "DDoS_original",
+    "model": "LR",
+    "num_flows": 7533,
+    "confusion_matrix": {
+        "TP": 1093,
+        "FP": 24,
+        "FN": 0,
+        "TN": 6416
+    },
+    "metrics": {
+        "accuracy": 0.9968140183193946,
+        "precision": 0.9785138764547896,
+        "recall": 1.0,
+        "f1_score": 0.9891402714932127,
+        "auc": 0.9992501690600263,
+        "attack_success_rate": 0.0
+    }
+}

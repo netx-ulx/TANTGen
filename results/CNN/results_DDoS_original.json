@@ -1,0 +1,19 @@
+{
+    "attack_name": "DDoS_original",
+    "model": "CNN",
+    "num_flows": 7533,
+    "confusion_matrix": {
+        "TP": 1061,
+        "FP": 4,
+        "FN": 32,
+        "TN": 6436
+    },
+    "metrics": {
+        "accuracy": 0.995221027479092,
+        "precision": 0.996244131455399,
+        "recall": 0.970722781335773,
+        "f1_score": 0.9833178869323448,
+        "auc": 0.9957528995925511,
+        "attack_success_rate": 0.02927721866395904
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "attack_name": "SSDP_DDoS_original",
+    "model": "MLP",
+    "num_flows": 256299,
+    "confusion_matrix": {
+        "TP": 255348,
+        "FP": 0,
+        "FN": 917,
+        "TN": 34
+    },
+    "metrics": {
+        "accuracy": 0.9964221475698305,
+        "precision": 1.0,
+        "recall": 0.9964216728776852,
+        "f1_score": 0.998207629595026,
+        "auc": 0.9996395046028869,
+        "attack_success_rate": 0.0035783271223146515
+    }
+}

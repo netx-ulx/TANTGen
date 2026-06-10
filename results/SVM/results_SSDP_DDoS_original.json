@@ -1,0 +1,19 @@
+{
+    "attack_name": "SSDP_DDoS_original",
+    "model": "SVM",
+    "num_flows": 256299,
+    "confusion_matrix": {
+        "TP": 256249,
+        "FP": 0,
+        "FN": 16,
+        "TN": 34
+    },
+    "metrics": {
+        "accuracy": 0.9999375729128869,
+        "precision": 1.0,
+        "recall": 0.9999375646303631,
+        "f1_score": 0.9999687813406073,
+        "auc": 0.9999889819935935,
+        "attack_success_rate": 6.243536963689686e-05
+    }
+}

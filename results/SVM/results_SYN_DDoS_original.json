@@ -1,0 +1,19 @@
+{
+    "attack_name": "SYN_DDoS_original",
+    "model": "SVM",
+    "num_flows": 136267,
+    "confusion_matrix": {
+        "TP": 136199,
+        "FP": 1,
+        "FN": 46,
+        "TN": 21
+    },
+    "metrics": {
+        "accuracy": 0.9996550889063383,
+        "precision": 0.9999926578560939,
+        "recall": 0.9996623729311167,
+        "f1_score": 0.9998274881168676,
+        "auc": 0.9545941635889891,
+        "attack_success_rate": 0.00033762706888323696
+    }
+}

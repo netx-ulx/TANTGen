@@ -1,0 +1,19 @@
+{
+    "attack_name": "DDoS_adversarial_size",
+    "model": "LR",
+    "num_flows": 7517,
+    "confusion_matrix": {
+        "TP": 0,
+        "FP": 24,
+        "FN": 1077,
+        "TN": 6416
+    },
+    "metrics": {
+        "accuracy": 0.8535319941466011,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "auc": 0.18822744914848583,
+        "attack_success_rate": 0.9999999999907151
+    }
+}

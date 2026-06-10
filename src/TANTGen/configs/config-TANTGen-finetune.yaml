@@ -6,7 +6,7 @@ lambda_perturbation: 1.0
 
 time_rate_limit: -1 # <0 to not consider
 size_rate_limit: 1
-margin: -4 # cic ids com -4, kitsune com -0.0
+margin: -4.0
 
 epochs: 200
 batch_size: 64

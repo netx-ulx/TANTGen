@@ -1,0 +1,19 @@
+{
+    "attack_name": "DNS_DDoS_original",
+    "model": "MLP",
+    "num_flows": 1289,
+    "confusion_matrix": {
+        "TP": 1179,
+        "FP": 0,
+        "FN": 18,
+        "TN": 92
+    },
+    "metrics": {
+        "accuracy": 0.9860356865787432,
+        "precision": 1.0,
+        "recall": 0.9849624060150376,
+        "f1_score": 0.9924242424242424,
+        "auc": 0.9983291562238931,
+        "attack_success_rate": 0.01503759398483678
+    }
+}

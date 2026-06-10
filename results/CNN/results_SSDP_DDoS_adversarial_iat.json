@@ -1,0 +1,19 @@
+{
+    "attack_name": "SSDP_DDoS_adversarial_iat",
+    "model": "CNN",
+    "num_flows": 255107,
+    "confusion_matrix": {
+        "TP": 253970,
+        "FP": 0,
+        "FN": 1103,
+        "TN": 34
+    },
+    "metrics": {
+        "accuracy": 0.9956763240522605,
+        "precision": 1.0,
+        "recall": 0.9956757477271213,
+        "f1_score": 0.9978331889447454,
+        "auc": 0.9968679093251506,
+        "attack_success_rate": 0.0043242522728785746
+    }
+}

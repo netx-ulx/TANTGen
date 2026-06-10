@@ -1,0 +1,19 @@
+{
+    "attack_name": "NTP_DDoS_original",
+    "model": "CNN",
+    "num_flows": 98470,
+    "confusion_matrix": {
+        "TP": 97752,
+        "FP": 0,
+        "FN": 680,
+        "TN": 38
+    },
+    "metrics": {
+        "accuracy": 0.9930943434548594,
+        "precision": 1.0,
+        "recall": 0.993091677503251,
+        "f1_score": 0.996533866166456,
+        "auc": 0.9998604433303676,
+        "attack_success_rate": 0.006908322496748323
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "attack_name": "SYN_DDoS_original",
+    "model": "LR",
+    "num_flows": 136267,
+    "confusion_matrix": {
+        "TP": 136200,
+        "FP": 1,
+        "FN": 45,
+        "TN": 21
+    },
+    "metrics": {
+        "accuracy": 0.999662427440246,
+        "precision": 0.9999926579100007,
+        "recall": 0.9996697126500055,
+        "f1_score": 0.9998311592021906,
+        "auc": 0.9625110512812813,
+        "attack_success_rate": 0.0003302873499944709
+    }
+}

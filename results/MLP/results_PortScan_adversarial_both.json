@@ -1,0 +1,19 @@
+{
+    "attack_name": "PortScan_adversarial_both",
+    "model": "MLP",
+    "num_flows": 22784,
+    "confusion_matrix": {
+        "TP": 215,
+        "FP": 0,
+        "FN": 15625,
+        "TN": 6944
+    },
+    "metrics": {
+        "accuracy": 0.3142117275280899,
+        "precision": 1.0,
+        "recall": 0.013573232323232324,
+        "f1_score": 0.02678293366552476,
+        "auc": 0.03174696816959919,
+        "attack_success_rate": 0.9864267676761449
+    }
+}

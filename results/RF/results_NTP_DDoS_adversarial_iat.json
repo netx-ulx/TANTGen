@@ -1,0 +1,19 @@
+{
+    "attack_name": "NTP_DDoS_adversarial_iat",
+    "model": "RF",
+    "num_flows": 98476,
+    "confusion_matrix": {
+        "TP": 98232,
+        "FP": 0,
+        "FN": 206,
+        "TN": 38
+    },
+    "metrics": {
+        "accuracy": 0.9979081197449124,
+        "precision": 1.0,
+        "recall": 0.9979073122168268,
+        "f1_score": 0.9989525601260996,
+        "auc": 0.9999866333176854,
+        "attack_success_rate": 0.0020926877831729525
+    }
+}

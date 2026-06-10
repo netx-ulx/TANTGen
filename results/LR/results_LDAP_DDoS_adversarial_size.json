@@ -1,0 +1,19 @@
+{
+    "attack_name": "LDAP_DDoS_adversarial_size",
+    "model": "LR",
+    "num_flows": 169264,
+    "confusion_matrix": {
+        "TP": 169078,
+        "FP": 0,
+        "FN": 134,
+        "TN": 52
+    },
+    "metrics": {
+        "accuracy": 0.9992083372719539,
+        "precision": 1.0,
+        "recall": 0.999208093988606,
+        "f1_score": 0.9996038901534187,
+        "auc": 0.9997118998652578,
+        "attack_success_rate": 0.0007919060113939442
+    }
+}

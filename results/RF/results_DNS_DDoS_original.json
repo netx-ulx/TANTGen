@@ -1,0 +1,19 @@
+{
+    "attack_name": "DNS_DDoS_original",
+    "model": "RF",
+    "num_flows": 1289,
+    "confusion_matrix": {
+        "TP": 1182,
+        "FP": 0,
+        "FN": 15,
+        "TN": 92
+    },
+    "metrics": {
+        "accuracy": 0.9883630721489527,
+        "precision": 1.0,
+        "recall": 0.9874686716791979,
+        "f1_score": 0.9936948297604036,
+        "auc": 0.9997911445279867,
+        "attack_success_rate": 0.012531328320697317
+    }
+}

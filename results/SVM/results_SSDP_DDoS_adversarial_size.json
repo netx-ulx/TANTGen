@@ -1,0 +1,19 @@
+{
+    "attack_name": "SSDP_DDoS_adversarial_size",
+    "model": "SVM",
+    "num_flows": 257911,
+    "confusion_matrix": {
+        "TP": 257858,
+        "FP": 0,
+        "FN": 19,
+        "TN": 34
+    },
+    "metrics": {
+        "accuracy": 0.9999263311762585,
+        "precision": 1.0,
+        "recall": 0.9999263214633333,
+        "f1_score": 0.999963159374485,
+        "auc": 0.9999919022041743,
+        "attack_success_rate": 7.367853666670258e-05
+    }
+}

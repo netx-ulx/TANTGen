@@ -1,0 +1,19 @@
+{
+    "attack_name": "BruteForce_original",
+    "model": "RF",
+    "num_flows": 24638,
+    "confusion_matrix": {
+        "TP": 80,
+        "FP": 1,
+        "FN": 0,
+        "TN": 24557
+    },
+    "metrics": {
+        "accuracy": 0.9999594122899585,
+        "precision": 0.9876543209876543,
+        "recall": 1.0,
+        "f1_score": 0.9937888198757764,
+        "auc": 0.9999994910008957,
+        "attack_success_rate": 0.0
+    }
+}

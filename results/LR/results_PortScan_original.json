@@ -1,0 +1,19 @@
+{
+    "attack_name": "PortScan_original",
+    "model": "LR",
+    "num_flows": 22783,
+    "confusion_matrix": {
+        "TP": 15813,
+        "FP": 28,
+        "FN": 26,
+        "TN": 6916
+    },
+    "metrics": {
+        "accuracy": 0.9976298117017074,
+        "precision": 0.9982324348210341,
+        "recall": 0.9983584822274133,
+        "f1_score": 0.9982954545454545,
+        "auc": 0.9985637083172464,
+        "attack_success_rate": 0.0016415177725856167
+    }
+}

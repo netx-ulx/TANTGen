@@ -1,0 +1,19 @@
+{
+    "attack_name": "DNS_DDoS_original",
+    "model": "SVM",
+    "num_flows": 1289,
+    "confusion_matrix": {
+        "TP": 1174,
+        "FP": 0,
+        "FN": 23,
+        "TN": 92
+    },
+    "metrics": {
+        "accuracy": 0.9821567106283942,
+        "precision": 1.0,
+        "recall": 0.9807852965747702,
+        "f1_score": 0.99029945170814,
+        "auc": 0.9951055174167303,
+        "attack_success_rate": 0.01921470342506922
+    }
+}

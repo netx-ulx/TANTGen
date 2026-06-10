@@ -1,0 +1,19 @@
+{
+    "attack_name": "SSDP_DDoS_adversarial_both",
+    "model": "CNN",
+    "num_flows": 255422,
+    "confusion_matrix": {
+        "TP": 254289,
+        "FP": 0,
+        "FN": 1099,
+        "TN": 34
+    },
+    "metrics": {
+        "accuracy": 0.9956973165976306,
+        "precision": 1.0,
+        "recall": 0.9956967437780945,
+        "f1_score": 0.997843732403071,
+        "auc": 0.9968779914114533,
+        "attack_success_rate": 0.004303256221905324
+    }
+}

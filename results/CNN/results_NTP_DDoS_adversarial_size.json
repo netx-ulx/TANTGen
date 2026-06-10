@@ -1,0 +1,19 @@
+{
+    "attack_name": "NTP_DDoS_adversarial_size",
+    "model": "CNN",
+    "num_flows": 98465,
+    "confusion_matrix": {
+        "TP": 97747,
+        "FP": 0,
+        "FN": 680,
+        "TN": 38
+    },
+    "metrics": {
+        "accuracy": 0.993093992789316,
+        "precision": 1.0,
+        "recall": 0.9930913265668972,
+        "f1_score": 0.9965336894797475,
+        "auc": 0.9998556236976054,
+        "attack_success_rate": 0.006908673433102004
+    }
+}

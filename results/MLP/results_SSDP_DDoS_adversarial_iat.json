@@ -1,0 +1,19 @@
+{
+    "attack_name": "SSDP_DDoS_adversarial_iat",
+    "model": "MLP",
+    "num_flows": 255107,
+    "confusion_matrix": {
+        "TP": 254155,
+        "FP": 0,
+        "FN": 918,
+        "TN": 34
+    },
+    "metrics": {
+        "accuracy": 0.9964015099546465,
+        "precision": 1.0,
+        "recall": 0.9964010302932886,
+        "f1_score": 0.9981972711634082,
+        "auc": 0.9996378199458932,
+        "attack_success_rate": 0.0035989697067112707
+    }
+}

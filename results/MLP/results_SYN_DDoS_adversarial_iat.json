@@ -1,0 +1,19 @@
+{
+    "attack_name": "SYN_DDoS_adversarial_iat",
+    "model": "MLP",
+    "num_flows": 136586,
+    "confusion_matrix": {
+        "TP": 136056,
+        "FP": 1,
+        "FN": 508,
+        "TN": 21
+    },
+    "metrics": {
+        "accuracy": 0.9962734101591671,
+        "precision": 0.9999926501392798,
+        "recall": 0.9962801323921385,
+        "f1_score": 0.998132939135283,
+        "auc": 0.999402877372181,
+        "attack_success_rate": 0.0037198676078612426
+    }
+}

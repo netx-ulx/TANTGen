@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 import yaml
@@ -192,13 +193,40 @@ def extract_TANTGen_features(train_pcap, train_features):
     print("TANTGen training feature extraction completed.")
     print()
     
-def pretrain_tantgen():
-    # Pretrain TANTGen
+def pretrain_tantgen(benign_pcap):
+    # Pretrain TANTGen (one-time, shared across attacks).
     print("===============================================")
     print("Pretraining TANTGen model...")
     print("===============================================")
-    cmd = ["python", "-m", "src.TANTGen.TANTGen_pretrain"]
-    subprocess.run(cmd)
+
+    # Resolve the pretrain checkpoint the finetuner/surrogate look for
+    # (src/TANTGen/{TANTGen,TANTGen_NIDS}.py load it only if os.path.isfile()).
+    with open("src/TANTGen/configs/config-TANTGen-general.yaml") as f:
+        cfg_general = yaml.load(f, Loader=yaml.FullLoader)
+    ckpt = "{}/{}{}.ckpt".format(
+        cfg_general["save_path_pretrain"],
+        cfg_general["model_name_pretrain"],
+        cfg_general["sliding_window_size"],
+    )
+    if os.path.exists(ckpt):
+        print("Pretrain checkpoint already present ({}); skipping.".format(ckpt))
+        print()
+        return
+
+    # The pretrain corpus (per-packet size/IAT features of benign traffic) is
+    # NOT produced anywhere else in this pipeline, so build it here from the
+    # target-train benign split when missing. Without this, TANTGen_pretrain
+    # crashes on a missing benign.csv and the finetuner silently trains from
+    # random init (see the project README's manual pretrain step).
+    pretrain_csv = config["Adversarial_Train_Folder"] + "pretrain/benign.csv"
+    if not os.path.exists(pretrain_csv):
+        os.makedirs(os.path.dirname(pretrain_csv), exist_ok=True)
+        print("Building pretrain benign corpus from {} ...".format(benign_pcap))
+        subprocess.run(["python", "src/Feature_Extraction/dataloader.py",
+                        "-i", benign_pcap, "-o", pretrain_csv], check=True)
+
+    cmd = ["python", "-m", "src.TANTGen.TANTGen_pretrain", "--dataset_path", pretrain_csv]
+    subprocess.run(cmd, check=True)
     print()
     print("TANTGen pretraining completed.")
     print()
@@ -574,7 +602,7 @@ def run_ml_nids_pipeline(attack_name):
 
     # python extract features TODO
     # python -m src.TANTGen.TANTGen_pretrain
-    pretrain_tantgen()
+    pretrain_tantgen(target_train_benign_pcap)
     
     surrogate_train_pcap = config["Surrogate_Train_Folder"] + attack_name + "_all.pcap"
     surrogate_train_features = config["Surrogate_Train_Folder"] + attack_name + "_all_features.csv"

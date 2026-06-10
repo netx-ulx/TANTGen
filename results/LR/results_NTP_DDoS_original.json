@@ -1,0 +1,19 @@
+{
+    "attack_name": "NTP_DDoS_original",
+    "model": "LR",
+    "num_flows": 98470,
+    "confusion_matrix": {
+        "TP": 98047,
+        "FP": 0,
+        "FN": 385,
+        "TN": 38
+    },
+    "metrics": {
+        "accuracy": 0.9960901797501778,
+        "precision": 1.0,
+        "recall": 0.9960886703511054,
+        "f1_score": 0.9980405030563063,
+        "auc": 0.9998786231264116,
+        "attack_success_rate": 0.0039113296488942715
+    }
+}

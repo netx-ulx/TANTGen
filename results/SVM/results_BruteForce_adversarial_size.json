@@ -1,0 +1,19 @@
+{
+    "attack_name": "BruteForce_adversarial_size",
+    "model": "SVM",
+    "num_flows": 24638,
+    "confusion_matrix": {
+        "TP": 34,
+        "FP": 260,
+        "FN": 46,
+        "TN": 24298
+    },
+    "metrics": {
+        "accuracy": 0.9875801607273318,
+        "precision": 0.11564625850340136,
+        "recall": 0.425,
+        "f1_score": 0.18181818181818182,
+        "auc": 0.6127254866031435,
+        "attack_success_rate": 0.574999999928125
+    }
+}
